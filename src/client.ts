@@ -1,258 +1,247 @@
-import { FcHttp, encodePath } from "./http.js";
+// FcClient: the entry point. Owns transport configuration, catalog and
+// identity calls, the sandbox factory, and the templates / networks APIs.
+
+import { resolveConfig } from "./config.js";
+import { encodePath, FcHttp } from "./http.js";
+import { Sandbox } from "./sandbox.js";
 import type {
-  BandwidthView,
+  CreateSandboxOptions,
   CreateSandboxRequest,
   CreateSandboxResponse,
-  DestroyedResponse,
-  EgressView,
-  ExecRequest,
-  ExecResponse,
-  ExecStreamEvent,
   FcClientOptions,
-  ForkSandboxRequest,
-  GetTemplateLogsOptions,
   GetTemplateOptions,
   HealthzResponse,
   HostPublic,
+  ListSandboxesOptions,
   Network,
   NetworkCreateRequest,
-  NetworkEntry,
   OKResponse,
-  PatchSandboxRequest,
-  PauseAck,
   ReadyzResponse,
-  RechargeBandwidthRequest,
-  ResumeAck,
   RequestOptions,
-  ResizeSandboxRequest,
-  ResizeSandboxResponse,
   RootfsData,
   SandboxView,
-  SetEgressRequest,
+  Shape,
   ShapesData,
   TemplateCreateRequest,
   TemplateLogEvent,
+  TemplateLogsOptions,
   TemplatesListResponse,
   TemplateView,
-  WhoAmIView
+  WhoAmIView,
 } from "./types.js";
 
-export class FcClient {
-  private readonly http: FcHttp;
+const DEFAULT_WAIT_MS = 120_000;
 
-  constructor(options: FcClientOptions) {
-    this.http = new FcHttp(options);
+/** Template (custom rootfs) operations. Reached via `client.templates`. */
+export class TemplatesApi {
+  readonly #http: FcHttp;
+
+  constructor(http: FcHttp) {
+    this.#http = http;
+  }
+
+  async list(options: RequestOptions = {}): Promise<TemplateView[]> {
+    const data = await this.#http.request<TemplatesListResponse>("GET", "/v1/templates", options);
+    return data.templates;
+  }
+
+  /** Submits a Dockerfile to build into a sandbox rootfs. */
+  create(request: TemplateCreateRequest, options: RequestOptions = {}): Promise<TemplateView> {
+    return this.#http.request<TemplateView>("POST", "/v1/templates", {
+      ...options,
+      body: request,
+    });
+  }
+
+  get(id: string, options: GetTemplateOptions = {}): Promise<TemplateView> {
+    const { include, ...rest } = options;
+    return this.#http.request<TemplateView>("GET", `/v1/templates/${encodePath(id)}`, {
+      ...rest,
+      query: { include },
+    });
+  }
+
+  delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
+    return this.#http.request<OKResponse>("DELETE", `/v1/templates/${encodePath(id)}`, options);
+  }
+
+  /** Fetches the build log so far as plain text. */
+  async logs(id: string, options: TemplateLogsOptions = {}): Promise<string> {
+    const { attempt, ...rest } = options;
+    const response = await this.#http.requestRaw("GET", `/v1/templates/${encodePath(id)}/logs`, {
+      ...rest,
+      query: { attempt },
+    });
+    if (!response.ok) {
+      await this.#http.throwForResponse(response);
+    }
+    return response.text();
+  }
+
+  /** Follows the build log, yielding NDJSON events until the build finishes. */
+  followLogs(id: string, options: TemplateLogsOptions = {}): AsyncGenerator<TemplateLogEvent> {
+    const { attempt, ...rest } = options;
+    return this.#http.stream<TemplateLogEvent>("GET", `/v1/templates/${encodePath(id)}/logs`, {
+      ...rest,
+      query: { attempt, follow: true },
+    });
+  }
+}
+
+/** Overlay network operations. Reached via `client.networks`. */
+export class NetworksApi {
+  readonly #http: FcHttp;
+
+  constructor(http: FcHttp) {
+    this.#http = http;
+  }
+
+  list(options: RequestOptions = {}): Promise<Network[]> {
+    return this.#http.request<Network[]>("GET", "/v1/networks", options);
+  }
+
+  create(request: NetworkCreateRequest, options: RequestOptions = {}): Promise<Network> {
+    return this.#http.request<Network>("POST", "/v1/networks", { ...options, body: request });
+  }
+
+  get(id: string, options: RequestOptions = {}): Promise<Network> {
+    return this.#http.request<Network>("GET", `/v1/networks/${encodePath(id)}`, options);
+  }
+
+  delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
+    return this.#http.request<OKResponse>("DELETE", `/v1/networks/${encodePath(id)}`, options);
+  }
+}
+
+export class FcClient {
+  /** Low-level transport. An escape hatch for requests the SDK does not model. */
+  readonly http: FcHttp;
+  readonly templates: TemplatesApi;
+  readonly networks: NetworksApi;
+
+  constructor(options: FcClientOptions = {}) {
+    this.http = new FcHttp(resolveConfig(options));
+    this.templates = new TemplatesApi(this.http);
+    this.networks = new NetworksApi(this.http);
   }
 
   get baseUrl(): string {
     return this.http.baseUrl;
   }
 
-  healthz(options?: RequestOptions): Promise<HealthzResponse> {
-    return this.http.request("GET", "/healthz", { ...options, auth: false });
+  // ── health / identity ─────────────────────────────────────────────────
+
+  healthz(options: RequestOptions = {}): Promise<HealthzResponse> {
+    return this.http.request<HealthzResponse>("GET", "/healthz", { ...options, auth: false });
   }
 
-  readyz(options?: RequestOptions): Promise<ReadyzResponse> {
-    return this.http.request("GET", "/readyz", { ...options, auth: false });
-  }
-
-  whoami(options?: RequestOptions): Promise<WhoAmIView> {
-    return this.http.request("GET", "/v1/whoami", options);
-  }
-
-  listShapes(options?: RequestOptions): Promise<ShapesData> {
-    return this.http.request("GET", "/v1/shapes", options);
-  }
-
-  listRootfs(options?: RequestOptions): Promise<RootfsData> {
-    return this.http.request("GET", "/v1/rootfs", options);
-  }
-
-  listHosts(options?: RequestOptions): Promise<HostPublic[]> {
-    return this.http.request("GET", "/v1/hosts", options);
-  }
-
-  listSandboxes(options: { limit?: number; status?: string } & RequestOptions = {}): Promise<SandboxView[]> {
-    const { limit, status, ...requestOptions } = options;
-    return this.http.request("GET", "/v1/sandboxes", {
-      ...requestOptions,
-      query: { limit, status }
-    });
-  }
-
-  createSandbox(body: CreateSandboxRequest, options?: RequestOptions): Promise<CreateSandboxResponse> {
-    return this.http.request("POST", "/v1/sandboxes", { ...options, body });
-  }
-
-  getSandbox(id: string, options?: RequestOptions): Promise<SandboxView> {
-    return this.http.request("GET", `/v1/sandboxes/${encodePath(id)}`, options);
-  }
-
-  destroySandbox(id: string, options?: RequestOptions): Promise<DestroyedResponse> {
-    return this.http.request("DELETE", `/v1/sandboxes/${encodePath(id)}`, options);
-  }
-
-  patchSandbox(id: string, body: PatchSandboxRequest, options?: RequestOptions): Promise<SandboxView> {
-    return this.http.request("PATCH", `/v1/sandboxes/${encodePath(id)}`, { ...options, body });
-  }
-
-  pauseSandbox(id: string, options?: RequestOptions): Promise<PauseAck> {
-    return this.http.requestWithEmptyFallback("POST", `/v1/sandboxes/${encodePath(id)}/pause`, {
-      options,
-      fallback: { id, status: "paused" }
-    });
-  }
-
-  resumeSandbox(id: string, options?: RequestOptions): Promise<ResumeAck> {
-    return this.http.requestWithEmptyFallback("POST", `/v1/sandboxes/${encodePath(id)}/resume`, {
-      options,
-      fallback: { id, status: "running" }
-    });
-  }
-
-  forkSandbox(id: string, body: ForkSandboxRequest = {}, options?: RequestOptions): Promise<SandboxView> {
-    return this.http.request("POST", `/v1/sandboxes/${encodePath(id)}/fork`, { ...options, body });
-  }
-
-  getSandboxByIP(ip: string, options?: RequestOptions): Promise<SandboxView> {
-    return this.http.request("GET", `/v1/sandboxes/by-ip/${encodePath(ip)}`, options);
-  }
-
-  execSandbox(id: string, body: ExecRequest, options?: RequestOptions): Promise<ExecResponse> {
-    const { stream: _stream, ...bufferedBody } = body;
-    return this.http.request("POST", `/v1/sandboxes/${encodePath(id)}/exec`, {
+  /** Readiness probe. Returns `{ ready: false, reason }` instead of throwing on 503. */
+  async readyz(options: RequestOptions = {}): Promise<ReadyzResponse> {
+    const response = await this.http.requestRaw("GET", "/readyz", {
       ...options,
-      body: bufferedBody
+      auth: false,
+      retry: false,
     });
-  }
-
-  execSandboxStream(
-    id: string,
-    body: Omit<ExecRequest, "stream">,
-    options?: RequestOptions
-  ): AsyncGenerator<ExecStreamEvent> {
-    return this.http.stream("POST", `/v1/sandboxes/${encodePath(id)}/exec`, {
-      ...options,
-      query: { stream: true },
-      body: { ...body, stream: true }
-    });
-  }
-
-  async uploadFile(
-    id: string,
-    path: string,
-    bytes: BodyInit,
-    options?: RequestOptions
-  ): Promise<unknown> {
-    return this.http.request("PUT", `/v1/sandboxes/${encodePath(id)}/files`, {
-      ...options,
-      query: { path },
-      rawBody: bytes,
-      contentType: "application/octet-stream"
-    });
-  }
-
-  async downloadFile(id: string, path: string, options?: RequestOptions): Promise<ArrayBuffer> {
-    const response = await this.http.fetchRaw("GET", `/v1/sandboxes/${encodePath(id)}/files`, {
-      ...options,
-      query: { path }
-    });
-
-    if (!response.ok) {
-      await this.http.throwApiError(response);
+    const text = await response.text();
+    try {
+      const envelope = JSON.parse(text) as { status?: string; data?: unknown };
+      if (
+        (envelope.status === "success" || envelope.status === "fail") &&
+        envelope.data !== undefined
+      ) {
+        return envelope.data as ReadyzResponse;
+      }
+    } catch {
+      // Non-JSON body — fall through to the status-derived result.
     }
-
-    return response.arrayBuffer();
+    return { ready: response.ok };
   }
 
-  getEgress(id: string, options?: RequestOptions): Promise<EgressView> {
-    return this.http.request("GET", `/v1/sandboxes/${encodePath(id)}/egress`, options);
+  whoami(options: RequestOptions = {}): Promise<WhoAmIView> {
+    return this.http.request<WhoAmIView>("GET", "/v1/whoami", options);
   }
 
-  setEgress(id: string, body: SetEgressRequest, options?: RequestOptions): Promise<EgressView> {
-    return this.http.request("PUT", `/v1/sandboxes/${encodePath(id)}/egress`, { ...options, body });
+  // ── catalog ───────────────────────────────────────────────────────────
+
+  async listShapes(options: RequestOptions = {}): Promise<Shape[]> {
+    const data = await this.http.request<ShapesData>("GET", "/v1/shapes", options);
+    return data.shapes;
   }
 
-  getBandwidth(id: string, options?: RequestOptions): Promise<BandwidthView> {
-    return this.http.request("GET", `/v1/sandboxes/${encodePath(id)}/bandwidth`, options);
+  listRootfs(options: RequestOptions = {}): Promise<RootfsData> {
+    return this.http.request<RootfsData>("GET", "/v1/rootfs", options);
   }
 
-  rechargeBandwidth(
-    id: string,
-    body: RechargeBandwidthRequest,
-    options?: RequestOptions
-  ): Promise<BandwidthView> {
-    return this.http.request("POST", `/v1/sandboxes/${encodePath(id)}/bandwidth/recharge`, {
-      ...options,
-      body
+  listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {
+    return this.http.request<HostPublic[]>("GET", "/v1/hosts", options);
+  }
+
+  // ── sandboxes ─────────────────────────────────────────────────────────
+
+  /**
+   * Creates a sandbox and, by default, waits until it is `running`.
+   * Pass `{ wait: false }` to return as soon as the row exists.
+   */
+  async createSandbox(
+    request: CreateSandboxRequest,
+    options: CreateSandboxOptions = {},
+  ): Promise<Sandbox> {
+    const { wait, waitTimeoutMs, ...reqOptions } = options;
+    const created = await this.http.request<CreateSandboxResponse>("POST", "/v1/sandboxes", {
+      ...reqOptions,
+      body: request,
     });
-  }
-
-  resizeSandbox(
-    id: string,
-    body: ResizeSandboxRequest,
-    options?: RequestOptions
-  ): Promise<ResizeSandboxResponse> {
-    return this.http.request("POST", `/v1/sandboxes/${encodePath(id)}/resize`, { ...options, body });
-  }
-
-  listTemplates(options?: RequestOptions): Promise<TemplatesListResponse> {
-    return this.http.request("GET", "/v1/templates", options);
-  }
-
-  submitTemplate(body: TemplateCreateRequest, options?: RequestOptions): Promise<TemplateView> {
-    return this.http.request("POST", "/v1/templates", { ...options, body });
-  }
-
-  getTemplate(id: string, options: GetTemplateOptions = {}): Promise<TemplateView> {
-    const { include, ...requestOptions } = options;
-    return this.http.request("GET", `/v1/templates/${encodePath(id)}`, {
-      ...requestOptions,
-      query: { include }
-    });
-  }
-
-  deleteTemplate(id: string, options?: RequestOptions): Promise<DestroyedResponse> {
-    return this.http.request("DELETE", `/v1/templates/${encodePath(id)}`, options);
-  }
-
-  getTemplateLogs(id: string, options: GetTemplateLogsOptions = {}): AsyncGenerator<TemplateLogEvent> {
-    const { attempt, limit, ...requestOptions } = options;
-    return this.http.stream("GET", `/v1/templates/${encodePath(id)}/logs`, {
-      ...requestOptions,
-      query: { attempt, limit }
-    });
-  }
-
-  listNetworks(options?: RequestOptions): Promise<Network[]> {
-    return this.http.request("GET", "/v1/networks", options);
-  }
-
-  createNetwork(body: NetworkCreateRequest, options?: RequestOptions): Promise<Network> {
-    return this.http.request("POST", "/v1/networks", { ...options, body });
-  }
-
-  getNetwork(id: string, options?: RequestOptions): Promise<Network> {
-    return this.http.request("GET", `/v1/networks/${encodePath(id)}`, options);
-  }
-
-  deleteNetwork(id: string, options?: RequestOptions): Promise<OKResponse> {
-    return this.http.request("DELETE", `/v1/networks/${encodePath(id)}`, options);
-  }
-
-  attachNetwork(id: string, body: NetworkEntry, options?: RequestOptions): Promise<OKResponse> {
-    return this.http.request("POST", `/v1/sandboxes/${encodePath(id)}/networks`, { ...options, body });
-  }
-
-  detachNetwork(id: string, network: string, options?: RequestOptions): Promise<OKResponse> {
-    return this.http.request(
-      "DELETE",
-      `/v1/sandboxes/${encodePath(id)}/networks/${encodePath(network)}`,
-      options
+    // Reuse reqOptions so the follow-up GET inherits the caller's headers,
+    // timeout and retry policy — not just the abort signal.
+    const view = await this.http.request<SandboxView>(
+      "GET",
+      `/v1/sandboxes/${encodePath(created.id)}`,
+      reqOptions,
     );
+    const sandbox = new Sandbox(this.http, view, created.ingress_url_template);
+    if (wait !== false) {
+      await sandbox.waitUntilRunning({
+        timeoutMs: waitTimeoutMs ?? DEFAULT_WAIT_MS,
+        ...(options.signal ? { signal: options.signal } : {}),
+        // Carry headers/retry/per-request timeout into each poll refresh.
+        request: reqOptions,
+      });
+    }
+    return sandbox;
+  }
+
+  /** Connects to an existing sandbox by id. */
+  async getSandbox(id: string, options: RequestOptions = {}): Promise<Sandbox> {
+    const view = await this.http.request<SandboxView>(
+      "GET",
+      `/v1/sandboxes/${encodePath(id)}`,
+      options,
+    );
+    return new Sandbox(this.http, view);
+  }
+
+  /** Connects to an existing sandbox by its VM IP. */
+  async getSandboxByIP(ip: string, options: RequestOptions = {}): Promise<Sandbox> {
+    const view = await this.http.request<SandboxView>(
+      "GET",
+      `/v1/sandboxes/by-ip/${encodePath(ip)}`,
+      options,
+    );
+    return new Sandbox(this.http, view);
+  }
+
+  /** Lists the caller's sandboxes as connected handles. */
+  async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
+    const { limit, status, ...rest } = options;
+    const views = await this.http.request<SandboxView[]>("GET", "/v1/sandboxes", {
+      ...rest,
+      query: { limit, status },
+    });
+    return views.map((view) => new Sandbox(this.http, view));
   }
 }
 
-export function createClient(options: FcClientOptions): FcClient {
+/** Constructs an FcClient. Equivalent to `new FcClient(options)`. */
+export function createClient(options: FcClientOptions = {}): FcClient {
   return new FcClient(options);
 }
