@@ -3,7 +3,7 @@
 TypeScript SDK for the `fc-spawn` control plane API.
 
 ```ts
-import { FcClient } from "@computesdk/fc-sdk";
+import { FcClient } from "@compute/fc-sdk";
 
 const fc = new FcClient({
   apiKey: process.env.FC_API_KEY,

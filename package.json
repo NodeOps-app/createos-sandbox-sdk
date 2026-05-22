@@ -1,5 +1,5 @@
 {
-  "name": "@computesdk/fc-sdk",
+  "name": "@compute/fc-sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for the fc-spawn control plane API.",
   "type": "module",
