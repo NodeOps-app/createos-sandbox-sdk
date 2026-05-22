@@ -1,5 +1,5 @@
 {
-  "name": "@compute/fc-sdk",
+  "name": "fc-sandbox-sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for the fc-spawn control plane API.",
   "type": "module",
@@ -16,16 +16,13 @@
     "README.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "pack:dry": "npm pack --dry-run",
     "publish:check": "npm whoami && npm run pack:dry",
     "prepublishOnly": "npm run test && npm run typecheck",
-    "publish:dry": "npm run publish:check && npm publish --dry-run --access public",
-    "publish:npm": "npm run publish:check && npm publish --access public",
+    "publish:dry": "npm run publish:check && npm publish --dry-run",
+    "publish:npm": "npm run publish:check && npm publish",
     "test": "npm run build && node --test tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
