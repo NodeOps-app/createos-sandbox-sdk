@@ -72,6 +72,7 @@ and parsed JSend `fail` or `error` envelope are available on the error.
 The safest release flow is:
 
 ```sh
+npm whoami
 npm version patch
 npm run pack:dry
 npm run publish:dry
@@ -81,3 +82,10 @@ git push --follow-tags
 
 `prepublishOnly` runs the test and typecheck gates automatically before a real
 `npm publish`.
+
+If publish fails with `E404 Not Found - PUT ... @compute%2ffc-sdk`, first run
+`npm whoami`. An `E401` there means the local npm token is invalid; run
+`npm login --registry=https://registry.npmjs.org/` and try again. If
+authentication works but the publish still returns `E404`, the npm account does
+not have publish access to the `@compute` scope, or the scope has not been
+created for that account/org.

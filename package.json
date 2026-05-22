@@ -22,9 +22,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "pack:dry": "npm pack --dry-run",
+    "publish:check": "npm whoami && npm run pack:dry",
     "prepublishOnly": "npm run test && npm run typecheck",
-    "publish:dry": "npm publish --dry-run --access public",
-    "publish:npm": "npm publish --access public",
+    "publish:dry": "npm run publish:check && npm publish --dry-run --access public",
+    "publish:npm": "npm run publish:check && npm publish --access public",
     "test": "npm run build && node --test tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
