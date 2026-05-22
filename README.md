@@ -66,3 +66,18 @@ The client covers the OpenAPI gist endpoints:
 
 Non-2xx API responses throw `FcApiError`. The original `Response`, status code,
 and parsed JSend `fail` or `error` envelope are available on the error.
+
+## Publishing
+
+The safest release flow is:
+
+```sh
+npm version patch
+npm run pack:dry
+npm run publish:dry
+npm run publish:npm
+git push --follow-tags
+```
+
+`prepublishOnly` runs the test and typecheck gates automatically before a real
+`npm publish`.

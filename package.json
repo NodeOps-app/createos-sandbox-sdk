@@ -16,8 +16,15 @@
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "pack:dry": "npm pack --dry-run",
+    "prepublishOnly": "npm run test && npm run typecheck",
+    "publish:dry": "npm publish --dry-run --access public",
+    "publish:npm": "npm publish --access public",
     "test": "npm run build && node --test tests/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
