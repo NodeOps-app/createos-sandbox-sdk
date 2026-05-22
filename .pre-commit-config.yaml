@@ -1,0 +1,36 @@
+# Pre-commit hooks for fc-sandbox-sdk (TypeScript SDK).
+# Install: `pre-commit install`
+# Run on all files: `pre-commit run --all-files`
+
+repos:
+  # ---------- generic ----------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  # ---------- TS / JS ----------
+  # oxlint + oxfmt resolve from devDependencies via npx. Build + test run
+  # in CI, not here — pre-commit stays fast.
+  - repo: local
+    hooks:
+      - id: oxlint
+        name: oxlint
+        entry: npx oxlint
+        language: system
+        files: '\.(ts|tsx|js|jsx|mjs)$'
+      - id: oxfmt
+        name: oxfmt
+        entry: npx oxfmt
+        language: system
+        files: '\.(ts|tsx|js|jsx|mjs|json)$'

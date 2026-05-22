@@ -1,39 +1,52 @@
 {
   "name": "fc-sandbox-sdk",
-  "version": "0.1.0",
-  "description": "TypeScript SDK for the fc-spawn control plane API.",
+  "version": "0.2.0",
+  "description": "TypeScript SDK for the fc-spawn microVM sandbox control plane.",
+  "keywords": [
+    "compute",
+    "fc-spawn",
+    "firecracker",
+    "microvm",
+    "sandbox",
+    "sdk"
+  ],
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "fmt": "oxfmt . '!**/*.md'",
+    "fmt:check": "oxfmt --check . '!**/*.md'",
+    "test": "npm run build && node --test tests/*.test.mjs",
     "pack:dry": "npm pack --dry-run",
     "publish:check": "npm whoami && npm run pack:dry",
     "prepublishOnly": "npm run test && npm run typecheck",
     "publish:dry": "npm run publish:check && npm publish --dry-run",
-    "publish:npm": "npm run publish:check && npm publish",
-    "test": "npm run build && node --test tests/*.test.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "publish:npm": "npm run publish:check && npm publish"
   },
-  "keywords": [
-    "fc-spawn",
-    "sandbox",
-    "sdk",
-    "compute"
-  ],
-  "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "oxfmt": "^0.50.0",
+    "oxlint": "^1.65.0",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
