@@ -5,7 +5,7 @@
 repos:
   # ---------- generic ----------
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: main
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -15,9 +15,14 @@ repos:
       - id: mixed-line-ending
 
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.21.2
+    rev: master
     hooks:
       - id: gitleaks
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: master
+    hooks:
+      - id: detect-secrets
 
   # ---------- TS / JS ----------
   # oxlint + oxfmt resolve from devDependencies via npx. Build + test run
