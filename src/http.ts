@@ -139,16 +139,6 @@ export class FcHttp {
 
   async #fetchOnce(method: string, path: string, options: HttpRequestOptions): Promise<Response> {
     const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
-    const signals: AbortSignal[] = [];
-    if (options.signal) {
-      signals.push(options.signal);
-    }
-    let timeoutSignal: AbortSignal | undefined;
-    if (timeoutMs > 0) {
-      timeoutSignal = AbortSignal.timeout(timeoutMs);
-      signals.push(timeoutSignal);
-    }
-
     const headers = this.#buildHeaders(options);
     const body = buildBody(headers, options);
     const init: RequestInit & { duplex?: "half" } = { method, headers };
@@ -160,18 +150,28 @@ export class FcHttp {
         init.duplex = "half";
       }
     }
-    if (signals.length > 0) {
-      init.signal = AbortSignal.any(signals);
-    }
 
     // Build the URL before the try: #buildUrl throws FcError on a non-base
     // origin, and that security/config error must not be caught and
     // rewrapped as FcConnectionError below.
     const url = this.#buildUrl(path, options.query);
+    const signals: AbortSignal[] = [];
+    if (options.signal) {
+      signals.push(options.signal);
+    }
+    let timeout: TimeoutHandle | undefined;
+    if (timeoutMs > 0) {
+      timeout = createTimeoutSignal(timeoutMs);
+      signals.push(timeout.signal);
+    }
+    if (signals.length > 0) {
+      init.signal = AbortSignal.any(signals);
+    }
+
     try {
       return await this.#config.fetch(url, init);
     } catch (err) {
-      if (timeoutSignal?.aborted === true && options.signal?.aborted !== true) {
+      if (timeout?.signal.aborted === true && options.signal?.aborted !== true) {
         throw new FcTimeoutError(`Request timed out after ${timeoutMs}ms: ${method} ${path}`, {
           cause: err,
         });
@@ -180,6 +180,8 @@ export class FcHttp {
         throw err;
       }
       throw new FcConnectionError(`Network error: ${method} ${path}`, { cause: err });
+    } finally {
+      timeout?.clear();
     }
   }
 
@@ -277,6 +279,20 @@ function buildBody(headers: Headers, options: HttpRequestOptions): BodyInit | un
     return JSON.stringify(options.body);
   }
   return undefined;
+}
+
+interface TimeoutHandle {
+  signal: AbortSignal;
+  clear: () => void;
+}
+
+function createTimeoutSignal(timeoutMs: number): TimeoutHandle {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timer),
+  };
 }
 
 function hasJsonBody(response: Response): boolean {

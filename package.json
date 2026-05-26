@@ -34,12 +34,12 @@
     "lint:fix": "oxlint --fix .",
     "fmt": "oxfmt . '!**/*.md'",
     "fmt:check": "oxfmt --check . '!**/*.md'",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "bun run build && node --test tests/*.test.mjs",
     "pack:dry": "npm pack --dry-run",
-    "publish:check": "npm whoami && npm run pack:dry",
-    "prepublishOnly": "npm run test && npm run typecheck",
-    "publish:dry": "npm run publish:check && npm publish --dry-run",
-    "publish:npm": "npm run publish:check && npm publish"
+    "publish:check": "npm whoami && bun run pack:dry",
+    "prepublishOnly": "bun run test && bun run typecheck",
+    "publish:dry": "bun run publish:check && npm publish --dry-run",
+    "publish:npm": "bun run publish:check && npm publish"
   },
   "devDependencies": {
     "oxfmt": "^0.50.0",
