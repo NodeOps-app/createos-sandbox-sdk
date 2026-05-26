@@ -47,6 +47,8 @@ export interface RetryOptions {
 export interface FcClientOptions {
   /** Bearer API key. Falls back to the FC_API_KEY env var. */
   apiKey?: string;
+  /** Auth headers used instead of an API key, e.g. your app's session token. */
+  authHeaders?: HeadersInit;
   /** Control-plane base URL. Falls back to FC_BASE_URL, then the default. */
   baseUrl?: string;
   /** Custom fetch implementation. Defaults to globalThis.fetch. */

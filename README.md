@@ -41,7 +41,8 @@ try {
 ## Configuration
 
 Every option is optional. `apiKey` and `baseUrl` fall back to the
-`FC_API_KEY` and `FC_BASE_URL` environment variables.
+`FC_API_KEY` and `FC_BASE_URL` environment variables. Auth is required for
+control-plane calls: provide either `apiKey` or `authHeaders`.
 
 ```ts
 const fc = new FcClient({
@@ -52,6 +53,21 @@ const fc = new FcClient({
   headers: { "x-team": "platform" },// merged into every request
 });
 ```
+
+Use `authHeaders` when the SDK is talking to your own API/proxy and your app
+auth is not an fc-spawn API key:
+
+```ts
+const fc = new FcClient({
+  baseUrl: "https://api.your-app.com/fc",
+  authHeaders: {
+    Authorization: `Bearer ${sessionToken}`,
+    "X-Workspace-Id": workspaceId,
+  },
+});
+```
+
+`apiKey` and `authHeaders` are mutually exclusive.
 
 ```ts
 // Zero-config: reads FC_API_KEY + FC_BASE_URL from the environment.

@@ -20,6 +20,7 @@ const DEFAULT_RETRY: Required<RetryOptions> = {
 
 export interface ResolvedConfig {
   apiKey: string | undefined;
+  authHeaders: HeadersInit | undefined;
   baseUrl: string;
   fetch: typeof fetch;
   defaultHeaders: HeadersInit;
@@ -76,8 +77,14 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
     retry = { ...DEFAULT_RETRY };
   }
 
+  const apiKey = options.apiKey ?? readEnv("FC_API_KEY");
+  if (apiKey && options.authHeaders) {
+    throw new FcError("Pass either apiKey or authHeaders, not both.");
+  }
+
   return Object.freeze({
-    apiKey: options.apiKey ?? readEnv("FC_API_KEY"),
+    apiKey,
+    authHeaders: options.authHeaders,
     baseUrl,
     fetch: fetchFn,
     defaultHeaders: options.headers ?? {},

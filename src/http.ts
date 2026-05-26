@@ -199,12 +199,15 @@ export class FcHttp {
       // too — otherwise the opt-out is incomplete.
       headers.delete("authorization");
     } else {
-      if (!this.#config.apiKey) {
+      if (this.#config.authHeaders) {
+        new Headers(this.#config.authHeaders).forEach((value, key) => headers.set(key, value));
+      } else if (this.#config.apiKey) {
+        headers.set("Authorization", `Bearer ${this.#config.apiKey}`);
+      } else {
         throw new FcError(
-          "An API key is required for authenticated requests. Pass apiKey or set FC_API_KEY.",
+          "Authentication is required. Pass apiKey, set FC_API_KEY, or pass authHeaders.",
         );
       }
-      headers.set("Authorization", `Bearer ${this.#config.apiKey}`);
     }
     return headers;
   }

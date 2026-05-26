@@ -308,6 +308,48 @@ test("sends bearer auth and omits it for health checks", async () => {
   await client.whoami();
 });
 
+test("uses authHeaders instead of requiring an apiKey", async () => {
+  const client = new FcClient({
+    authHeaders: {
+      Authorization: "Bearer app-session",
+      "X-App-User": "user_1",
+    },
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      assert.equal(init.headers.get("authorization"), "Bearer app-session");
+      assert.equal(init.headers.get("x-app-user"), "user_1");
+      return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
+    },
+  });
+
+  await client.whoami();
+});
+
+test("authHeaders are omitted for health checks", async () => {
+  const client = new FcClient({
+    authHeaders: { Authorization: "Bearer app-session" },
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      assert.equal(init.headers.has("authorization"), false);
+      return success({ up: true });
+    },
+  });
+
+  await client.healthz();
+});
+
+test("rejects apiKey and authHeaders together", () => {
+  assert.throws(
+    () =>
+      new FcClient({
+        apiKey: "sk",
+        authHeaders: { Authorization: "Bearer app-session" },
+        baseUrl: BASE,
+      }),
+    /either apiKey or authHeaders/,
+  );
+});
+
 test("sends a versioned User-Agent header", async () => {
   const client = new FcClient({
     apiKey: "sk",
@@ -345,7 +387,7 @@ test("requires an apiKey for authenticated requests", async () => {
       throw new Error("fetch should not be reached");
     },
   });
-  await assert.rejects(() => client.whoami(), /API key is required/);
+  await assert.rejects(() => client.whoami(), /Authentication is required/);
 });
 
 test("destroy returns the destroy result", async () => {
