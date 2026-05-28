@@ -51,7 +51,20 @@ export class SandboxFiles {
     this.#sandboxId = sandboxId;
   }
 
-  /** Uploads raw bytes to an absolute path inside the sandbox. */
+  /**
+   * Uploads raw bytes to an absolute path inside the sandbox.
+   *
+   * @throws {FcValidationError} when the path is invalid or the body is rejected.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.files.upload("/srv/index.html", "<h1>Hello</h1>");
+   */
   async upload(path: string, data: BodyInit, options: RequestOptions = {}): Promise<void> {
     await this.#http.request("PUT", `/v1/sandboxes/${encodePath(this.#sandboxId)}/files`, {
       ...options,
@@ -61,7 +74,21 @@ export class SandboxFiles {
     });
   }
 
-  /** Downloads a file from the sandbox as raw bytes. */
+  /**
+   * Downloads a file from the sandbox as raw bytes.
+   *
+   * @throws {FcNotFoundError} when the sandbox or the path does not exist.
+   * @throws {FcValidationError} when the path is invalid.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const buf = await sandbox.files.download("/etc/os-release");
+   * console.log(new TextDecoder().decode(buf));
+   */
   async download(path: string, options: RequestOptions = {}): Promise<ArrayBuffer> {
     const url = `/v1/sandboxes/${encodePath(this.#sandboxId)}/files`;
     const response = await this.#http.requestRaw("GET", url, {
@@ -95,6 +122,21 @@ export class Sandbox {
   /**
    * Creates a sandbox without first constructing an `FcClient`. Equivalent
    * to `new FcClient(clientOpts).createSandbox(request, createOpts)`.
+   *
+   * @throws {FcValidationError} when shape or rootfs are unknown.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
+   *
+   * @example
+   * import Sandbox from "fc-sandbox-sdk";
+   * const sandbox = await Sandbox.create({
+   *   shape: "s-1vcpu-256mb",
+   *   rootfs: "devbox:1",
+   * });
+   * console.log(sandbox.id);
    */
   static async create(
     request: CreateSandboxRequest,
@@ -110,6 +152,18 @@ export class Sandbox {
   /**
    * Connects to an existing sandbox by id without first constructing an
    * `FcClient`. Equivalent to `new FcClient(clientOpts).getSandbox(id, opts)`.
+   *
+   * @throws {FcNotFoundError} when no sandbox with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * import Sandbox from "fc-sandbox-sdk";
+   * const sandbox = await Sandbox.connect("sb_01h…");
+   * console.log(sandbox.status);
    */
   static async connect(
     id: string,
@@ -140,6 +194,12 @@ export class Sandbox {
     return this.#data;
   }
 
+  /**
+   * Returns the last-known sandbox projection. Used by `JSON.stringify`.
+   *
+   * @example
+   * console.log(JSON.stringify(sandbox));
+   */
   toJSON(): SandboxView {
     return this.#data;
   }
@@ -148,7 +208,20 @@ export class Sandbox {
     return `/v1/sandboxes/${encodePath(this.#data.id)}${suffix}`;
   }
 
-  /** Re-fetches the sandbox projection and updates this handle in place. */
+  /**
+   * Re-fetches the sandbox projection and updates this handle in place.
+   *
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.refresh();
+   * console.log(sandbox.status);
+   */
   async refresh(options: RequestOptions = {}): Promise<this> {
     this.#data = await this.#http.request<SandboxView>("GET", this.#path(), options);
     return this;
@@ -156,7 +229,21 @@ export class Sandbox {
 
   // ── commands ──────────────────────────────────────────────────────────
 
-  /** Runs a command to completion and returns its buffered output. */
+  /**
+   * Runs a command to completion and returns its buffered output.
+   *
+   * @throws {FcValidationError} when the command shape is rejected.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const out = await sandbox.runCommand("uname", ["-a"]);
+   * console.log(out.result.stdout);
+   */
   async runCommand(
     cmd: string,
     args: string[] = [],
@@ -172,6 +259,20 @@ export class Sandbox {
    * Runs a command and yields a discriminated union of events as they
    * arrive. Switch on `event.type` to handle each kind — see
    * {@link ExecStreamEvent} for the payload shape.
+   *
+   * @throws {FcValidationError} when the command shape is rejected.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * for await (const event of sandbox.streamCommand("tail", ["-f", "/var/log/syslog"])) {
+   *   if (event.type === "stdout") process.stdout.write(event.data);
+   *   if (event.type === "exit") console.log("exit:", event.exitCode);
+   * }
    */
   async *streamCommand(
     cmd: string,
@@ -197,19 +298,62 @@ export class Sandbox {
 
   // ── lifecycle ─────────────────────────────────────────────────────────
 
-  /** Snapshots the sandbox to storage. The handle is updated to the pausing/paused view. */
+  /**
+   * Snapshots the sandbox to storage. The handle is updated to the pausing/paused view.
+   *
+   * @throws {FcValidationError} when the sandbox is in an invalid state for pause.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.pause();
+   * await sandbox.waitUntilPaused();
+   */
   async pause(options: RequestOptions = {}): Promise<this> {
     this.#data = await this.#http.request<SandboxView>("POST", this.#path("/pause"), options);
     return this;
   }
 
-  /** Restores a paused sandbox. The handle is updated to the resuming/running view. */
+  /**
+   * Restores a paused sandbox. The handle is updated to the resuming/running view.
+   *
+   * @throws {FcValidationError} when the sandbox is not in a resumable state.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.resume();
+   * await sandbox.waitUntilRunning();
+   */
   async resume(options: RequestOptions = {}): Promise<this> {
     this.#data = await this.#http.request<SandboxView>("POST", this.#path("/resume"), options);
     return this;
   }
 
-  /** Clones a paused sandbox into a new independent sandbox. */
+  /**
+   * Clones a paused sandbox into a new independent sandbox.
+   *
+   * @throws {FcValidationError} when the source sandbox is not in a forkable state.
+   * @throws {FcNotFoundError} when the source sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.pause();
+   * const clone = await sandbox.fork();
+   * console.log(clone.id);
+   */
   async fork(request: ForkSandboxRequest = {}, options: RequestOptions = {}): Promise<Sandbox> {
     const view = await this.#http.request<SandboxView>("POST", this.#path("/fork"), {
       ...options,
@@ -218,17 +362,43 @@ export class Sandbox {
     return new Sandbox(this.#http, view);
   }
 
-  /** Destroys the sandbox. Async on the server: the call returns when the
-   *  row is in `destroying` (or `destroyed` if it was already terminal or
-   *  the host could reclaim it inline). Use `waitUntilDestroyed` to wait
-   *  for full reclamation. */
+  /**
+   * Destroys the sandbox. Async on the server: the call returns when the
+   * row is in `destroying` (or `destroyed` if it was already terminal or
+   * the host could reclaim it inline). Use `waitUntilDestroyed` to wait
+   * for full reclamation.
+   *
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.destroy();
+   * await sandbox.waitUntilDestroyed();
+   */
   async destroy(options: RequestOptions = {}): Promise<DestroyedResponse> {
     const result = await this.#http.request<DestroyedResponse>("DELETE", this.#path(), options);
     this.#data = { ...this.#data, status: result.status };
     return result;
   }
 
-  /** Grows the overlay disk to `diskMib`. */
+  /**
+   * Grows the overlay disk to `diskMib`.
+   *
+   * @throws {FcValidationError} when `diskMib` is invalid or below the current size.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.resize(4096);
+   */
   async resize(diskMib: number, options: RequestOptions = {}): Promise<ResizeSandboxResponse> {
     return this.#http.request<ResizeSandboxResponse>("POST", this.#path("/resize"), {
       ...options,
@@ -236,7 +406,21 @@ export class Sandbox {
     });
   }
 
-  /** Toggles HTTP ingress. The handle is updated to the patched view. */
+  /**
+   * Toggles HTTP ingress. The handle is updated to the patched view.
+   *
+   * @throws {FcValidationError} when the sandbox is in an invalid state for the patch.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.setIngress(true);
+   * console.log(sandbox.previewUrl(8080));
+   */
   async setIngress(enabled: boolean, options: RequestOptions = {}): Promise<this> {
     this.#data = await this.#http.request<SandboxView>("PATCH", this.#path(), {
       ...options,
@@ -253,9 +437,22 @@ export class Sandbox {
 
   // ── waiters ───────────────────────────────────────────────────────────
 
-  /** Polls until the sandbox is `running`. Aborts on terminal failure states
-   *  including `destroying`/`destroyed` (a parallel destroy will never
-   *  resume into running). */
+  /**
+   * Polls until the sandbox is `running`. Aborts on terminal failure states
+   * including `destroying`/`destroyed` (a parallel destroy will never
+   * resume into running).
+   *
+   * @throws {FcError} when the sandbox enters a terminal failure state.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the wait budget elapses.
+   *
+   * @example
+   * await sandbox.waitUntilRunning({ timeoutMs: 60_000 });
+   */
   async waitUntilRunning(options: WaitOptions = {}): Promise<this> {
     await this.#waitFor(
       (s) => s === "running",
@@ -265,8 +462,22 @@ export class Sandbox {
     return this;
   }
 
-  /** Polls until the sandbox is `paused`. Aborts on terminal failure states
-   *  including `destroying`/`destroyed`. */
+  /**
+   * Polls until the sandbox is `paused`. Aborts on terminal failure states
+   * including `destroying`/`destroyed`.
+   *
+   * @throws {FcError} when the sandbox enters a terminal failure state.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the wait budget elapses.
+   *
+   * @example
+   * await sandbox.pause();
+   * await sandbox.waitUntilPaused();
+   */
   async waitUntilPaused(options: WaitOptions = {}): Promise<this> {
     await this.#waitFor(
       (s) => s === "paused",
@@ -276,8 +487,21 @@ export class Sandbox {
     return this;
   }
 
-  /** Polls until the sandbox is `destroyed`. `destroying` is an intermediate
-   *  step on the way to destroyed and must not abort the wait. */
+  /**
+   * Polls until the sandbox is `destroyed`. `destroying` is an intermediate
+   * step on the way to destroyed and must not abort the wait.
+   *
+   * @throws {FcError} when the sandbox enters a non-destroy terminal failure state.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the wait budget elapses.
+   *
+   * @example
+   * await sandbox.destroy();
+   * await sandbox.waitUntilDestroyed();
+   */
   async waitUntilDestroyed(options: WaitOptions = {}): Promise<this> {
     await this.#waitFor((s) => s === "destroyed", ["error", "failed"], options);
     return this;
@@ -311,11 +535,38 @@ export class Sandbox {
 
   // ── egress / bandwidth ────────────────────────────────────────────────
 
+  /**
+   * Returns the current egress allowlist and counters.
+   *
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const egress = await sandbox.getEgress();
+   * console.log(egress.egress);
+   */
   getEgress(options: RequestOptions = {}): Promise<EgressView> {
     return this.#http.request<EgressView>("GET", this.#path("/egress"), options);
   }
 
-  /** Replaces the egress allowlist. `null` / empty = allow all. */
+  /**
+   * Replaces the egress allowlist. `null` / empty = allow all.
+   *
+   * @throws {FcValidationError} when a rule is malformed.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.setEgress(["api.openai.com:443", "registry.npmjs.org:443"]);
+   */
   setEgress(rules: string[] | null, options: RequestOptions = {}): Promise<EgressView> {
     return this.#http.request<EgressView>("PUT", this.#path("/egress"), {
       ...options,
@@ -323,11 +574,38 @@ export class Sandbox {
     });
   }
 
+  /**
+   * Returns the current bandwidth quota and usage.
+   *
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const bw = await sandbox.getBandwidth();
+   * console.log(bw.used_bytes, bw.quota_bytes);
+   */
   getBandwidth(options: RequestOptions = {}): Promise<BandwidthView> {
     return this.#http.request<BandwidthView>("GET", this.#path("/bandwidth"), options);
   }
 
-  /** Tops up the bandwidth quota by `addBytes`. */
+  /**
+   * Tops up the bandwidth quota by `addBytes`.
+   *
+   * @throws {FcValidationError} when `addBytes` is invalid.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.rechargeBandwidth(10 * 1024 * 1024 * 1024); // +10 GiB
+   */
   rechargeBandwidth(addBytes: number, options: RequestOptions = {}): Promise<BandwidthView> {
     return this.#http.request<BandwidthView>("POST", this.#path("/bandwidth/recharge"), {
       ...options,
@@ -337,6 +615,20 @@ export class Sandbox {
 
   // ── networks ──────────────────────────────────────────────────────────
 
+  /**
+   * Attaches this sandbox to an overlay network.
+   *
+   * @throws {FcValidationError} when the sandbox is in an invalid state.
+   * @throws {FcNotFoundError} when the sandbox or network does not exist.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the network belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.attachNetwork("net_01h…");
+   */
   attachNetwork(networkId: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>("POST", this.#path("/networks"), {
       ...options,
@@ -344,6 +636,19 @@ export class Sandbox {
     });
   }
 
+  /**
+   * Detaches this sandbox from an overlay network.
+   *
+   * @throws {FcNotFoundError} when the sandbox or attachment does not exist.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the network belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.detachNetwork("net_01h…");
+   */
   detachNetwork(networkId: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>(
       "DELETE",
@@ -354,7 +659,20 @@ export class Sandbox {
 
   // ── disks ─────────────────────────────────────────────────────────────
 
-  /** Lists disks attached to this sandbox with per-attachment mount status. */
+  /**
+   * Lists disks attached to this sandbox with per-attachment mount status.
+   *
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const disks = await sandbox.listDisks();
+   * for (const d of disks) console.log(d.disk_id, d.mount_path, d.mount_state);
+   */
   async listDisks(options: RequestOptions = {}): Promise<SandboxDiskView[]> {
     const data = await this.#http.request<SandboxDisksListResponse>(
       "GET",
@@ -369,6 +687,20 @@ export class Sandbox {
    * rejects with 409 if the sandbox is not `running` — paused sandboxes
    * pick up new mounts on resume via `CreateSandboxRequest.disks` at
    * create or fork time.
+   *
+   * @throws {FcValidationError} when the sandbox is not running or the mount path collides.
+   * @throws {FcNotFoundError} when the sandbox or disk no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the disk belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.attachDisk({
+   *   diskId: "shared-data",
+   *   mountPath: "/mnt/data",
+   * });
    */
   attachDisk(opts: AttachDiskOptions, options: RequestOptions = {}): Promise<OKResponse> {
     const body: { disk_id: string; mount_path: string; sub_path?: string } = {
@@ -386,6 +718,20 @@ export class Sandbox {
    * Detaches a disk from this sandbox. `mountPath` is required because the
    * same disk may be mounted at multiple paths — the composite key is
    * (sandbox, disk, mountPath). Bucket contents are untouched.
+   *
+   * @throws {FcValidationError} when the sandbox is in an invalid state for detach.
+   * @throws {FcNotFoundError} when the sandbox, disk, or attachment does not exist.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the disk belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.detachDisk({
+   *   diskId: "shared-data",
+   *   mountPath: "/mnt/data",
+   * });
    */
   detachDisk(opts: DetachDiskOptions, options: RequestOptions = {}): Promise<DiskDetachedResponse> {
     return this.#http.request<DiskDetachedResponse>(
@@ -404,6 +750,18 @@ export class Sandbox {
    *
    * Resolves to `this` once the port accepts a connection; throws
    * `FcTimeoutError` if the port is still closed when the budget runs out.
+   *
+   * @throws {FcError} when `port` or `host` are invalid.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the wait budget elapses without the port opening.
+   *
+   * @example
+   * await sandbox.runCommand("sh", ["-c", "python3 -m http.server 8080 &"]);
+   * await sandbox.waitForPortReady(8080, { timeoutMs: 10_000 });
    */
   async waitForPortReady(
     port: number,
@@ -444,6 +802,13 @@ export class Sandbox {
   /**
    * Builds the public ingress URL for a port. Only available when the
    * sandbox was created with `ingress_enabled: true`.
+   *
+   * @throws {FcError} when `port` is invalid or ingress is not enabled
+   *   for this sandbox.
+   *
+   * @example
+   * const url = sandbox.previewUrl(8080);
+   * console.log(url);
    */
   previewUrl(port: number): string {
     if (!Number.isInteger(port) || port < 1 || port > 65535) {

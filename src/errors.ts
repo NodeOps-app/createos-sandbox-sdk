@@ -74,6 +74,10 @@ function extractCode(envelope?: FailEnvelope | ErrorEnvelope): string | undefine
   return undefined;
 }
 
+/**
+ * Thrown for `401 Unauthorized` responses — the API key is missing,
+ * revoked, or otherwise rejected by the control plane.
+ */
 export class FcAuthError extends FcApiError {
   constructor(
     message: string,
@@ -87,6 +91,10 @@ export class FcAuthError extends FcApiError {
   }
 }
 
+/**
+ * Thrown for `403 Forbidden` responses — the API key authenticated but is
+ * not authorized to access the resource (quota, ACL, or tenant mismatch).
+ */
 export class FcPermissionError extends FcApiError {
   constructor(
     message: string,
@@ -100,6 +108,10 @@ export class FcPermissionError extends FcApiError {
   }
 }
 
+/**
+ * Thrown for `404 Not Found` responses — the sandbox, template, network,
+ * or disk id does not resolve to an existing resource in this tenant.
+ */
 export class FcNotFoundError extends FcApiError {
   constructor(
     message: string,
@@ -113,6 +125,12 @@ export class FcNotFoundError extends FcApiError {
   }
 }
 
+/**
+ * Thrown for `400 Bad Request`, `409 Conflict`, and `422 Unprocessable
+ * Entity` responses — the request shape, body, or current resource state
+ * makes the operation invalid (unknown shape, invalid state transition,
+ * field validation failure).
+ */
 export class FcValidationError extends FcApiError {
   constructor(
     message: string,
@@ -126,6 +144,11 @@ export class FcValidationError extends FcApiError {
   }
 }
 
+/**
+ * Thrown for `429 Too Many Requests` responses — the caller exceeded the
+ * rate limit. {@link retryAfterSeconds} carries the parsed `Retry-After`
+ * delay when the server provided one.
+ */
 export class FcRateLimitError extends FcApiError {
   /** Seconds to wait before retrying, parsed from the Retry-After header. */
   readonly retryAfterSeconds: number | undefined;
@@ -143,6 +166,11 @@ export class FcRateLimitError extends FcApiError {
   }
 }
 
+/**
+ * Thrown for any `5xx` response — the control plane accepted the request
+ * but failed to fulfil it (host capacity exhausted, internal error, or
+ * upstream component unavailable).
+ */
 export class FcServerError extends FcApiError {
   constructor(
     message: string,

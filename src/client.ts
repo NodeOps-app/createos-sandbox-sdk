@@ -44,12 +44,40 @@ export class TemplatesApi {
     this.#http = http;
   }
 
+  /**
+   * Lists every template owned by the caller.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const templates = await fc.templates.list();
+   * console.log(templates.map((t) => t.id));
+   */
   async list(options: RequestOptions = {}): Promise<TemplateView[]> {
     const data = await this.#http.request<TemplatesListResponse>("GET", "/v1/templates", options);
     return data.templates;
   }
 
-  /** Submits a Dockerfile to build into a sandbox rootfs. */
+  /**
+   * Submits a Dockerfile to build into a sandbox rootfs.
+   *
+   * @throws {FcValidationError} when the request body is malformed or the Dockerfile is rejected.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const tpl = await fc.templates.create({
+   *   name: "my-devbox",
+   *   dockerfile: "FROM debian:trixie-slim\nRUN apt-get update",
+   * });
+   * console.log(tpl.id, tpl.status);
+   */
   create(request: TemplateCreateRequest, options: RequestOptions = {}): Promise<TemplateView> {
     return this.#http.request<TemplateView>("POST", "/v1/templates", {
       ...options,
@@ -57,6 +85,21 @@ export class TemplatesApi {
     });
   }
 
+  /**
+   * Looks up a template by id. Pass `include: "dockerfile"` to receive the
+   * original build input alongside the projection.
+   *
+   * @throws {FcNotFoundError} when no template with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the template belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const tpl = await fc.templates.get("tpl_01h…", { include: "dockerfile" });
+   * console.log(tpl.status, tpl.dockerfile);
+   */
   get(id: string, options: GetTemplateOptions = {}): Promise<TemplateView> {
     const { include, ...rest } = options;
     return this.#http.request<TemplateView>("GET", `/v1/templates/${encodePath(id)}`, {
@@ -65,11 +108,37 @@ export class TemplatesApi {
     });
   }
 
+  /**
+   * Deletes a template. Existing sandboxes built from it are unaffected.
+   *
+   * @throws {FcNotFoundError} when the template id does not exist.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the template belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await fc.templates.delete("tpl_01h…");
+   */
   delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>("DELETE", `/v1/templates/${encodePath(id)}`, options);
   }
 
-  /** Fetches the build log so far as plain text. */
+  /**
+   * Fetches the build log so far as plain text.
+   *
+   * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the template belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const logs = await fc.templates.logs("tpl_01h…");
+   * process.stdout.write(logs);
+   */
   async logs(id: string, options: TemplateLogsOptions = {}): Promise<string> {
     const { attempt, ...rest } = options;
     const path = `/v1/templates/${encodePath(id)}/logs`;
@@ -83,7 +152,21 @@ export class TemplatesApi {
     return response.text();
   }
 
-  /** Follows the build log, yielding NDJSON events until the build finishes. */
+  /**
+   * Follows the build log, yielding NDJSON events until the build finishes.
+   *
+   * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the template belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * for await (const event of fc.templates.followLogs("tpl_01h…")) {
+   *   if (event.line) process.stdout.write(event.line);
+   * }
+   */
   followLogs(id: string, options: TemplateLogsOptions = {}): AsyncGenerator<TemplateLogEvent> {
     const { attempt, ...rest } = options;
     return this.#http.stream<TemplateLogEvent>("GET", `/v1/templates/${encodePath(id)}/logs`, {
@@ -101,18 +184,73 @@ export class NetworksApi {
     this.#http = http;
   }
 
+  /**
+   * Lists every overlay network owned by the caller.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const nets = await fc.networks.list();
+   * console.log(nets.map((n) => n.id));
+   */
   list(options: RequestOptions = {}): Promise<Network[]> {
     return this.#http.request<Network[]>("GET", "/v1/networks", options);
   }
 
+  /**
+   * Creates an overlay network. Members are attached later via
+   * `sandbox.attachNetwork`.
+   *
+   * @throws {FcValidationError} when the request body is malformed or the CIDR conflicts.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const net = await fc.networks.create({ name: "team-net" });
+   * console.log(net.id);
+   */
   create(request: NetworkCreateRequest, options: RequestOptions = {}): Promise<Network> {
     return this.#http.request<Network>("POST", "/v1/networks", { ...options, body: request });
   }
 
+  /**
+   * Looks up an overlay network by id.
+   *
+   * @throws {FcNotFoundError} when no network with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the network belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const net = await fc.networks.get("net_01h…");
+   * console.log(net.cidr);
+   */
   get(id: string, options: RequestOptions = {}): Promise<Network> {
     return this.#http.request<Network>("GET", `/v1/networks/${encodePath(id)}`, options);
   }
 
+  /**
+   * Deletes an overlay network. Member sandboxes are detached but not destroyed.
+   *
+   * @throws {FcNotFoundError} when the network id does not exist.
+   * @throws {FcValidationError} when the network still has active members.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the network belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await fc.networks.delete("net_01h…");
+   */
   delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>("DELETE", `/v1/networks/${encodePath(id)}`, options);
   }
@@ -136,24 +274,83 @@ export class DisksApi {
     this.#http = http;
   }
 
+  /**
+   * Lists every registered S3 disk owned by the caller.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcServerError} on 5xx from the control plane (including 503
+   *   when the disks API is not configured by the operator).
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const disks = await fc.disks.list();
+   * console.log(disks.map((d) => d.name));
+   */
   async list(options: RequestOptions = {}): Promise<DiskView[]> {
     const data = await this.#http.request<DisksListResponse>("GET", "/v1/disks", options);
     return data.disks;
   }
 
-  /** Registers an S3 bucket as a mountable disk. The server HEADs the
-   *  bucket before accepting; a typo or bad creds returns 400. */
+  /**
+   * Registers an S3 bucket as a mountable disk. The server HEADs the
+   * bucket before accepting; a typo or bad creds returns 400.
+   *
+   * @throws {FcValidationError} when the bucket HEAD fails or credentials are rejected.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane (including 503
+   *   when the disks API is not configured by the operator).
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const disk = await fc.disks.create({
+   *   name: "shared-data",
+   *   bucket: "my-bucket",
+   *   region: "us-east-1",
+   *   access_key_id: process.env.AWS_ACCESS_KEY_ID!,
+   *   secret_access_key: process.env.AWS_SECRET_ACCESS_KEY!,
+   * });
+   * console.log(disk.id);
+   */
   create(request: DiskCreateRequest, options: RequestOptions = {}): Promise<DiskView> {
     return this.#http.request<DiskView>("POST", "/v1/disks", { ...options, body: request });
   }
 
-  /** Looks up a disk by id (`disk_<ulid>`) or by user-scoped name. */
+  /**
+   * Looks up a disk by id (`disk_<ulid>`) or by user-scoped name.
+   *
+   * @throws {FcNotFoundError} when no disk with that id or name exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the disk belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const disk = await fc.disks.get("shared-data");
+   * console.log(disk.bucket, disk.region);
+   */
   get(idOrName: string, options: RequestOptions = {}): Promise<DiskView> {
     return this.#http.request<DiskView>("GET", `/v1/disks/${encodePath(idOrName)}`, options);
   }
 
-  /** Deletes a disk. Returns 409 if the disk is still attached to a
-   *  non-destroyed sandbox — detach first. */
+  /**
+   * Deletes a disk. Returns 409 (FcValidationError) if the disk is still
+   * attached to a non-destroyed sandbox — detach first.
+   *
+   * @throws {FcNotFoundError} when the disk id or name does not exist.
+   * @throws {FcValidationError} when the disk is still attached to a sandbox.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the disk belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await fc.disks.delete("shared-data");
+   */
   delete(idOrName: string, options: RequestOptions = {}): Promise<DiskDeletedResponse> {
     return this.#http.request<DiskDeletedResponse>(
       "DELETE",
@@ -183,11 +380,32 @@ export class FcClient {
 
   // ── health / identity ─────────────────────────────────────────────────
 
+  /**
+   * Liveness probe. Unauthenticated; returns `{ ok: true }` once the
+   * control plane is up.
+   *
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const ok = await fc.healthz();
+   * console.log(ok);
+   */
   healthz(options: RequestOptions = {}): Promise<HealthzResponse> {
     return this.http.request<HealthzResponse>("GET", "/healthz", { ...options, auth: false });
   }
 
-  /** Readiness probe. Returns `{ ready: false, reason }` instead of throwing on 503. */
+  /**
+   * Readiness probe. Returns `{ ready: false, reason }` instead of throwing on 503.
+   *
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const r = await fc.readyz();
+   * if (!r.ready) console.warn("not ready:", r.reason);
+   */
   async readyz(options: RequestOptions = {}): Promise<ReadyzResponse> {
     const response = await this.http.requestRaw("GET", "/readyz", {
       ...options,
@@ -209,12 +427,36 @@ export class FcClient {
     return { ready: response.ok };
   }
 
+  /**
+   * Returns the identity associated with the configured API key.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const me = await fc.whoami();
+   * console.log(me.user_id, me.email);
+   */
   whoami(options: RequestOptions = {}): Promise<WhoAmIView> {
     return this.http.request<WhoAmIView>("GET", "/v1/whoami", options);
   }
 
   // ── catalog ───────────────────────────────────────────────────────────
 
+  /**
+   * Lists the available sandbox shapes (vCPU / RAM presets).
+   * Unauthenticated.
+   *
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const shapes = await fc.listShapes();
+   * console.log(shapes.map((s) => s.id));
+   */
   async listShapes(options: RequestOptions = {}): Promise<Shape[]> {
     const data = await this.http.request<ShapesData>("GET", "/v1/shapes", {
       ...options,
@@ -223,10 +465,34 @@ export class FcClient {
     return data.shapes;
   }
 
+  /**
+   * Lists the catalog of built-in rootfs images. Unauthenticated.
+   *
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const { rootfs } = await fc.listRootfs();
+   * console.log(rootfs.map((r) => r.id));
+   */
   listRootfs(options: RequestOptions = {}): Promise<RootfsData> {
     return this.http.request<RootfsData>("GET", "/v1/rootfs", { ...options, auth: false });
   }
 
+  /**
+   * Lists the worker hosts visible to the caller.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller cannot enumerate hosts.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const hosts = await fc.listHosts();
+   * console.log(hosts.map((h) => h.id));
+   */
   listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {
     return this.http.request<HostPublic[]>("GET", "/v1/hosts", options);
   }
@@ -236,6 +502,20 @@ export class FcClient {
   /**
    * Creates a sandbox and, by default, waits until it is `running`.
    * Pass `{ wait: false }` to return as soon as the row exists.
+   *
+   * @throws {FcValidationError} when shape or rootfs are unknown.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the caller hits a quota.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
+   *
+   * @example
+   * const sandbox = await fc.createSandbox({
+   *   shape: "s-1vcpu-256mb",
+   *   rootfs: "devbox:1",
+   * });
+   * console.log(sandbox.id, sandbox.ip);
    */
   async createSandbox(
     request: CreateSandboxRequest,
@@ -265,7 +545,20 @@ export class FcClient {
     return sandbox;
   }
 
-  /** Connects to an existing sandbox by id. */
+  /**
+   * Connects to an existing sandbox by id.
+   *
+   * @throws {FcNotFoundError} when no sandbox with that id exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const sandbox = await fc.getSandbox("sb_01h…");
+   * console.log(sandbox.status);
+   */
   async getSandbox(id: string, options: RequestOptions = {}): Promise<Sandbox> {
     const view = await this.http.request<SandboxView>(
       "GET",
@@ -275,7 +568,20 @@ export class FcClient {
     return new Sandbox(this.http, view);
   }
 
-  /** Connects to an existing sandbox by its VM IP. */
+  /**
+   * Connects to an existing sandbox by its VM IP.
+   *
+   * @throws {FcNotFoundError} when no sandbox with that IP exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const sandbox = await fc.getSandboxByIP("10.0.0.42");
+   * console.log(sandbox.id);
+   */
   async getSandboxByIP(ip: string, options: RequestOptions = {}): Promise<Sandbox> {
     const view = await this.http.request<SandboxView>(
       "GET",
@@ -285,7 +591,18 @@ export class FcClient {
     return new Sandbox(this.http, view);
   }
 
-  /** Lists the caller's sandboxes as connected handles. */
+  /**
+   * Lists the caller's sandboxes as connected handles.
+   *
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const running = await fc.listSandboxes({ status: "running", limit: 50 });
+   * for (const s of running) console.log(s.id, s.ip);
+   */
   async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
     const { limit, status, ...rest } = options;
     const views = await this.http.request<SandboxView[]>("GET", "/v1/sandboxes", {
@@ -296,7 +613,13 @@ export class FcClient {
   }
 }
 
-/** Constructs an FcClient. Equivalent to `new FcClient(options)`. */
+/**
+ * Constructs an FcClient. Equivalent to `new FcClient(options)`.
+ *
+ * @example
+ * import { createClient } from "fc-sandbox-sdk";
+ * const fc = createClient({ apiKey: process.env.FC_API_KEY });
+ */
 export function createClient(options: FcClientOptions = {}): FcClient {
   return new FcClient(options);
 }
