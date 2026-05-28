@@ -20,6 +20,14 @@ export class FcError extends Error {
   }
 }
 
+/** Optional request context attached to every {@link FcApiError}. */
+export interface ErrorRequestContext {
+  /** URL pathname of the request that produced this error (no host or query). */
+  endpoint?: string | undefined;
+  /** HTTP method used (`GET`, `POST`, …). */
+  method?: string | undefined;
+}
+
 /** Thrown for any non-2xx response from the control plane. */
 export class FcApiError extends FcError {
   readonly statusCode: number;
@@ -31,21 +39,29 @@ export class FcApiError extends FcError {
   readonly resourceId: string | undefined;
   /** Stable machine-readable code from `envelope.data.code`, when present. */
   readonly code: string | undefined;
+  /** URL pathname of the request that produced this error (no host or query). */
+  readonly endpoint: string | undefined;
+  /** HTTP method used (`GET`, `POST`, …). */
+  readonly method: string | undefined;
 
   constructor(
     message: string,
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
     super(message);
     this.name = "FcApiError";
     this.statusCode = response.status;
     this.response = response;
     this.envelope = envelope;
-    this.requestId = response.headers.get("x-request-id") ?? undefined;
+    this.requestId =
+      response.headers.get("x-request-id") ?? response.headers.get("x-fc-request-id") ?? undefined;
     this.resourceId = resourceId;
     this.code = extractCode(envelope);
+    this.endpoint = context?.endpoint;
+    this.method = context?.method;
   }
 }
 
@@ -64,8 +80,9 @@ export class FcAuthError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcAuthError";
   }
 }
@@ -76,8 +93,9 @@ export class FcPermissionError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcPermissionError";
   }
 }
@@ -88,8 +106,9 @@ export class FcNotFoundError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcNotFoundError";
   }
 }
@@ -100,8 +119,9 @@ export class FcValidationError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcValidationError";
   }
 }
@@ -115,8 +135,9 @@ export class FcRateLimitError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcRateLimitError";
     this.retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("retry-after"));
   }
@@ -128,8 +149,9 @@ export class FcServerError extends FcApiError {
     response: Response,
     envelope?: FailEnvelope | ErrorEnvelope,
     resourceId?: string,
+    context?: ErrorRequestContext,
   ) {
-    super(message, response, envelope, resourceId);
+    super(message, response, envelope, resourceId, context);
     this.name = "FcServerError";
   }
 }
@@ -168,13 +190,14 @@ export function parseRetryAfterSeconds(value: string | null): number | undefined
 
 /**
  * Builds the right FcApiError subclass for a non-2xx response. The envelope,
- * when present, is the parsed JSend `fail` / `error` body. `requestPath`,
- * when supplied, lets the error carry the addressed resource id.
+ * when present, is the parsed JSend `fail` / `error` body. `context.endpoint`
+ * lets the error carry the request pathname (also drives resource-id parsing);
+ * `context.method` records the HTTP method used.
  */
 export function errorFromResponse(
   response: Response,
   envelope?: JSendEnvelope<unknown>,
-  requestPath?: string,
+  context?: ErrorRequestContext,
 ): FcApiError {
   const typed =
     envelope?.status === "fail" || envelope?.status === "error"
@@ -182,26 +205,26 @@ export function errorFromResponse(
       : undefined;
 
   const message = buildMessage(response.status, typed);
-  const resourceId = extractResourceId(requestPath);
+  const resourceId = extractResourceId(context?.endpoint);
 
   switch (response.status) {
     case 401:
-      return new FcAuthError(message, response, typed, resourceId);
+      return new FcAuthError(message, response, typed, resourceId, context);
     case 403:
-      return new FcPermissionError(message, response, typed, resourceId);
+      return new FcPermissionError(message, response, typed, resourceId, context);
     case 404:
-      return new FcNotFoundError(message, response, typed, resourceId);
+      return new FcNotFoundError(message, response, typed, resourceId, context);
     case 400:
     case 409:
     case 422:
-      return new FcValidationError(message, response, typed, resourceId);
+      return new FcValidationError(message, response, typed, resourceId, context);
     case 429:
-      return new FcRateLimitError(message, response, typed, resourceId);
+      return new FcRateLimitError(message, response, typed, resourceId, context);
     default:
       if (response.status >= 500) {
-        return new FcServerError(message, response, typed, resourceId);
+        return new FcServerError(message, response, typed, resourceId, context);
       }
-      return new FcApiError(message, response, typed, resourceId);
+      return new FcApiError(message, response, typed, resourceId, context);
   }
 }
 

@@ -59,7 +59,7 @@ export class FcHttp {
   async request<T>(method: string, path: string, options: HttpRequestOptions = {}): Promise<T> {
     const response = await this.requestRaw(method, path, options);
     if (!response.ok) {
-      await this.throwForResponse(response, path);
+      await this.throwForResponse(response, method, path);
     }
     return unwrapJSend<T>(response);
   }
@@ -126,7 +126,7 @@ export class FcHttp {
   ): AsyncGenerator<T> {
     const response = await this.#fetchOnce(method, path, options);
     if (!response.ok) {
-      await this.throwForResponse(response, path);
+      await this.throwForResponse(response, method, path);
     }
     if (!response.body) {
       throw new FcError("The control plane returned an empty stream.");
@@ -135,11 +135,12 @@ export class FcHttp {
   }
 
   /**
-   * Reads a non-2xx response and throws the matching typed error. Pass
-   * the original request path so the error can carry the addressed
-   * resource id; falls back to `response.url` when omitted.
+   * Reads a non-2xx response and throws the matching typed error. The
+   * method + request path are stamped onto the error so callers can
+   * surface them in logs and bug reports; `requestPath` falls back to
+   * `response.url`'s pathname when omitted.
    */
-  async throwForResponse(response: Response, requestPath?: string): Promise<never> {
+  async throwForResponse(response: Response, method: string, requestPath?: string): Promise<never> {
     let envelope: JSendEnvelope<unknown> | undefined;
     if (hasJsonBody(response)) {
       try {
@@ -156,7 +157,10 @@ export class FcHttp {
         resolvedPath = undefined;
       }
     }
-    throw errorFromResponse(response, envelope, resolvedPath);
+    throw errorFromResponse(response, envelope, {
+      endpoint: resolvedPath,
+      method: method.toUpperCase(),
+    });
   }
 
   async #fetchOnce(method: string, path: string, options: HttpRequestOptions): Promise<Response> {

@@ -768,6 +768,68 @@ test("FcApiError.code is undefined when envelope omits a code", async () => {
   );
 });
 
+// ── endpoint + method + requestId on errors ──────────────────────────────
+
+test("FcApiError stamps endpoint, method, and X-Request-Id", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () =>
+      new Response(JSON.stringify({ status: "fail", data: {} }), {
+        status: 404,
+        headers: { "content-type": "application/json", "x-request-id": "req-abc-123" },
+      }),
+  });
+  await assert.rejects(
+    () => client.getSandbox("sb_xyz"),
+    (err) => {
+      assert.ok(err instanceof FcNotFoundError);
+      assert.equal(err.requestId, "req-abc-123");
+      assert.equal(err.endpoint, "/v1/sandboxes/sb_xyz");
+      assert.equal(err.method, "GET");
+      return true;
+    },
+  );
+});
+
+test("FcApiError requestId falls back to X-Fc-Request-Id", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () =>
+      new Response(JSON.stringify({ status: "fail", data: {} }), {
+        status: 404,
+        headers: { "content-type": "application/json", "x-fc-request-id": "fc-req-9" },
+      }),
+  });
+  await assert.rejects(
+    () => client.getSandbox("sb_xyz"),
+    (err) => {
+      assert.equal(err.requestId, "fc-req-9");
+      return true;
+    },
+  );
+});
+
+test("FcApiError.method reflects the HTTP method used", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => fail({ id: "broken" }, 400),
+  });
+  await assert.rejects(
+    () => client.createSandbox({ shape: "s" }),
+    (err) => {
+      assert.equal(err.method, "POST");
+      assert.equal(err.endpoint, "/v1/sandboxes");
+      return true;
+    },
+  );
+});
+
 // ── NDJSON SSE tolerance ─────────────────────────────────────────────────
 
 test("streamCommand skips SSE control lines and strips data: prefix", async () => {
