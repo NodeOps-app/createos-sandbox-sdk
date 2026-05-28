@@ -1,0 +1,52 @@
+# fc-sandbox-sdk
+
+> TypeScript SDK for the fc-spawn microVM sandbox control plane.
+> Zero runtime dependencies. ESM-only. Node 20+ / Bun / Deno / edge / browser.
+> Hand-written HTTP client around `fetch`. Retries, typed errors, NDJSON
+> streaming, runtime detection, header/URL redaction, lifecycle hooks.
+
+## Install
+
+```
+npm install fc-sandbox-sdk
+```
+
+## Docs
+
+- [README](README.md) — top-level overview
+- [Quickstart](docs/quickstart.md) — 30-second tour
+- [How-to: streaming](docs/how-to/streaming.md) — `streamCommand` union
+- [How-to: error handling](docs/how-to/error-handling.md) — typed errors
+- [How-to: observability](docs/how-to/observability.md) — `onRequest` / `onResponse` / `onRetry`
+- [API reference](docs/reference/index.html) — TypeDoc output
+- [Design rationale](docs/explanation/sdk-analysis.md) — handle model, retry policy, competitive analysis
+- [CHANGELOG](CHANGELOG.md) — release history + deprecation policy
+
+## Examples
+
+- [01-hello-world](examples/01-hello-world/) — create / run / destroy
+- [02-code-interpreter](examples/02-code-interpreter/) — Python REPL pattern, including `streamCommand`
+- [03-dev-server-preview-url](examples/03-dev-server-preview-url/) — ingress + previewUrl
+- [04-ai-code-agent](examples/04-ai-code-agent/) — Sandbox as a code agent runner
+- [05-filesystem-snapshots](examples/05-filesystem-snapshots/) — pause / fork / resume
+- [06-openai-agents-fc-tools](examples/06-openai-agents-fc-tools/) — Sandbox as an OpenAI agent tool
+- [07-docker-custom-template](examples/07-docker-custom-template/) — `client.templates.create`
+- [08-dev-server-git-preview](examples/08-dev-server-git-preview/) — git clone + dev server
+- [09-mcp-claude-code](examples/09-mcp-claude-code/) — host an MCP server
+- [10-mcp-browserbase](examples/10-mcp-browserbase/) — MCP + Browserbase
+- [11-tigerfs-postgres-filesystem](examples/11-tigerfs-postgres-filesystem/) — TigerFS + Postgres
+- [12-radicle-multi-agent](examples/12-radicle-multi-agent/) — Radicle p2p git mesh, multi-agent
+
+## Surface highlights
+
+- `FcClient` — entry point (catalog, identity, sandbox factory, templates, networks, disks).
+- `Sandbox` — stateful handle (lifecycle, commands, files, ingress, network attach/detach).
+- `FcError` hierarchy — `FcAuthError`, `FcPermissionError`, `FcNotFoundError`,
+  `FcValidationError`, `FcRateLimitError`, `FcServerError`, `FcConnectionError`, `FcTimeoutError`.
+- `ClientHooks` — `onRequest`, `onResponse`, `onRetry` with pre-redacted payloads.
+- `ExecStreamEvent` — discriminated union from `streamCommand`.
+
+## Source
+
+Public surface lives in `src/index.ts`. Wire types mirror Go control-plane
+handlers in the sibling `fc` repository (`../fc/internal/control/`).
