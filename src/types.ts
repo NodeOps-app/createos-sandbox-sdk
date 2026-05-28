@@ -313,12 +313,41 @@ export interface ExecResponse {
   exec_ms: number;
 }
 
-export interface ExecStreamEvent {
+/**
+ * Discriminated union yielded by {@link Sandbox.streamCommand}. Switch on
+ * `type` to handle each kind of event — TypeScript narrows the payload.
+ *
+ * @example
+ * ```ts
+ * for await (const ev of sandbox.streamCommand("npm", ["install"])) {
+ *   switch (ev.type) {
+ *     case "stdout":    process.stdout.write(ev.data); break;
+ *     case "stderr":    process.stderr.write(ev.data); break;
+ *     case "exit":      console.log(`exit ${ev.exitCode}`); break;
+ *     case "error":     console.error(ev.message); break;
+ *     case "heartbeat": break;
+ *   }
+ * }
+ * ```
+ */
+export type ExecStreamEvent =
+  | { type: "stdout"; data: string }
+  | { type: "stderr"; data: string }
+  | { type: "exit"; exitCode: number }
+  | { type: "error"; message: string }
+  | { type: "heartbeat" };
+
+/**
+ * Raw NDJSON frame as emitted by the server. Exposed for advanced users
+ * who want to bypass the {@link ExecStreamEvent} projection (e.g. log
+ * forwarders that need the snake_case shape).
+ */
+export interface ExecStreamFrame {
   stdout?: string;
   stderr?: string;
   exit_code?: number;
   error?: string;
-  /** Heartbeat marker emitted every 5s; ignore it. */
+  /** Heartbeat marker emitted every 5s. */
   hb?: boolean;
 }
 

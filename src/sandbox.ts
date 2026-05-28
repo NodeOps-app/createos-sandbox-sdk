@@ -15,6 +15,7 @@ import type {
   ExecOptions,
   ExecResponse,
   ExecStreamEvent,
+  ExecStreamFrame,
   FcClientOptions,
   ForkSandboxRequest,
   OKResponse,
@@ -165,17 +166,31 @@ export class Sandbox {
     });
   }
 
-  /** Runs a command and yields stdout/stderr events as they arrive. */
-  streamCommand(
+  /**
+   * Runs a command and yields a discriminated union of events as they
+   * arrive. Switch on `event.type` to handle each kind — see
+   * {@link ExecStreamEvent} for the payload shape.
+   */
+  async *streamCommand(
     cmd: string,
     args: string[] = [],
     options: ExecOptions = {},
   ): AsyncGenerator<ExecStreamEvent> {
-    return this.#http.stream<ExecStreamEvent>("POST", this.#path("/exec"), {
+    const frames = this.#http.stream<ExecStreamFrame>("POST", this.#path("/exec"), {
       ...options,
       query: { stream: true },
       body: { cmd, args, stream: true },
     });
+    for await (const frame of frames) {
+      if (frame.hb) {
+        yield { type: "heartbeat" };
+        continue;
+      }
+      if (frame.stdout !== undefined) yield { type: "stdout", data: frame.stdout };
+      if (frame.stderr !== undefined) yield { type: "stderr", data: frame.stderr };
+      if (frame.error !== undefined) yield { type: "error", message: frame.error };
+      if (frame.exit_code !== undefined) yield { type: "exit", exitCode: frame.exit_code };
+    }
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────

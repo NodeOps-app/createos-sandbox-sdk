@@ -19,10 +19,22 @@ try {
   await sandbox.files.upload("/tmp/script.py", script);
   console.log("--- streaming output ---");
   for await (const ev of sandbox.streamCommand("python3", ["/tmp/script.py"])) {
-    if (ev.stdout) process.stdout.write(ev.stdout);
-    if (ev.stderr) process.stderr.write(ev.stderr);
-    if (ev.error) console.error("agent error:", ev.error);
-    if (ev.exit_code !== undefined) console.log(`(exited ${ev.exit_code})`);
+    switch (ev.type) {
+      case "stdout":
+        process.stdout.write(ev.data);
+        break;
+      case "stderr":
+        process.stderr.write(ev.data);
+        break;
+      case "error":
+        console.error("agent error:", ev.message);
+        break;
+      case "exit":
+        console.log(`(exited ${ev.exitCode})`);
+        break;
+      case "heartbeat":
+        break;
+    }
   }
 } finally {
   await sandbox.destroy();

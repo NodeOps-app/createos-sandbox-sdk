@@ -180,7 +180,10 @@ test("streamCommand yields parsed NDJSON events", async () => {
   for await (const event of sandbox.streamCommand("bash", ["-lc", "echo hi"])) {
     events.push(event);
   }
-  assert.deepEqual(events, [{ stdout: "hi\n" }, { exit_code: 0 }]);
+  assert.deepEqual(events, [
+    { type: "stdout", data: "hi\n" },
+    { type: "exit", exitCode: 0 },
+  ]);
 });
 
 test("maps HTTP status codes to typed errors", async () => {
@@ -933,6 +936,44 @@ test("hooks fire onRetry once on 503-then-200 retry path", async () => {
   assert.equal(events[4].status, 200);
 });
 
+test("streamCommand projects every frame shape into the union", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      if (init.method === "GET") return success(RUNNING_VIEW);
+      const payload =
+        '{"stdout":"a\\n"}\n' +
+        '{"stderr":"warn\\n"}\n' +
+        '{"hb":true}\n' +
+        '{"error":"oom"}\n' +
+        '{"exit_code":137}\n';
+      const stream = new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(payload));
+          c.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "application/x-ndjson" },
+      });
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  const events = [];
+  for await (const ev of sandbox.streamCommand("sh", ["-c", "true"])) {
+    events.push(ev);
+  }
+  assert.deepEqual(events, [
+    { type: "stdout", data: "a\n" },
+    { type: "stderr", data: "warn\n" },
+    { type: "heartbeat" },
+    { type: "error", message: "oom" },
+    { type: "exit", exitCode: 137 },
+  ]);
+});
+
 test("hook throws do not crash the request", async () => {
   const client = new FcClient({
     apiKey: "sk",
@@ -987,7 +1028,10 @@ test("streamCommand skips SSE control lines and strips data: prefix", async () =
   for await (const event of sandbox.streamCommand("bash", ["-lc", "echo hi"])) {
     events.push(event);
   }
-  assert.deepEqual(events, [{ stdout: "hi\n" }, { exit_code: 0 }]);
+  assert.deepEqual(events, [
+    { type: "stdout", data: "hi\n" },
+    { type: "exit", exitCode: 0 },
+  ]);
 });
 
 // ── Sandbox static factories ─────────────────────────────────────────────

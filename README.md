@@ -167,17 +167,29 @@ const box = await fc.createSandbox({
 const logged = await box.runCommand("printenv", ["LOG_LEVEL"]);
 ```
 
-Streaming output as an async iterator:
+Streaming output yields a discriminated union — switch on `event.type`:
 
 ```ts
 for await (const event of sandbox.streamCommand("bash", [
   "-lc",
   "for i in 1 2 3; do echo line $i; sleep 1; done",
 ])) {
-  if (event.stdout) process.stdout.write(event.stdout);
-  if (event.stderr) process.stderr.write(event.stderr);
-  if (event.error) console.error("agent error:", event.error);
-  if (event.exit_code !== undefined) console.log("exited", event.exit_code);
+  switch (event.type) {
+    case "stdout":
+      process.stdout.write(event.data);
+      break;
+    case "stderr":
+      process.stderr.write(event.data);
+      break;
+    case "exit":
+      console.log("exited", event.exitCode);
+      break;
+    case "error":
+      console.error("agent error:", event.message);
+      break;
+    case "heartbeat":
+      break;
+  }
 }
 ```
 
