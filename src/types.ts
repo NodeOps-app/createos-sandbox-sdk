@@ -141,6 +141,9 @@ export interface CreateSandboxRequest {
   node_selector?: Record<string, string>;
   /** Opt the sandbox into HTTP ingress at create time. */
   ingress_enabled?: boolean;
+  /** Disks to mount into the VM at boot. Each entry references a disk by
+   *  id or name and an absolute mount path inside the guest. */
+  disks?: DiskAttachment[];
 }
 
 export type SandboxSpawnMode = "snapshot" | "cold";
@@ -222,9 +225,12 @@ export interface PatchSandboxRequest {
 }
 
 export interface DestroyedResponse {
-  /** Id of the sandbox accepted for destruction. The control plane returns
-   *  only this field — destroy is async and reports no status. */
-  destroyed: string;
+  /** Id of the sandbox accepted for destruction. */
+  id: string;
+  /** Status reached by the destroy call. `destroying` for an async
+   *  reclaim; `destroyed` when the call was a no-op on an already
+   *  terminal row or could be reclaimed inline (paused/error). */
+  status: Extract<SandboxStatus, "destroying" | "destroyed">;
 }
 
 // ── Exec ────────────────────────────────────────────────────────────────
@@ -357,6 +363,92 @@ export interface TemplateLogEvent {
 export interface TemplateLogsOptions extends RequestOptions {
   /** Filter to one build attempt. Default = all attempts. */
   attempt?: number;
+}
+
+// ── Disks ───────────────────────────────────────────────────────────────
+
+/** Storage backend for a registered disk. Only `s3` today. */
+export type DiskKind = "s3";
+
+/** Non-secret S3 disk configuration. Persisted server-side as JSON. */
+export interface DiskConfig {
+  bucket: string;
+  endpoint: string;
+  region?: string;
+  /** Force path-style addressing (`endpoint/bucket/key`) instead of
+   *  virtual-hosted (`bucket.endpoint/key`). Needed for MinIO / R2 with
+   *  custom domains. */
+  use_path_style?: boolean;
+}
+
+/** Bucket credentials. Sent only on create; AES-GCM-encrypted at rest and
+ *  never returned by any read endpoint. */
+export interface DiskCredentials {
+  access_key: string;
+  secret_key: string;
+}
+
+/** Body of `POST /v1/disks`. */
+export interface DiskCreateRequest {
+  /** User-scoped name. Must match `^[a-z0-9][a-z0-9-]{0,62}$`. */
+  name: string;
+  kind: DiskKind;
+  config: DiskConfig;
+  credentials: DiskCredentials;
+}
+
+/** User-facing projection of a registered disk. Credentials never appear here. */
+export interface DiskView {
+  id: string;
+  name: string;
+  kind: DiskKind;
+  /** Server returns this as a JSON blob; the SDK exposes it as parsed JSON. */
+  config: DiskConfig;
+  created_at: string;
+}
+
+/** One element of `CreateSandboxRequest.disks` or the body of
+ *  `POST /v1/sandboxes/:id/disks`. */
+export interface DiskAttachment {
+  /** A `disk_<ulid>` id or the user-scoped disk name. */
+  disk_id: string;
+  /** Absolute path inside the VM, e.g. `/mnt/data`. */
+  mount_path: string;
+  /** Optional bucket sub-folder to expose at `mount_path`. Empty = bucket
+   *  root. Must not start with `/` and must not contain `..`. */
+  sub_path?: string;
+}
+
+/** Mount status reported by the in-VM agent. */
+export type DiskMountStatus = "pending" | "mounted" | "error" | "unmounting";
+
+/** Per-attachment projection returned from
+ *  `GET /v1/sandboxes/:id/disks`. */
+export interface SandboxDiskView {
+  disk_id: string;
+  name: string;
+  kind: DiskKind;
+  config: DiskConfig;
+  mount_path: string;
+  sub_path?: string;
+  mount_status: DiskMountStatus;
+  mount_error?: string;
+}
+
+export interface DisksListResponse {
+  disks: DiskView[];
+}
+
+export interface SandboxDisksListResponse {
+  disks: SandboxDiskView[];
+}
+
+export interface DiskDeletedResponse {
+  deleted: boolean;
+}
+
+export interface DiskDetachedResponse {
+  detached: boolean;
 }
 
 // ── Networks ────────────────────────────────────────────────────────────

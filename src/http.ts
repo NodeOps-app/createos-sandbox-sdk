@@ -11,6 +11,7 @@ import {
 } from "./errors.js";
 import { readNdjson } from "./ndjson.js";
 import { sleep } from "./poll.js";
+import { SENSITIVE_HEADER_NAMES } from "./redact.js";
 import type { JSendEnvelope, RetryOptions } from "./types.js";
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -33,10 +34,12 @@ export interface HttpRequestOptions {
 
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
 const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
-const AUTH_HEADER_NAMES = ["authorization", "x-api-key", "x-access-token", "x-auth-token"];
 
+// Strip the comprehensive credential set documented in redact.ts — keeping a
+// second hardcoded list here was the source of a gap (cookie /
+// proxy-authorization / x-csrf-token leaked on `auth:false`).
 function deleteAuthHeaders(headers: Headers): void {
-  for (const name of AUTH_HEADER_NAMES) {
+  for (const name of SENSITIVE_HEADER_NAMES) {
     headers.delete(name);
   }
 }

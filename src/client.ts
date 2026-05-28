@@ -8,6 +8,10 @@ import type {
   CreateSandboxOptions,
   CreateSandboxRequest,
   CreateSandboxResponse,
+  DiskCreateRequest,
+  DiskDeletedResponse,
+  DiskView,
+  DisksListResponse,
   FcClientOptions,
   GetTemplateOptions,
   HealthzResponse,
@@ -114,16 +118,63 @@ export class NetworksApi {
   }
 }
 
+/**
+ * S3-disk catalog operations. Reached via `client.disks`.
+ *
+ * Disks are user-registered S3 buckets that can be mounted into one or
+ * more sandboxes. Mount/unmount happens via `Sandbox.attachDisk` and
+ * `Sandbox.detachDisk`, or at create time via `CreateSandboxRequest.disks`.
+ *
+ * The control plane returns HTTP 503 ("disks API not configured") when
+ * the operator has not provisioned a disk-credential cipher key — this
+ * is a configuration state, not a transient failure.
+ */
+export class DisksApi {
+  readonly #http: FcHttp;
+
+  constructor(http: FcHttp) {
+    this.#http = http;
+  }
+
+  async list(options: RequestOptions = {}): Promise<DiskView[]> {
+    const data = await this.#http.request<DisksListResponse>("GET", "/v1/disks", options);
+    return data.disks;
+  }
+
+  /** Registers an S3 bucket as a mountable disk. The server HEADs the
+   *  bucket before accepting; a typo or bad creds returns 400. */
+  create(request: DiskCreateRequest, options: RequestOptions = {}): Promise<DiskView> {
+    return this.#http.request<DiskView>("POST", "/v1/disks", { ...options, body: request });
+  }
+
+  /** Looks up a disk by id (`disk_<ulid>`) or by user-scoped name. */
+  get(idOrName: string, options: RequestOptions = {}): Promise<DiskView> {
+    return this.#http.request<DiskView>("GET", `/v1/disks/${encodePath(idOrName)}`, options);
+  }
+
+  /** Deletes a disk. Returns 409 if the disk is still attached to a
+   *  non-destroyed sandbox — detach first. */
+  delete(idOrName: string, options: RequestOptions = {}): Promise<DiskDeletedResponse> {
+    return this.#http.request<DiskDeletedResponse>(
+      "DELETE",
+      `/v1/disks/${encodePath(idOrName)}`,
+      options,
+    );
+  }
+}
+
 export class FcClient {
   /** Low-level transport. An escape hatch for requests the SDK does not model. */
   readonly http: FcHttp;
   readonly templates: TemplatesApi;
   readonly networks: NetworksApi;
+  readonly disks: DisksApi;
 
   constructor(options: FcClientOptions = {}) {
     this.http = new FcHttp(resolveConfig(options));
     this.templates = new TemplatesApi(this.http);
     this.networks = new NetworksApi(this.http);
+    this.disks = new DisksApi(this.http);
   }
 
   get baseUrl(): string {
@@ -165,12 +216,15 @@ export class FcClient {
   // ── catalog ───────────────────────────────────────────────────────────
 
   async listShapes(options: RequestOptions = {}): Promise<Shape[]> {
-    const data = await this.http.request<ShapesData>("GET", "/v1/shapes", options);
+    const data = await this.http.request<ShapesData>("GET", "/v1/shapes", {
+      ...options,
+      auth: false,
+    });
     return data.shapes;
   }
 
   listRootfs(options: RequestOptions = {}): Promise<RootfsData> {
-    return this.http.request<RootfsData>("GET", "/v1/rootfs", options);
+    return this.http.request<RootfsData>("GET", "/v1/rootfs", { ...options, auth: false });
   }
 
   listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {

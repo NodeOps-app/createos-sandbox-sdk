@@ -10,6 +10,7 @@ import type {
   CreateSandboxOptions,
   CreateSandboxRequest,
   DestroyedResponse,
+  DiskDetachedResponse,
   EgressView,
   ExecOptions,
   ExecResponse,
@@ -19,6 +20,8 @@ import type {
   OKResponse,
   RequestOptions,
   ResizeSandboxResponse,
+  SandboxDisksListResponse,
+  SandboxDiskView,
   SandboxStatus,
   SandboxView,
   WaitOptions,
@@ -28,6 +31,12 @@ const DEFAULT_WAIT_MS = 120_000;
 const DEFAULT_PORT_READY_TIMEOUT_MS = 30_000;
 const PORT_READY_BUFFER_MS = 5_000;
 const DEFAULT_PORT_READY_INTERVAL_MS = 200;
+
+// IPv4 dotted quad (loose; intentionally permissive), bracket-stripped IPv6
+// hex+colon, or a DNS hostname (RFC 1123 label rules, no trailing dot).
+// Anything else is rejected — the value is interpolated into a bash command
+// inside the guest, so we must refuse shell metacharacters categorically.
+const PORT_READY_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.\-:]{0,253}[A-Za-z0-9])?$/;
 
 /** File transfer scoped to one sandbox. Reached via `sandbox.files`. */
 export class SandboxFiles {
@@ -192,9 +201,14 @@ export class Sandbox {
     return new Sandbox(this.#http, view);
   }
 
-  /** Destroys the sandbox. */
+  /** Destroys the sandbox. Async on the server: the call returns when the
+   *  row is in `destroying` (or `destroyed` if it was already terminal or
+   *  the host could reclaim it inline). Use `waitUntilDestroyed` to wait
+   *  for full reclamation. */
   async destroy(options: RequestOptions = {}): Promise<DestroyedResponse> {
-    return this.#http.request<DestroyedResponse>("DELETE", this.#path(), options);
+    const result = await this.#http.request<DestroyedResponse>("DELETE", this.#path(), options);
+    this.#data = { ...this.#data, status: result.status };
+    return result;
   }
 
   /** Grows the overlay disk to `diskMib`. */
@@ -222,19 +236,31 @@ export class Sandbox {
 
   // ── waiters ───────────────────────────────────────────────────────────
 
-  /** Polls until the sandbox is `running`. */
+  /** Polls until the sandbox is `running`. Aborts on terminal failure states
+   *  including `destroying`/`destroyed` (a parallel destroy will never
+   *  resume into running). */
   async waitUntilRunning(options: WaitOptions = {}): Promise<this> {
-    await this.#waitFor((s) => s === "running", ["error", "failed", "destroyed"], options);
+    await this.#waitFor(
+      (s) => s === "running",
+      ["error", "failed", "destroying", "destroyed"],
+      options,
+    );
     return this;
   }
 
-  /** Polls until the sandbox is `paused`. */
+  /** Polls until the sandbox is `paused`. Aborts on terminal failure states
+   *  including `destroying`/`destroyed`. */
   async waitUntilPaused(options: WaitOptions = {}): Promise<this> {
-    await this.#waitFor((s) => s === "paused", ["error", "failed", "destroyed"], options);
+    await this.#waitFor(
+      (s) => s === "paused",
+      ["error", "failed", "destroying", "destroyed"],
+      options,
+    );
     return this;
   }
 
-  /** Polls until the sandbox is `destroyed`. */
+  /** Polls until the sandbox is `destroyed`. `destroying` is an intermediate
+   *  step on the way to destroyed and must not abort the wait. */
   async waitUntilDestroyed(options: WaitOptions = {}): Promise<this> {
     await this.#waitFor((s) => s === "destroyed", ["error", "failed"], options);
     return this;
@@ -309,6 +335,62 @@ export class Sandbox {
     );
   }
 
+  // ── disks ─────────────────────────────────────────────────────────────
+
+  /** Lists disks attached to this sandbox with per-attachment mount status. */
+  async listDisks(options: RequestOptions = {}): Promise<SandboxDiskView[]> {
+    const data = await this.#http.request<SandboxDisksListResponse>(
+      "GET",
+      this.#path("/disks"),
+      options,
+    );
+    return data.disks;
+  }
+
+  /**
+   * Live-attaches a registered disk into the running sandbox. The server
+   * rejects with 409 if the sandbox is not `running` — paused sandboxes
+   * pick up new mounts on resume via `CreateSandboxRequest.disks` at
+   * create or fork time.
+   *
+   * @param diskId  disk id (`disk_<ulid>`) or user-scoped name
+   * @param mountPath  absolute path inside the guest, e.g. `/mnt/data`
+   * @param subPath  optional bucket sub-folder to expose at `mountPath`
+   */
+  attachDisk(
+    diskId: string,
+    mountPath: string,
+    subPath?: string,
+    options: RequestOptions = {},
+  ): Promise<OKResponse> {
+    const body: { disk_id: string; mount_path: string; sub_path?: string } = {
+      disk_id: diskId,
+      mount_path: mountPath,
+    };
+    if (subPath !== undefined) body.sub_path = subPath;
+    return this.#http.request<OKResponse>("POST", this.#path("/disks"), {
+      ...options,
+      body,
+    });
+  }
+
+  /**
+   * Detaches a disk from this sandbox. `mountPath` is required because the
+   * same disk may be mounted at multiple paths — the composite key is
+   * (sandbox, disk, mount_path). Bucket contents are untouched.
+   */
+  detachDisk(
+    diskId: string,
+    mountPath: string,
+    options: RequestOptions = {},
+  ): Promise<DiskDetachedResponse> {
+    return this.#http.request<DiskDetachedResponse>(
+      "DELETE",
+      this.#path(`/disks/${encodePath(diskId)}`),
+      { ...options, query: { mount_path: mountPath } },
+    );
+  }
+
   // ── port readiness ────────────────────────────────────────────────────
 
   /**
@@ -327,6 +409,11 @@ export class Sandbox {
       throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
     }
     const host = options.host ?? "127.0.0.1";
+    if (!PORT_READY_HOST_RE.test(host)) {
+      throw new FcError(
+        `Invalid host: ${JSON.stringify(host)}. Must be an IPv4/IPv6 literal or DNS hostname.`,
+      );
+    }
     const intervalMs = options.intervalMs ?? DEFAULT_PORT_READY_INTERVAL_MS;
     const budgetMs = options.timeoutMs ?? DEFAULT_PORT_READY_TIMEOUT_MS;
     const timeoutSec = Math.max(1, Math.ceil(budgetMs / 1000));

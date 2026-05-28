@@ -345,12 +345,18 @@ test("auth false strips every credential header", async () => {
       "X-Api-Key": "stale",
       "X-Access-Token": "stale",
       "X-Auth-Token": "stale",
+      Cookie: "sid=abc",
+      "Proxy-Authorization": "Basic xyz",
+      "X-CSRF-Token": "csrf",
     },
     fetch: async (_url, init) => {
       assert.equal(init.headers.has("authorization"), false);
       assert.equal(init.headers.has("x-api-key"), false);
       assert.equal(init.headers.has("x-access-token"), false);
       assert.equal(init.headers.has("x-auth-token"), false);
+      assert.equal(init.headers.has("cookie"), false);
+      assert.equal(init.headers.has("proxy-authorization"), false);
+      assert.equal(init.headers.has("x-csrf-token"), false);
       return success({ up: true });
     },
   });
@@ -465,16 +471,19 @@ test("requires an apiKey for authenticated requests", async () => {
   await assert.rejects(() => client.whoami(), /Authentication is required/);
 });
 
-test("destroy returns the destroy result", async () => {
+test("destroy returns {id, status} and updates the handle", async () => {
   const client = new FcClient({
     apiKey: "sk",
     baseUrl: BASE,
     fetch: async (_url, init) =>
-      init.method === "GET" ? success(RUNNING_VIEW) : success({ destroyed: "sb_1" }),
+      init.method === "GET" ? success(RUNNING_VIEW) : success({ id: "sb_1", status: "destroying" }),
   });
 
   const sandbox = await client.getSandbox("sb_1");
-  assert.deepEqual(await sandbox.destroy(), { destroyed: "sb_1" });
+  assert.equal(sandbox.status, "running");
+  const result = await sandbox.destroy();
+  assert.deepEqual(result, { id: "sb_1", status: "destroying" });
+  assert.equal(sandbox.status, "destroying");
 });
 
 test("pause updates the handle with the returned view", async () => {
@@ -505,6 +514,33 @@ test("waitUntilRunning polls until the sandbox is running", async () => {
   const sandbox = await client.getSandbox("sb_1");
   await sandbox.waitUntilRunning({ timeoutMs: 5000 });
   assert.equal(sandbox.status, "running");
+});
+
+test("waitUntilRunning aborts when the sandbox enters destroying", async () => {
+  const statuses = ["creating", "destroying"];
+  let index = 0;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async () =>
+      success({ ...RUNNING_VIEW, status: statuses[Math.min(index++, statuses.length - 1)] }),
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await assert.rejects(() => sandbox.waitUntilRunning({ timeoutMs: 5000 }), /destroying/);
+});
+
+test("waitUntilDestroyed passes through destroying as an intermediate state", async () => {
+  const statuses = ["destroying", "destroying", "destroyed"];
+  let index = 0;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async () =>
+      success({ ...RUNNING_VIEW, status: statuses[Math.min(index++, statuses.length - 1)] }),
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await sandbox.waitUntilDestroyed({ timeoutMs: 5000 });
+  assert.equal(sandbox.status, "destroyed");
 });
 
 test("downloads a file with an encoded path query", async () => {
@@ -550,6 +586,33 @@ test("listShapes unwraps to a Shape array", async () => {
   const shapes = await client.listShapes();
   assert.equal(shapes.length, 1);
   assert.equal(shapes[0].id, "s-1vcpu-256mb");
+});
+
+test("listShapes and listRootfs send no credentials (server-open paths)", async () => {
+  const captured = [];
+  const client = new FcClient({
+    apiKey: "sk_test",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      const headers = new Headers(init.headers);
+      captured.push({
+        path: new URL(url).pathname,
+        apiKey: headers.get("x-api-key"),
+        authz: headers.get("authorization"),
+      });
+      if (new URL(url).pathname === "/v1/shapes") {
+        return success({ shapes: [] });
+      }
+      return success({ rootfs: [], default: "" });
+    },
+  });
+  await client.listShapes();
+  await client.listRootfs();
+  assert.equal(captured.length, 2);
+  for (const entry of captured) {
+    assert.equal(entry.apiKey, null, `apiKey leaked to ${entry.path}`);
+    assert.equal(entry.authz, null, `authorization leaked to ${entry.path}`);
+  }
 });
 
 test("templates.logs returns plain text without NDJSON parsing", async () => {
@@ -860,6 +923,28 @@ test("waitForPortReady rejects invalid ports", async () => {
   await assert.rejects(() => sandbox.waitForPortReady(3.14), /Invalid port/);
 });
 
+test("waitForPortReady rejects hosts containing shell metacharacters", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    // Should never be called — host validation runs before any exec.
+    fetch: async () => success(RUNNING_VIEW),
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  for (const host of [
+    "127.0.0.1; rm -rf /",
+    "$(curl evil)",
+    "`id`",
+    "127.0.0.1|cat /etc/shadow",
+    "127.0.0.1 && id",
+    "127.0.0.1\nid",
+    "127.0.0.1/../etc",
+    "",
+  ]) {
+    await assert.rejects(() => sandbox.waitForPortReady(80, { host }), /Invalid host/);
+  }
+});
+
 // ── redaction helpers ────────────────────────────────────────────────────
 
 test("redactHeaders redacts sensitive headers and preserves others", () => {
@@ -898,4 +983,217 @@ test("redactQuery does not mutate the input", () => {
   assert.equal(original.get("token"), "abc");
   assert.equal(out.get("token"), "redacted");
   assert.equal(out.get("q"), "ok");
+});
+
+// ── disks ──────────────────────────────────────────────────────────────
+
+const DISK_VIEW = {
+  id: "disk_01HFOO",
+  name: "data",
+  kind: "s3",
+  config: { bucket: "my-bucket", endpoint: "https://s3.example", region: "us-east-1" },
+  created_at: "2026-05-28T00:00:00Z",
+};
+
+test("disks.list unwraps the disks array", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      assert.equal(init.method, "GET");
+      assert.equal(new URL(url).pathname, "/v1/disks");
+      return success({ disks: [DISK_VIEW] });
+    },
+  });
+  const out = await client.disks.list();
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, "disk_01HFOO");
+  assert.equal(out[0].config.bucket, "my-bucket");
+});
+
+test("disks.create posts the registration payload", async () => {
+  let body;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      assert.equal(init.method, "POST");
+      assert.equal(new URL(url).pathname, "/v1/disks");
+      body = JSON.parse(init.body);
+      return success(DISK_VIEW);
+    },
+  });
+  const out = await client.disks.create({
+    name: "data",
+    kind: "s3",
+    config: { bucket: "my-bucket", endpoint: "https://s3.example", region: "us-east-1" },
+    credentials: { access_key: "AKIA", secret_key: "shh" },
+  });
+  assert.equal(out.id, "disk_01HFOO");
+  assert.equal(body.name, "data");
+  assert.equal(body.credentials.access_key, "AKIA");
+  assert.equal(body.config.bucket, "my-bucket");
+});
+
+test("disks.get and disks.delete address by id or name", async () => {
+  const calls = [];
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      calls.push([init.method, new URL(url).pathname]);
+      if (init.method === "GET") return success(DISK_VIEW);
+      return success({ deleted: true });
+    },
+  });
+  const got = await client.disks.get("data");
+  assert.equal(got.name, "data");
+  const del = await client.disks.delete("disk_01HFOO");
+  assert.equal(del.deleted, true);
+  assert.deepEqual(calls, [
+    ["GET", "/v1/disks/data"],
+    ["DELETE", "/v1/disks/disk_01HFOO"],
+  ]);
+});
+
+test("disks.create surfaces 503 disks-not-configured as FcServerError", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => errorEnvelope("disks API not configured", 0, 503),
+  });
+  await assert.rejects(
+    () =>
+      client.disks.create({
+        name: "x",
+        kind: "s3",
+        config: { bucket: "b", endpoint: "https://s3.example" },
+        credentials: { access_key: "a", secret_key: "s" },
+      }),
+    (err) => err instanceof FcServerError && err.statusCode === 503,
+  );
+});
+
+test("sandbox.attachDisk posts disk_id, mount_path and sub_path", async () => {
+  let body;
+  let url;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (u, init) => {
+      url = u;
+      if (init.method === "POST" && u.endsWith("/disks")) {
+        body = JSON.parse(init.body);
+        return success({ ok: true });
+      }
+      return success(RUNNING_VIEW);
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  const out = await sandbox.attachDisk("disk_01HFOO", "/mnt/data", "subdir");
+  assert.equal(out.ok, true);
+  assert.equal(new URL(url).pathname, "/v1/sandboxes/sb_1/disks");
+  assert.deepEqual(body, {
+    disk_id: "disk_01HFOO",
+    mount_path: "/mnt/data",
+    sub_path: "subdir",
+  });
+});
+
+test("sandbox.attachDisk omits sub_path when not provided", async () => {
+  let body;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (u, init) => {
+      if (init.method === "POST" && u.endsWith("/disks")) {
+        body = JSON.parse(init.body);
+        return success({ ok: true });
+      }
+      return success(RUNNING_VIEW);
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await sandbox.attachDisk("disk_01HFOO", "/mnt/data");
+  assert.deepEqual(body, { disk_id: "disk_01HFOO", mount_path: "/mnt/data" });
+});
+
+test("sandbox.detachDisk sends mount_path as a query param", async () => {
+  let captured;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (u, init) => {
+      if (init.method === "DELETE") {
+        captured = new URL(u);
+        return success({ detached: true });
+      }
+      return success(RUNNING_VIEW);
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  const out = await sandbox.detachDisk("disk_01HFOO", "/mnt/data");
+  assert.equal(out.detached, true);
+  assert.equal(captured.pathname, "/v1/sandboxes/sb_1/disks/disk_01HFOO");
+  assert.equal(captured.searchParams.get("mount_path"), "/mnt/data");
+});
+
+test("sandbox.listDisks returns per-attachment mount status", async () => {
+  const attachment = {
+    disk_id: "disk_01HFOO",
+    name: "data",
+    kind: "s3",
+    config: { bucket: "b", endpoint: "https://s3.example" },
+    mount_path: "/mnt/data",
+    mount_status: "mounted",
+  };
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (u, init) => {
+      if (init.method === "GET" && u.endsWith("/disks")) {
+        return success({ disks: [attachment] });
+      }
+      return success(RUNNING_VIEW);
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  const out = await sandbox.listDisks();
+  assert.equal(out.length, 1);
+  assert.equal(out[0].mount_status, "mounted");
+  assert.equal(out[0].mount_path, "/mnt/data");
+});
+
+test("createSandbox forwards the disks attachment list in the create body", async () => {
+  let createBody;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      if (init.method === "POST" && new URL(url).pathname === "/v1/sandboxes") {
+        createBody = JSON.parse(init.body);
+        return success({
+          id: "sb_1",
+          name: "x",
+          ip: "10.0.0.2",
+          mode: "cold",
+          shape: "s",
+          rootfs: "r",
+          vcpu: 1,
+          mem_mib: 256,
+          disk_mib: 10240,
+          spawn_ms: 1,
+          egress: [],
+          bandwidth_quota_bytes: 0,
+        });
+      }
+      return success(RUNNING_VIEW);
+    },
+  });
+  await client.createSandbox({
+    shape: "s",
+    disks: [{ disk_id: "data", mount_path: "/mnt/data" }],
+  });
+  assert.deepEqual(createBody.disks, [{ disk_id: "data", mount_path: "/mnt/data" }]);
 });
