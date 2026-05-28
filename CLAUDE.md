@@ -21,13 +21,14 @@ npm run build      # tsc -> dist/
 npm run typecheck  # tsc --noEmit
 npm run lint       # oxlint
 npm run fmt        # oxfmt (writes); fmt:check to verify, lint:fix to autofix
-npm test           # build, then node --test tests/*.test.mjs
+npm test           # bun test tests/*.test.ts (coverage gated by bunfig.toml)
 ```
 
 `tsc` is the type gate. `oxlint` + `oxfmt` lint and format code only —
 `oxfmt` skips Markdown (README/docs are hand-wrapped prose). Commits are
-gated by `.pre-commit-config.yaml` (oxlint, oxfmt, gitleaks); install once
-with `pre-commit install`.
+gated by `.pre-commit-config.yaml` (oxlint, oxfmt, gitleaks, `tsc --noEmit`,
+and `bun test` with the coverage floor); install once with
+`pre-commit install`.
 
 ## Module layout (`src/`)
 
@@ -75,6 +76,8 @@ When a Go field is `omitempty`, the TS field is optional (`?`) and not
 - **`exactOptionalPropertyTypes` is on.** Spread option objects
   (`{ ...options }`) rather than constructing literals with possibly-
   `undefined` scalar values.
+- **Always use `bun`** — not `node`, `npm`, or `npx` — to run scripts,
+  tests, and tooling.
 - Files stay under ~1100 lines.
 - Keep `VERSION` in `config.ts` in sync with `package.json` `version`.
 - The Sandbox command method is `runCommand` / `streamCommand`, not
@@ -109,10 +112,20 @@ the request. Streaming requests are never retried.
 
 ## Testing
 
-`tests/*.test.mjs` use `node:test` + `node:assert/strict` against the
-built `dist/`. `fetch` is mocked via the `fetch` client option — there is
-no live server in CI. Use a fast `retry` config
-(`{ baseDelayMs: 1, maxDelayMs: 5 }`) in retry tests to keep them quick.
+`tests/*.test.ts` use `bun:test` (`describe` / `test` / `expect`) and
+import the SDK **source** directly (`../src/*.ts`) — no build step before
+tests. `fetch` is mocked via the `fetch` client option; there is no live
+server. One file per module (`http`, `sandbox`, `client`, `templates`,
+`networks`, `disks`, `files`, `ndjson`, `config`, `poll`, `redact`,
+`runtime`), with shared fixtures in `tests/helpers.ts`. Use a fast `retry`
+config (`{ baseDelayMs: 1, maxDelayMs: 5 }`, or the `FAST_RETRY` helper) in
+retry tests to keep them quick. Coverage runs on every `bun test` and is
+floor-gated by `coverageThreshold` in `bunfig.toml` — raise the floor as
+the suite grows; never lower it to make a run pass.
+
+Because tests now hit `src/` instead of the built `dist/`, the packaging
+artifact is no longer exercised by the suite. Add a separate `dist/`
+smoke test if a build-output regression is a concern.
 
 ## Not modeled
 

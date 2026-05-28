@@ -147,7 +147,7 @@ export class TemplatesApi {
       query: { attempt },
     });
     if (!response.ok) {
-      await this.#http.throwForResponse(response, path);
+      await this.#http.throwForResponse(response, "GET", path);
     }
     return response.text();
   }

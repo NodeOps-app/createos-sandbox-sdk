@@ -96,7 +96,7 @@ export class SandboxFiles {
       query: { path },
     });
     if (!response.ok) {
-      await this.#http.throwForResponse(response, url);
+      await this.#http.throwForResponse(response, "GET", url);
     }
     return response.arrayBuffer();
   }

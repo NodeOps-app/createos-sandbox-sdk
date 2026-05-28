@@ -30,21 +30,24 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:tests": "tsc -p tsconfig.test.json",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "fmt": "oxfmt . '!**/*.md'",
     "fmt:check": "oxfmt --check . '!**/*.md'",
-    "test": "bun run build && node --test tests/*.test.mjs",
+    "test": "bun test tests/*.test.ts",
+    "test:watch": "bun test --watch tests/*.test.ts",
     "docs:api": "typedoc --entryPoints src/index.ts --out docs/reference --githubPages false --hideGenerator",
     "pack:dry": "npm pack --dry-run",
     "publish:check": "npm whoami && bun run pack:dry",
-    "prepublishOnly": "bun run test && bun run typecheck",
+    "prepublishOnly": "bun run test && bun run typecheck && bun run typecheck:tests",
     "publish:dry": "bun run publish:check && npm publish --dry-run",
     "publish:npm": "bun run publish:check && npm publish"
   },
   "devDependencies": {
-    "oxfmt": "^0.50.0",
-    "oxlint": "^1.65.0",
+    "@types/bun": "1.3.14",
+    "oxfmt": "^0.52.0",
+    "oxlint": "^1.67.0",
     "typedoc": "0.28.19",
     "typescript": "^6.0.3"
   },

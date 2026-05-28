@@ -1,0 +1,15 @@
+[test]
+# Tests exercise src/ directly; report line/function coverage on every run.
+coverage = true
+coverageReporter = ["text"]
+coverageSkipTestFiles = true
+
+# src/runtime.ts is feature-detection across 7 JS runtimes; only the branch for
+# the runtime actually running the suite is reachable, so its coverage has a
+# structural ceiling. Exclude it from the gate rather than weaken the floor.
+coveragePathIgnorePatterns = ["src/runtime.ts", "tests/**"]
+
+# Per-file floor on the reported metrics. bun enforces this PER FILE, not as an
+# aggregate. Keep at or below the achieved numbers; raise as the suite grows,
+# never lower a passing run.
+coverageThreshold = { lines = 0.9, functions = 0.9 }

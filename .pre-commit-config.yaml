@@ -21,8 +21,7 @@ repos:
       - id: gitleaks
 
   # ---------- TS / JS ----------
-  # oxlint + oxfmt resolve from devDependencies via bunx. Build + test
-  # run in CI, not here — pre-commit stays fast.
+  # oxlint + oxfmt resolve from devDependencies via bunx.
   - repo: local
     hooks:
       - id: oxlint
@@ -40,4 +39,16 @@ repos:
         entry: bunx tsc --noEmit
         language: system
         files: '\.(ts|tsx)$'
+        pass_filenames: false
+      - id: typecheck-tests
+        name: tsc --noEmit (tests)
+        entry: bunx tsc -p tsconfig.test.json
+        language: system
+        files: '\.(ts|tsx)$'
+        pass_filenames: false
+      - id: test
+        name: bun test (coverage-gated)
+        entry: bun test tests/
+        language: system
+        files: '\.ts$'
         pass_filenames: false
