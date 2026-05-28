@@ -82,6 +82,16 @@ following never appear:
 The values are replaced by the literal string `"redacted"` so your logs
 remain greppable but contain no live credentials.
 
+## Streaming requests bypass hooks
+
+`Sandbox.streamCommand` and `TemplatesApi.followLogs` open a single
+NDJSON connection and consume it as an async iterator. They take the
+fast path through `FcHttp.stream` rather than the retry loop, so hooks
+do **not** fire for them. The intent is that streams are owned by your
+loop end-to-end — there is no retry to observe, and `onResponse` would
+need an artificial "done" point. Wrap your `for await` in your own log
+or metric if you need per-stream tracing.
+
 ## Retry reasons
 
 `onRetry.reason` distinguishes:

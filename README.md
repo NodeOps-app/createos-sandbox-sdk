@@ -413,6 +413,11 @@ the request.
 `"rate-limit"` (the server set `Retry-After`), or `"status"` (a
 retryable 4xx/5xx without a Retry-After).
 
+Streaming requests (`Sandbox.streamCommand`, `TemplatesApi.followLogs`)
+take a separate transport path and **do not fire hooks** — they aren't
+retried and live for the lifetime of their `for await` loop. Wrap that
+loop yourself if you need per-stream tracing.
+
 ## Retries and timeouts
 
 The transport retries transient failures with exponential backoff and
