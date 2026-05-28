@@ -1,0 +1,21 @@
+---
+const builtBy = "fc-sandbox-sdk";
+const marker = "astro-on-fc-ok";
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Astro in a Sandbox</title>
+  </head>
+  <body>
+    <main>
+      <h1>Astro is live inside a Firecracker sandbox</h1>
+      <p>This page is rendered by <code>astro dev</code> running in a microVM and served over the FC public ingress URL.</p>
+      <p>Scaffolded and deployed by <code>{builtBy}</code>.</p>
+      <!-- Stable marker the host fetch asserts on to confirm a real render. -->
+      <p data-marker={marker}>{marker}</p>
+    </main>
+  </body>
+</html>

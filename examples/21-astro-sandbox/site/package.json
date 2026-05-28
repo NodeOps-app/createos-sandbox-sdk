@@ -1,0 +1,11 @@
+{
+  "name": "astro-sandbox-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev"
+  },
+  "dependencies": {
+    "astro": "^6"
+  }
+}
