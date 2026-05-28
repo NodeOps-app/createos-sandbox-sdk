@@ -830,6 +830,128 @@ test("FcApiError.method reflects the HTTP method used", async () => {
   );
 });
 
+// ── client lifecycle hooks ───────────────────────────────────────────────
+
+test("hooks fire onRequest + onResponse exactly once on success", async () => {
+  const events = [];
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () =>
+      new Response(JSON.stringify({ status: "success", data: RUNNING_VIEW }), {
+        status: 200,
+        headers: { "content-type": "application/json", "x-request-id": "req-1" },
+      }),
+    hooks: {
+      onRequest: (ctx) => events.push({ kind: "req", ...ctx }),
+      onResponse: (ctx) => events.push({ kind: "res", ...ctx }),
+      onRetry: (ctx) => events.push({ kind: "retry", ...ctx }),
+    },
+  });
+  await client.getSandbox("sb_xyz");
+  const kinds = events.map((e) => e.kind);
+  assert.deepEqual(kinds, ["req", "res"]);
+  assert.equal(events[0].method, "GET");
+  assert.equal(events[0].attempt, 1);
+  assert.equal(events[1].status, 200);
+  assert.equal(events[1].requestId, "req-1");
+  assert.equal(typeof events[1].durationMs, "number");
+});
+
+test("hook headers redact X-Api-Key and never leak it as plaintext", async () => {
+  let captured;
+  const client = new FcClient({
+    apiKey: "sk_secret_should_not_appear",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => success(RUNNING_VIEW),
+    hooks: {
+      onRequest: (ctx) => {
+        captured = ctx.headers;
+      },
+    },
+  });
+  await client.getSandbox("sb_a");
+  assert.equal(captured["x-api-key"], "redacted");
+  for (const value of Object.values(captured)) {
+    assert.ok(!value.includes("sk_secret_should_not_appear"), "api key leaked into hook payload");
+  }
+});
+
+test("hook URL redacts userinfo and sensitive query params", async () => {
+  let capturedUrl;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => success([]),
+    hooks: {
+      onRequest: (ctx) => {
+        capturedUrl = ctx.url;
+      },
+    },
+  });
+  // listSandboxes accepts no sensitive query, so just assert that the URL
+  // is the redacted form (still recognisable, no credentials embedded).
+  await client.listSandboxes();
+  assert.ok(capturedUrl.startsWith(BASE));
+  assert.ok(!capturedUrl.includes("@"), "userinfo not stripped");
+});
+
+test("hooks fire onRetry once on 503-then-200 retry path", async () => {
+  let n = 0;
+  const events = [];
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: FAST_RETRY,
+    fetch: async () => {
+      n++;
+      if (n === 1) return errorEnvelope("scaling", "scaling_locked", 503);
+      return success(RUNNING_VIEW);
+    },
+    hooks: {
+      onRequest: (ctx) => events.push({ kind: "req", attempt: ctx.attempt }),
+      onResponse: (ctx) => events.push({ kind: "res", status: ctx.status, attempt: ctx.attempt }),
+      onRetry: (ctx) =>
+        events.push({
+          kind: "retry",
+          reason: ctx.reason,
+          status: ctx.status,
+          attempt: ctx.attempt,
+        }),
+    },
+  });
+  await client.getSandbox("sb_a");
+  const kinds = events.map((e) => e.kind);
+  assert.deepEqual(kinds, ["req", "res", "retry", "req", "res"]);
+  const retry = events[2];
+  assert.equal(retry.reason, "status");
+  assert.equal(retry.status, 503);
+  assert.equal(retry.attempt, 1);
+  assert.equal(events[4].status, 200);
+});
+
+test("hook throws do not crash the request", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => success(RUNNING_VIEW),
+    hooks: {
+      onRequest: () => {
+        throw new Error("boom");
+      },
+      onResponse: async () => {
+        throw new Error("boom-res");
+      },
+    },
+  });
+  const sandbox = await client.getSandbox("sb_a");
+  assert.equal(sandbox.id, "sb_1");
+});
+
 // ── NDJSON SSE tolerance ─────────────────────────────────────────────────
 
 test("streamCommand skips SSE control lines and strips data: prefix", async () => {

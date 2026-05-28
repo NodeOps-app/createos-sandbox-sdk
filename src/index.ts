@@ -14,6 +14,7 @@ export {
   FcConnectionError,
   FcTimeoutError,
 } from "./errors.js";
+export type { ErrorRequestContext } from "./errors.js";
 export { detectRuntime, runtimeTag } from "./runtime.js";
 export type { Runtime } from "./runtime.js";
 export {

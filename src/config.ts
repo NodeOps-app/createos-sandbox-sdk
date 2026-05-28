@@ -3,7 +3,7 @@
 
 import { FcError } from "./errors.js";
 import { runtimeTag } from "./runtime.js";
-import type { FcClientOptions, RetryOptions } from "./types.js";
+import type { ClientHooks, FcClientOptions, RetryOptions } from "./types.js";
 
 /** SDK version, stamped into the User-Agent header. Keep in sync with package.json. */
 export const VERSION = "0.2.1";
@@ -29,6 +29,7 @@ export interface ResolvedConfig {
   retry: Required<RetryOptions> | false;
   userAgent: string;
   runtimeTag: string;
+  hooks: ClientHooks | undefined;
 }
 
 /** Reads an environment variable in a way that is safe in non-Node runtimes. */
@@ -96,5 +97,6 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
     retry,
     userAgent: options.userAgent ?? `fc-sandbox-sdk/${VERSION} ${runtime}`,
     runtimeTag: runtime,
+    hooks: options.hooks,
   });
 }

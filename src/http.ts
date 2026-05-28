@@ -11,7 +11,7 @@ import {
 } from "./errors.js";
 import { readNdjson } from "./ndjson.js";
 import { sleep } from "./poll.js";
-import { SENSITIVE_HEADER_NAMES } from "./redact.js";
+import { redactHeaders, redactUrl, SENSITIVE_HEADER_NAMES } from "./redact.js";
 import type { JSendEnvelope, RetryOptions } from "./types.js";
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -83,9 +83,33 @@ export class FcHttp {
     let attempt = 0;
 
     for (;;) {
+      const hookMeta = this.#config.hooks
+        ? this.#prepareHookMeta(method, path, options)
+        : undefined;
       let response: Response;
+      let startMs = 0;
       try {
+        if (hookMeta) {
+          await fireHook(this.#config.hooks?.onRequest, {
+            url: hookMeta.url,
+            method: hookMeta.method,
+            headers: hookMeta.headers,
+            attempt: attempt + 1,
+          });
+        }
+        startMs = performance.now();
         response = await this.#fetchOnce(method, path, options);
+        if (hookMeta) {
+          await fireHook(this.#config.hooks?.onResponse, {
+            url: hookMeta.url,
+            method: hookMeta.method,
+            headers: hookMeta.headers,
+            attempt: attempt + 1,
+            status: response.status,
+            durationMs: performance.now() - startMs,
+            requestId: response.headers.get("x-request-id") ?? undefined,
+          });
+        }
       } catch (err) {
         const canRetry =
           err instanceof FcConnectionError &&
@@ -93,7 +117,19 @@ export class FcHttp {
           attempt < maxRetries &&
           IDEMPOTENT.has(method.toUpperCase());
         if (canRetry && retry) {
-          await sleep(backoffDelay(attempt, retry), options.signal);
+          const delay = backoffDelay(attempt, retry);
+          if (hookMeta) {
+            await fireHook(this.#config.hooks?.onRetry, {
+              url: hookMeta.url,
+              method: hookMeta.method,
+              headers: hookMeta.headers,
+              attempt: attempt + 1,
+              durationMs: performance.now() - startMs,
+              reason: "network",
+              delayMs: delay,
+            });
+          }
+          await sleep(delay, options.signal);
           attempt++;
           continue;
         }
@@ -111,11 +147,40 @@ export class FcHttp {
 
       const retryAfter = parseRetryAfterSeconds(response.headers.get("retry-after"));
       const delay = retryAfter !== undefined ? retryAfter * 1000 : backoffDelay(attempt, retry);
+      if (hookMeta) {
+        await fireHook(this.#config.hooks?.onRetry, {
+          url: hookMeta.url,
+          method: hookMeta.method,
+          headers: hookMeta.headers,
+          attempt: attempt + 1,
+          status: response.status,
+          durationMs: performance.now() - startMs,
+          requestId: response.headers.get("x-request-id") ?? undefined,
+          reason: retryAfter !== undefined ? "rate-limit" : "status",
+          delayMs: delay,
+        });
+      }
       // Drain the body so the underlying socket can be reused.
       await response.arrayBuffer().catch(() => undefined);
       await sleep(delay, options.signal);
       attempt++;
     }
+  }
+
+  /**
+   * Builds the redacted URL/headers payload reused across the per-attempt
+   * onRequest / onResponse / onRetry hook calls. Only called when hooks
+   * are configured — building Headers twice per request would otherwise
+   * be wasted work.
+   */
+  #prepareHookMeta(
+    method: string,
+    path: string,
+    options: HttpRequestOptions,
+  ): { url: string; method: string; headers: Record<string, string> } {
+    const url = redactUrl(this.#buildUrl(path, options.query));
+    const headers = redactHeaders(this.#buildHeaders(options));
+    return { url, method: method.toUpperCase(), headers };
   }
 
   /** Streams an NDJSON response as an async iterator. Not retried. */
@@ -333,6 +398,25 @@ function createTimeoutSignal(timeoutMs: number): TimeoutHandle {
 
 function hasJsonBody(response: Response): boolean {
   return (response.headers.get("content-type") ?? "").includes("application/json");
+}
+
+/**
+ * Invokes a hook with best-effort semantics: a throw or rejection is
+ * caught and warned (not propagated) so a misbehaving observer cannot
+ * crash an otherwise-healthy request.
+ */
+async function fireHook<C>(
+  hook: ((ctx: C) => void | Promise<void>) | undefined,
+  ctx: C,
+): Promise<void> {
+  if (!hook) return;
+  try {
+    await hook(ctx);
+  } catch (err) {
+    // Mirror what most logging libraries do: avoid throwing in I/O paths.
+    // eslint-disable-next-line no-console
+    console.warn("fc-sandbox-sdk: client hook threw, ignoring", err);
+  }
 }
 
 async function unwrapJSend<T>(response: Response): Promise<T> {

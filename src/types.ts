@@ -44,6 +44,60 @@ export interface RetryOptions {
   maxDelayMs?: number;
 }
 
+// ── Observability hooks ─────────────────────────────────────────────────
+
+/** Reason a request is being retried. */
+export type RetryReason = "network" | "status" | "rate-limit";
+
+/** Context delivered to {@link ClientHooks.onRequest}. */
+export interface RequestHookContext {
+  /** URL with userinfo stripped and sensitive query params redacted. */
+  url: string;
+  /** Uppercase HTTP method. */
+  method: string;
+  /** Outgoing headers with credentials replaced by `"redacted"`. */
+  headers: Record<string, string>;
+  /** 1 for the first try, 2+ for retries. */
+  attempt: number;
+}
+
+/** Context delivered to {@link ClientHooks.onResponse}. */
+export interface ResponseHookContext extends RequestHookContext {
+  /** HTTP status code returned by the server. */
+  status: number;
+  /** Elapsed time for the fetch call, in milliseconds. */
+  durationMs: number;
+  /** Server-supplied request id, when present. */
+  requestId?: string | undefined;
+}
+
+/**
+ * Context delivered to {@link ClientHooks.onRetry}.
+ *
+ * `status` and `requestId` are undefined when the retry was triggered by a
+ * network error (`reason: "network"`) — no response was received.
+ */
+export interface RetryHookContext extends Omit<ResponseHookContext, "status"> {
+  /** HTTP status that triggered the retry, or undefined for network errors. */
+  status?: number | undefined;
+  /** Why the SDK is retrying this request. */
+  reason: RetryReason;
+  /** Milliseconds the SDK will sleep before the next attempt. */
+  delayMs: number;
+}
+
+/**
+ * Optional lifecycle hooks for plugging in observability without pulling
+ * runtime dependencies. Every payload is pre-redacted — credentials in
+ * headers and query params never reach a hook. A throw inside a hook is
+ * swallowed so a misbehaving observer cannot crash a real request.
+ */
+export interface ClientHooks {
+  onRequest?: (ctx: RequestHookContext) => void | Promise<void>;
+  onResponse?: (ctx: ResponseHookContext) => void | Promise<void>;
+  onRetry?: (ctx: RetryHookContext) => void | Promise<void>;
+}
+
 export interface FcClientOptions {
   /** fc-spawn API key sent as X-Api-Key. Falls back to the FC_API_KEY env var. */
   apiKey?: string;
@@ -61,6 +115,8 @@ export interface FcClientOptions {
   retry?: RetryOptions | false;
   /** Overrides the User-Agent header. */
   userAgent?: string;
+  /** Lifecycle hooks for zero-dep observability. Payloads are pre-redacted. */
+  hooks?: ClientHooks;
 }
 
 /** Per-call overrides accepted by every SDK method. */
