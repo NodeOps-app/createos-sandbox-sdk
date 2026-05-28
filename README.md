@@ -339,8 +339,9 @@ await fc.readyz();       // { ready, reason? } — does not throw on 503
 ## Errors
 
 Non-2xx responses throw a typed error. Every one extends `FcError`; HTTP
-errors also extend `FcApiError` and carry `statusCode`, `response`,
-`requestId`, and the parsed JSend `envelope`.
+errors also extend `FcApiError` and carry the request context needed to
+file a useful support ticket — `statusCode`, `endpoint`, `method`,
+`requestId`, `resourceId`, and the parsed JSend `envelope`.
 
 ```ts
 import { FcNotFoundError, FcRateLimitError, FcValidationError } from "fc-sandbox-sdk";
@@ -351,7 +352,7 @@ try {
   if (err instanceof FcValidationError) {
     console.error("bad request:", err.envelope?.data);
   } else if (err instanceof FcNotFoundError) {
-    console.error("not found");
+    console.error(`not found at ${err.method} ${err.endpoint} (req ${err.requestId})`);
   } else if (err instanceof FcRateLimitError) {
     console.error("retry after", err.retryAfterSeconds, "s");
   } else {
@@ -359,6 +360,19 @@ try {
   }
 }
 ```
+
+Every `FcApiError` exposes:
+
+- `statusCode` — HTTP status as a number.
+- `endpoint` — request pathname (no host, no query). Stable enough to
+  bucket errors in dashboards.
+- `method` — HTTP verb.
+- `requestId` — server-issued id (`X-Request-Id` or `X-Fc-Request-Id`)
+  for cross-referencing with the control plane's logs.
+- `resourceId` — sandbox / template / network / disk id parsed from the
+  path, when present.
+- `code` — the stable machine-readable code from `envelope.data.code`,
+  when present.
 
 | Error | Cause |
 | --- | --- |
@@ -370,6 +384,34 @@ try {
 | `FcServerError` | 5xx |
 | `FcConnectionError` | network failure, no response |
 | `FcTimeoutError` | request or `waitUntil*` deadline exceeded |
+
+## Observability
+
+The client takes optional lifecycle hooks. Wire them into OpenTelemetry,
+your structured logger, or a metrics sink — the SDK does not pull any
+runtime dependency for this.
+
+```ts
+const fc = new FcClient({
+  apiKey: process.env.FC_API_KEY,
+  hooks: {
+    onRequest: (ctx) => log.debug("→", ctx.method, ctx.url, `try ${ctx.attempt}`),
+    onResponse: (ctx) =>
+      log.debug("←", ctx.status, `${ctx.durationMs.toFixed(0)}ms`, ctx.requestId),
+    onRetry: (ctx) => log.warn("retry", ctx.reason, "in", ctx.delayMs, "ms"),
+  },
+});
+```
+
+Hook context is pre-redacted: `Authorization`, `X-Api-Key`,
+`X-Auth-Token`, `Cookie`, `Proxy-Authorization`, `X-Csrf-Token`, and
+common credential query params never reach a hook payload. A throw
+inside a hook is caught and warned — a flaky observer will not crash
+the request.
+
+`onRetry.reason` is one of `"network"` (the fetch threw),
+`"rate-limit"` (the server set `Retry-After`), or `"status"` (a
+retryable 4xx/5xx without a Retry-After).
 
 ## Retries and timeouts
 
