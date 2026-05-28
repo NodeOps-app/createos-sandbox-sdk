@@ -1,0 +1,8 @@
+fc-sandbox-sdk: 0.2.1
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-28
+rootfs: devbox:1
+shape: s-2vcpu-2gb
+tigerfs: v0.6.0 (installed at runtime from https://install.tigerfs.io)
+postgres: 16 (debian default, started via pg_ctlcluster)
+verified end-to-end: yes

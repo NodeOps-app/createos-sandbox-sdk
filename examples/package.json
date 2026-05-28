@@ -1,0 +1,11 @@
+{
+  "name": "fc-sdk-examples",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.98.0",
+    "@openai/agents": "0.11.4",
+    "fc-sandbox-sdk": "file:../",
+    "zod": "4.4.3"
+  }
+}

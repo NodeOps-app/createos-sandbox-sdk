@@ -1,0 +1,7 @@
+fc-sandbox-sdk      workspace (file:../../)
+@anthropic-ai/claude-code  installed inside sandbox at runtime via npm (--prefix /usr/local)
+bun                 runtime for host script
+node                v20+ (inside devbox:1 sandbox via asdf)
+npm                 available in devbox:1
+
+verified end-to-end: yes

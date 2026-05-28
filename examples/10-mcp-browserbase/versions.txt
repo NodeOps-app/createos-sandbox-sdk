@@ -1,0 +1,7 @@
+fc-sandbox-sdk: 0.2.0
+@anthropic-ai/sdk: 0.98.0
+@browserbasehq/mcp: 3.0.0 (installed at runtime via npm install -g inside sandbox)
+Anthropic beta: mcp-client-2025-11-20
+MCP transport: HTTP (streamable) on port 8080 via FC ingress
+
+verified end-to-end: no (BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID not available in this environment)

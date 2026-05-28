@@ -1,0 +1,6 @@
+fc-sandbox-sdk: 0.2.0
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-27
+rootfs: devbox:1
+shape: s-1vcpu-256mb
+verified end-to-end: yes (bun index.ts on production FC; sandbox tool outputs returned)

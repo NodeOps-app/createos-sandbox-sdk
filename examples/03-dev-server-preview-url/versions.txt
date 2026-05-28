@@ -1,0 +1,7 @@
+fc-sandbox-sdk: 0.2.1
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-28
+rootfs: devbox:1
+shape: s-1vcpu-256mb
+verified end-to-end: yes (http:// preview URL)
+known issues: wildcard TLS cert missing — https://github.com/NodeOps-app/fc/issues/41

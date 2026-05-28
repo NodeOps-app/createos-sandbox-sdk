@@ -1,6 +1,30 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 dist/
+*.tsbuildinfo
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+
+# Logs
 *.log
-.DS_Store
-.firecrawl
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Local tooling/cache
+.firecrawl/
