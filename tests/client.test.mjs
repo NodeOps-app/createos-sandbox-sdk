@@ -687,7 +687,7 @@ test("sends User-Agent and X-Fc-Runtime headers tagged with the detected runtime
     fetch: async (_url, init) => {
       const ua = init.headers.get("user-agent") ?? "";
       const tag = init.headers.get("x-fc-runtime") ?? "";
-      assert.match(ua, /^fc-sandbox-sdk\/0\.2\.1 \S+/);
+      assert.match(ua, /^fc-sandbox-sdk\/0\.3\.0 \S+/);
       assert.equal(tag, runtimeTag());
       assert.ok(tag.startsWith("node-") || tag === "node");
       return success({ up: true });

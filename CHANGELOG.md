@@ -18,6 +18,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-28
+
 ### Added
 
 - `FcApiError.endpoint` and `FcApiError.method` — every HTTP error now
