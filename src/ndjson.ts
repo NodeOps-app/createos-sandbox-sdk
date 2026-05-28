@@ -1,3 +1,18 @@
+// Lines beginning with these SSE control prefixes are silently skipped, so the
+// same parser tolerates a server that ever wraps NDJSON in SSE framing.
+const SSE_CONTROL_PREFIXES = ["event:", "id:", "retry:"];
+
+function parseLine<T>(line: string): T | undefined {
+  if (line.length === 0) return undefined;
+  if (line.startsWith(":")) return undefined;
+  for (const prefix of SSE_CONTROL_PREFIXES) {
+    if (line.startsWith(prefix)) return undefined;
+  }
+  const payload = line.startsWith("data:") ? line.slice(5).trimStart() : line;
+  if (payload.length === 0) return undefined;
+  return JSON.parse(payload) as T;
+}
+
 export async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -18,8 +33,9 @@ export async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGen
         const line = buffer.slice(0, newlineIndex).trim();
         buffer = buffer.slice(newlineIndex + 1);
 
-        if (line.length > 0) {
-          yield JSON.parse(line) as T;
+        const event = parseLine<T>(line);
+        if (event !== undefined) {
+          yield event;
         }
 
         newlineIndex = buffer.indexOf("\n");
@@ -28,8 +44,9 @@ export async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGen
 
     buffer += decoder.decode();
     const finalLine = buffer.trim();
-    if (finalLine.length > 0) {
-      yield JSON.parse(finalLine) as T;
+    const finalEvent = parseLine<T>(finalLine);
+    if (finalEvent !== undefined) {
+      yield finalEvent;
     }
     drained = true;
   } finally {

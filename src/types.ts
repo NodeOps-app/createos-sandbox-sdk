@@ -45,7 +45,7 @@ export interface RetryOptions {
 }
 
 export interface FcClientOptions {
-  /** Bearer API key. Falls back to the FC_API_KEY env var. */
+  /** fc-spawn API key sent as X-Api-Key. Falls back to the FC_API_KEY env var. */
   apiKey?: string;
   /** Auth headers used instead of an API key, e.g. your app's session token. */
   authHeaders?: HeadersInit;

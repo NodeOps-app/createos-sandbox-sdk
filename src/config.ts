@@ -2,10 +2,11 @@
 // variables and defaults into a single frozen ResolvedConfig.
 
 import { FcError } from "./errors.js";
+import { runtimeTag } from "./runtime.js";
 import type { FcClientOptions, RetryOptions } from "./types.js";
 
 /** SDK version, stamped into the User-Agent header. Keep in sync with package.json. */
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 
 /** Production control plane, used when no baseUrl is configured. */
 export const DEFAULT_BASE_URL = "https://fc-spawn.bhautik.in";
@@ -27,6 +28,7 @@ export interface ResolvedConfig {
   timeoutMs: number;
   retry: Required<RetryOptions> | false;
   userAgent: string;
+  runtimeTag: string;
 }
 
 /** Reads an environment variable in a way that is safe in non-Node runtimes. */
@@ -82,6 +84,8 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
     throw new FcError("Pass either apiKey or authHeaders, not both.");
   }
 
+  const runtime = runtimeTag();
+
   return Object.freeze({
     apiKey,
     authHeaders: options.authHeaders,
@@ -90,6 +94,7 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
     defaultHeaders: options.headers ?? {},
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     retry,
-    userAgent: options.userAgent ?? `fc-sandbox-sdk/${VERSION}`,
+    userAgent: options.userAgent ?? `fc-sandbox-sdk/${VERSION} ${runtime}`,
+    runtimeTag: runtime,
   });
 }

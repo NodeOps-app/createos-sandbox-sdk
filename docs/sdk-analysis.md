@@ -203,6 +203,378 @@ from an OpenAPI spec by Speakeasy.
 
 ---
 
+## Round 2 (2026-05-28)
+
+Nine more sandbox / compute SDKs surveyed at source level. Same
+Good/Bad template. Headlines: atomic N-way fork (Morph), idempotent
+snapshot layering by content hash (Morph), TTL reaper + wake-on-traffic
+(Morph), Jupyter-shaped execution aggregate with mime bundles
+(OpenSandbox), sequence-numbered event bus with replay (Runloop),
+H2 pool warming during create (Blaxel), runtime-detection header
+(Islo), two-plane URL with per-sandbox capability tokens (Superserve),
+W3C `traceparent` returned on every call (Tensorlake), resource-spec
+parsers `parseCpu` / `parseMemory` / `parseGpu` (Beam).
+
+| SDK | npm | Product |
+| --- | --- | --- |
+| Tensorlake | `tensorlake` | Managed micro-VM platform |
+| Runloop (remote-agents) | `@runloop/remote-agents-sdk` | ACP/Claude bridge over Axon SSE |
+| Morph Labs | `morphcloud` | Snapshot/branch micro-VM cloud (Infinibranch) |
+| Islo Labs | `@islo-labs/sdk` | Sandbox/snapshot platform (Fern codegen) |
+| Blaxel | `@blaxel/core` | Agentic platform — multi-region sandboxes + agents/models |
+| Superserve | `@superserve/sdk` | Firecracker micro-VM control plane |
+| OpenSandbox (Alibaba) | `@alibaba-group/opensandbox-code-interpreter` | Open-source Jupyter-style code interpreter |
+| OpenComputer (Digger) | `@opencomputer/sdk` | Persistent-VM sandboxes for AI agents |
+| Beam Cloud | `@beamcloud/beam-js` | Serverless GPU/CPU compute + sandboxes |
+
+### Tensorlake — `tensorlake`
+
+Hand-written + tsc-built micro-VM SDK. 2 runtime deps (`undici`, `ws`),
+Node ≥22.
+
+**Good**
+
+- `Sandbox.create()` / `Sandbox.connect()` static factories return a
+  fully-wired handle. Old `SandboxClient` is `console.warn`-deprecated.
+- **W3C `traceparent` per request, returned as `Traced<T>`** — every
+  SDK return value carries `traceId` so users grep server logs by ID.
+- Status→class error map stamps the entity ID onto typed errors via
+  path regex (`SandboxNotFoundError.sandboxId`).
+- `anySignal(...)` AbortSignal composer + tuned `undici` global
+  dispatcher (`keepAliveTimeout: 60_000`, `allowH2: true`).
+- `run()` over a single SSE POST: stdout/stderr + exit code in one
+  stream. No start-process-then-poll-pid round trip.
+- `waitForPortReady` uses bash `/dev/tcp/127.0.0.1/<port>` inside the
+  sandbox — kills 502-races without adding a probe endpoint
+  server-side.
+
+**Bad**
+
+- Retry policy is naive — exponential without jitter, no `Retry-After`,
+  no idempotency awareness.
+- Single shared `abortController` per `HttpClient` — concurrent
+  requests race each other's timeouts.
+- 2 runtime deps; no env-var-driven retry/timeout config.
+- Manual `fromSnakeKeys()` in every method — wire-type case translation
+  by reflection.
+
+### Runloop — `@runloop/remote-agents-sdk`
+
+Thin ACP / Claude bridge over Axon SSE event bus. **Not** Runloop's
+REST sandbox SDK — that is the peer-dep `@runloop/api-client`
+(Stainless-generated, not in this repo). Apples-to-oranges with
+`fc-sandbox-sdk`; the transport / retry / auth layer is absent here.
+
+**Good**
+
+- `ListenerSet<T>` — error-isolated fan-out, snapshot-iterate, ~40 LOC.
+- Typed lifecycle error with discriminant `code` field (`already_connected
+  | already_initialized | not_connected | terminated`).
+- **Sequence-numbered event bus with replay** — `afterSequence: N` +
+  `replay: boolean` resume semantics for the SSE feed.
+- Conventional-commit PR-title CI gate; NPM provenance + OIDC publish.
+
+**Bad**
+
+- No HTTP transport / retry / auth / error model / file ops to inspect
+  in this layer — all in the peer-dep.
+- Single-retry reconnect; no exponential backoff.
+- 1100-line `claude/connection.ts` merging transport + protocol +
+  lifecycle.
+
+### Morph Labs — `morphcloud`
+
+Snapshot/branch micro-VM cloud (Infinibranch). Hand-written, CJS+ESM
+dual via `tsup`. 4 runtime deps.
+
+**Good**
+
+- **`Instance.branch(count)` returns `{snapshot, instances[]}` in one
+  server call** — atomic N-way fork beats client-side fan-out.
+- **Chain-hash idempotent layering** (`Snapshot.computeChainHash`):
+  sha256 from `parentChainHash + effectIdentifier`. Turns
+  `.setup("apt install foo")` into Dockerfile-style cached layers.
+- Stripe-style `metadata[key]=value` URLSearchParams filter on list
+  endpoints — tag snapshots, retrieve by tag.
+- **`InstanceTTL`** server-side auto-stop (`ttlSeconds`,
+  `ttlAction: "stop"|"pause"`) — leak prevention as a wire feature.
+- **`InstanceWakeOn`** (`wakeOnSsh`, `wakeOnHttp`) — paused instance
+  auto-resumes on traffic. Cost/warmth dial.
+- Separate `undici.Agent` for exec (`headersTimeout: 24h, bodyTimeout: 0`)
+  segregates long-poll from normal pool.
+- `digest` field on snapshots as user-supplied dedupe key, auto-sha256
+  if omitted. Free idempotency on retry.
+
+**Bad**
+
+- No typed error hierarchy — every failure is bare
+  `throw new Error("HTTP " + status)` with stringified body.
+- No retry layer; single-shot fetch.
+- `AbortSignal.timeout()` overwrites any caller signal — external
+  cancellation impossible.
+- `waitUntilReady` is fixed 1s poll with no jitter.
+- 4 runtime deps; module-load-time keypair generation.
+
+### Islo Labs — `@islo-labs/sdk`
+
+Fully Fern-codegen TS SDK (192 files, ~8.8 kLOC). Only 3 hand-written
+files (API-key → JWT exchange). Zero runtime deps.
+
+**Good**
+
+- **`HttpResponsePromise` dual-API**: `await client.x.foo()` resolves
+  body; `.withRawResponse()` on the same call returns `{data,
+  rawResponse}`. Single Promise subclass.
+- **Aggressive log redaction** — `Authorization` / `*-token` / `*-key` /
+  `cookie` / `csrf` headers, sensitive query params, URL userinfo all
+  redacted before `logger.debug` ever sees them.
+- Runtime detection (node / bun / deno / browser / workerd / edge /
+  web-worker / react-native) → `X-Fern-Runtime` header.
+- **TokenProvider with cross-instance cache + in-flight dedupe** —
+  module-level `Map<cacheKey, TokenState>`, refresh-margin window,
+  shared pending promise so 50 concurrent clients fire one exchange.
+- `anySignal()` using the controller's own signal as
+  `addEventListener` unsub — leak-free without manual
+  `removeEventListener`.
+- Passthrough `client.fetch(url, init, opts)` escape hatch that reuses
+  SDK auth / retry / logging / timeout / abort.
+
+**Bad**
+
+- 2140-line `SandboxesClient.ts` is codegen boilerplate; same
+  `_queryParams` / `_authRequest` / `_response` plumbing inlined every
+  method.
+- No resource handle — every per-sandbox op is
+  `client.sandboxes.X({sandbox_name, body})`.
+- Retries `POST` on 408 / 429 / 5xx — wrong policy for non-idempotent.
+- `downloadFile` / `uploadFile` typed `unknown` — OpenAPI spec doesn't
+  tag content-type.
+- Streaming returns raw `ReadableStream`; no parser.
+
+### Blaxel — `@blaxel/core`
+
+Agentic platform (sandboxes + agents + models). Codegen-heavy
+(`@hey-api/openapi-ts`) with hand-written H2 pool. 13 runtime deps.
+
+**Good**
+
+- **H2 session pool keyed by edge domain** with `warm()`
+  (fire-and-forget background connect) running in parallel with
+  `createSandbox` — SETTINGS exchange hidden under the API roundtrip.
+  Self-evicts on `goaway` / `error` / `close`.
+- **Multi-region routing**: `BL_REGION` env → `any.${region}.bl.run`
+  edge domain.
+- Multipart upload with transient-marker classifier
+  (`ENHANCE_YOUR_CALM`, `NGHTTP2_INTERNAL_ERROR`, `GOAWAY`) +
+  error-code chain walk through `cause`.
+- NDJSON process streaming with three callback channels
+  (`onStdout` / `onStderr` / `onLog`).
+- **`Blaxel-Version: 2026-04-16` date-versioned API header** —
+  Stripe-style API pinning.
+- `fromSession({url, token})` constructor builds a handle from a
+  shared / preview URL — same handle for owner + shared access.
+- Lazy autoload pattern: `import "@blaxel/core"` has zero side effects;
+  credential resolution fires on first request.
+
+**Bad**
+
+- 13 runtime deps; 11 `sed -i.bak` patches + a `perl -0777` to fix up
+  generated types after every regen.
+- Single `ResponseError` class — `JSON.stringify(body)` blob as message.
+  No status → class hierarchy.
+- No `AbortSignal` composition; `wait()` is `setTimeout` + poll.
+- Globally mutable `settings` singleton.
+
+### Superserve — `@superserve/sdk`
+
+TS SDK for a Firecracker micro-VM control plane. Hand-written, zero
+runtime deps, ESM+CJS via `tsup`. Closest stylistic peer to ours.
+
+**Good**
+
+- **Two-plane URL design**: control plane at `api.superserve.ai`, data
+  plane derived per-sandbox at `boxd-{id}.sandbox.superserve.ai`. Files
+  use a per-sandbox `X-Access-Token`, not the master API key. Hard
+  separation of blast radius.
+- **Per-sandbox capability token rotates on `resume()`** — handle
+  transparently rebuilds `sandbox.files` to pick up the new token.
+- Two-mode `commands.run()` — switches sync vs SSE stream purely by
+  presence of `onStdout` / `onStderr` callbacks.
+- **SSE with idle (not absolute) timeout** — resets timer per chunk;
+  long-running commands don't get spuriously aborted, but a true wedge
+  still trips.
+- **`BuildError` with structured `code` / `buildId` / `templateId`** +
+  stable-prefix parser for `"<code>: <detail>"` server messages.
+- **+5s buffer on client vs server timeout** so the server's
+  structured timeout response wins over a client abort.
+- 204 / empty-body and `Retry-After` (seconds or HTTP-date) both
+  handled explicitly.
+
+**Bad**
+
+- Auth header is `X-API-Key` (not Bearer) — ignores the `Authorization`
+  ecosystem (proxies, log scrubbers, OpenAPI tooling).
+- Hand-coded `SDK_VERSION = "0.6.0"` while `package.json` is `0.7.1`
+  (drift in-repo).
+- No `x-request-id` capture in errors; `Response` discarded post-throw.
+- `getInfo()` returns a snapshot but doesn't mutate `this.status` /
+  `this.metadata` — footgun.
+- No NDJSON support — SSE only. Hardcoded retry constants.
+
+### OpenSandbox — `@alibaba-group/opensandbox-code-interpreter`
+
+Alibaba open-source Jupyter-style code interpreter. Two-package split:
+`opensandbox` (~8.8 kLOC, lifecycle + execd) and
+`opensandbox-code-interpreter` (~575 LOC facade). 2 runtime deps.
+
+**Good**
+
+- **Jupyter-shaped execution aggregate**: `Execution { logs.stdout[],
+  logs.stderr[], result: ExecutionResult{ raw: Record<string, unknown>,
+  text }, error: { name, value, traceback[] }, complete, executionCount,
+  exitCode }`. Preserves mime bundles (`image/png`, `text/html`,
+  `application/vnd.plotly.v1+json`).
+- **`ExecutionEventDispatcher`** — single state machine consumes
+  `ServerStreamEvent.type ∈ {init, stdout, stderr, result,
+  execution_count, execution_complete, error}`, mutates the aggregate,
+  fires `ExecutionHandlers.{onStdout, onStderr, onResult, onError, ...}`.
+  Reused for both code execution and shell command exec.
+- **Context primitive**: `codes.createContext(language)` returns a
+  stateful REPL session id; `run(code, {context})` persists cwd / env /
+  Python kernel state.
+- **Bash session primitive** — `createSession()` /
+  `runInSession(id, cmd)` reuses shell state. Cheaper than spawning a
+  fresh container shell each call.
+- SSE / NDJSON tolerant parser handles `data:` SSE frames and raw
+  NDJSON in one. Strips `id:` / `event:` / `retry:` / `:comment` lines.
+- Separate streaming-fetch path (`sseFetch`, timeout=0) so request
+  timeout doesn't kill the stream.
+- `readBytesStream(path) → AsyncIterable<Uint8Array>` for large files.
+
+**Bad**
+
+- Codegen-heavy (`openapi-typescript`). `src/api/execd.ts` 1792 LoC,
+  `lifecycle.ts` 1451 LoC.
+- 2 runtime deps (`undici`, `openapi-fetch`).
+- No retry layer, no `Retry-After`, no idempotency awareness.
+- Single `SandboxApiException` for all failures.
+- Health polling is hand-rolled `while(true)` with a fixed interval.
+
+### OpenComputer — `@opencomputer/sdk`
+
+Persistent-VM sandboxes for AI agents (E2B competitor). Hand-written,
+zero runtime deps, ESM-only, ~2.8 kLOC. **Not** computer-use / VNC
+despite the name — `rg` finds zero hits for screenshot, mouse,
+keyboard, CDP, playwright.
+
+**Good**
+
+- `Sandbox.create()` / `Sandbox.connect(id)` static factories — no
+  client object to wire up.
+- `hibernate()` / `wake({timeout})` alongside `reboot()` /
+  `powerCycle()`.
+- **Named checkpoints**: `createCheckpoint(name)`, `listCheckpoints()`,
+  `restoreCheckpoint(id)`, `createFromCheckpoint(id)`,
+  `deleteCheckpoint(id)`. Plus checkpoint patches as a delta layer.
+- **Signed pre-signed URLs**: `downloadUrl(path, {expiresIn})` /
+  `uploadUrl(path, {expiresIn})` — sidestep proxying through the
+  control plane.
+- `createPreviewURL({port, domain?, authConfig?})` +
+  `listPreviewURLs()` + `deletePreviewURL(port)`.
+- Targeted error subclasses for known states: `ScalingLockedError`
+  (403 + `code: "scaling_locked"`), `PlanLimitError` (402),
+  `ShellBusyError`, `ShellClosedError`.
+- Claude Agent namespace: `sandbox.agent.start({prompt, model, ...})`
+  returns a session with `done: Promise<exitCode>`, `sendPrompt`,
+  `interrupt`, `kill`, `close`.
+- Declarative `Image` builder — layered steps + content-hashed
+  manifest; server caches matching hash as a checkpoint.
+
+**Bad**
+
+- **No transport layer** — every method has its own ~10-line `fetch` +
+  status-check + `throw new Error(...)` block. Auth header inlined at
+  every call site. ~40+ near-duplicates.
+- No retry layer (zero matches for `retry|backoff|jitter|Retry-After`).
+- No `AbortSignal` / per-request timeout — none of the public methods
+  accept a `signal`.
+- Streaming exec is WebSocket with auth tunneled via query string
+  (`?token=...`) — known weak pattern.
+- `wake()` does `(this as any).files = new Filesystem(...)` to refresh
+  JWT — mutation smell.
+- Config is hand-resolved each call
+  (`process.env.OPENCOMPUTER_API_URL` inside `Sandbox.create` /
+  `Sandbox.connect`).
+
+### Beam Cloud — `@beamcloud/beam-js`
+
+Serverless GPU / CPU compute + sandboxes. Hand-written but Python-port
+(visible TODOs reference `common.py`). 6 runtime deps. Global mutable
+config singleton.
+
+**Good**
+
+- **Resource-spec parsers**: `parseCpu` accepts `2 | "2" | "2000m"`,
+  `parseMemory` accepts `"512Mi" | "4Gi" | "2GB" | number`, `parseGpu`
+  normalizes enum / array → string.
+- **Enum + literal-union dual typing**: `GpuType` enum +
+  `GpuTypeLiteral` string union → `GpuTypeAlias`. Same dual treatment
+  for `PythonVersion`.
+- **`Volume(name, mountPath).getOrCreate()`** lazy-resolve before stub
+  creation; volumes pass as an array on Sandbox / Pod config.
+- **`exposePort(port) → url`** dynamic port exposure;
+  **`listUrls() → Record<port, url>`** returns all exposed ports.
+- **`createImageFromFilesystem()`** + `snapshot()` /
+  `createFromSnapshot()` static — turn a live sandbox FS into a
+  reusable image. Significant product moat.
+- **`updateNetworkPermissions(blockNetwork, allowList[])`** runtime
+  CIDR allowlist mutation.
+- **`findInFiles(pattern, opts) → SandboxFileSearchResult[]`** with
+  line / column ranges. Distinctive product feature.
+- `Image` builder DSL with chainable `commands`, `pythonPackages`,
+  `buildSteps`, `fromDockerfile`; `Image.exists()` short-circuits to a
+  cached `imageId`.
+- Async-iterable on `process.stdout` / `stderr` / `logs` via
+  `[Symbol.asyncIterator]()`.
+- `updateTtl(seconds)` + `keepWarmSeconds: -1` no-timeout convention.
+
+**Bad**
+
+- No error hierarchy mapped to HTTP status — three message-only `Error`
+  subclasses.
+- Global mutable `beamOpts` singleton — not multi-tenant safe.
+- No retry layer, no `AbortSignal`, no `Retry-After`.
+- Errors discarded with `console.error` returning falsy values; caller
+  must check `lastError` after the fact.
+- 6 runtime deps; `axios` for transport.
+- `console.log` / `process.stdout.write` baked into library code.
+- `runCode` returns union `Response | Process` — caller must narrow.
+- Reflective camel ↔ snake conversion runs blindly on all keys.
+
+### CodeSandbox refresh — `@codesandbox/sdk` (delta since 2026-05-27)
+
+Re-read at `10f8266` (2025-12-04), v2.4.2.
+
+- New `interpreters` namespace — `javascript(code)` / `python(code)`
+  thin helpers wrap `commands.run` with auto-`return` / `print()` of
+  the last expression.
+- Split `./browser` and `./node` subpath exports; browser variant
+  auto-wires `visibilitychange → ping() / reconnect()`.
+- Auto-reconnect with `keepActiveWhileConnected` + 10 s keep-alive ping,
+  3-fail cooldown.
+- `HostTokens` triple — `getUrl(token, port, proto)`,
+  `getHeaders(token)`, `getCookies(token)` for signed private-host
+  access. Parallel to the unkeyed `tunnel/:port` we intentionally do
+  not model.
+- Migrated to `@hey-api/client-fetch` OpenAPI codegen. **Skip** —
+  violates our hand-written + Go-handler-source-of-truth rule.
+- All ops wrapped in `withSpan` via `@opentelemetry/api`. **Skip** —
+  adds runtime dep.
+- No snapshot / fork pattern changes; `fork` deprecated in favor of
+  `create({id})`.
+
+---
+
 ## Comparison matrix
 
 | | Handle model | Typed errors | Retries | `waitUntil*` | Transport | Runtime deps |
@@ -214,6 +586,15 @@ from an OpenAPI spec by Speakeasy.
 | Cloudflare | get-or-create handle | yes (rich) | 503-only | server-side | HTTP/WS/RPC | 4 |
 | CodeSandbox | two-layer handle | **weak** | fixed-delay | yes | REST + WS | many |
 | Vercel | flat API client | yes (per-op) | yes (excellent) | n/a | fetch | 2 |
+| Tensorlake | static factory + class | yes (rich, ID-stamped) | no jitter, no `Retry-After` | hand-rolled | REST + SSE + WS | 2 |
+| Runloop (remote-agents) | bridge (no handle) | discriminant-`code` | single-retry reconnect | n/a | SSE over Axon | peer-dep |
+| Morph | rich handle + `branch(N)` | **none** (bare `Error`) | **none** | fixed 1s poll | REST + raw stream | 4 |
+| Islo | flat API client | yes (per-status switch) | yes (wrong on POST) | **none** | fetch | zero |
+| Blaxel | rich handle | **weak** (one class) | only multipart parts | deprecated `wait()` | REST + H2 + NDJSON | 13 |
+| Superserve | rich handle (2-plane) | yes (rich + `BuildError`) | yes (no idempotency split) | yes (poll-driven) | REST + SSE | zero |
+| OpenSandbox | adapter facade | **none** (one class) | **none** | hand-rolled `while(true)` | REST + SSE/NDJSON | 2 |
+| OpenComputer | static factory | weak (2 named, rest bare) | **none** | n/a | REST + SSE + WS | zero |
+| Beam | resource handle + singleton | **weak** (3 message-only) | **none** | busy-poll | axios + WS | 6 |
 | **fc-sandbox-sdk** | **handle + factory** | **yes (10 classes)** | **yes (method-aware)** | **yes (adaptive)** | **REST + NDJSON** | **zero** |
 
 ---
@@ -274,3 +655,225 @@ from an OpenAPI spec by Speakeasy.
   fc-spawn exposes no such endpoints.
 - **CJS build.** ESM-only is a defensible modern choice (Vercel does the
   same). Revisit if consumers need CJS.
+
+---
+
+## Round 2 borrow candidates
+
+Patterns from the 2026-05-28 survey worth backporting into
+`fc-sandbox-sdk` — ordered by effort. ✅ marks items shipped in v0.2.1.
+
+### Cheap wins (~10–40 LOC)
+
+- ✅ **`Sandbox.create()` / `Sandbox.connect()` static factories** alongside
+  the existing `client.createSandbox()` path — one less concept for
+  ad-hoc scripts. Shipped in v0.2.1 (Tensorlake, OpenComputer).
+- **`anySignal([...])` AbortSignal composer** — superseded by platform
+  `AbortSignal.any()` already in `http.ts:175`. Nothing to do.
+- ✅ **Path-aware error mapping** — `FcApiError.resourceId` populated
+  from the request path. Shipped in v0.2.1 (Tensorlake).
+- ✅ **Sensitive-header / query / userinfo redaction set** — exported as
+  `redactHeaders` / `redactUrl` / `redactQuery` for consumers writing
+  logging middleware. Shipped in v0.2.1 (Islo).
+- ✅ **Runtime-detection `User-Agent` + `X-Fc-Runtime` header** —
+  node / bun / deno / workerd / edge-light / browser / react-native.
+  Shipped in v0.2.1 (Islo).
+- **W3C `traceparent` per request** — deferred; user opted out for
+  this batch.
+- **+5s buffer on client vs server timeout** — awaits server-side
+  `ExecRequest.timeout_ms` field. File `../fc` issue first (Superserve).
+- **Idle (not absolute) timeout for streaming reads** — deferred until
+  long-poll timeouts become a known pain point (Superserve).
+- ✅ **NDJSON parser tolerant of SSE control lines** — `src/ndjson.ts`
+  now skips `:` / `event:` / `id:` / `retry:` and strips a `data: `
+  prefix. Shipped in v0.2.1 (OpenSandbox).
+- ✅ **Body-`code` discriminated errors** — `FcApiError.code` populated
+  from `envelope.data.code` for stable machine-readable branching
+  without parsing prose (OpenComputer, Islo). Shipped in v0.2.1.
+- **Stable error-code prefix parser** — `"<code>: <detail>"` split.
+  Subsumed by the body-`code` field above once fc-spawn standardizes
+  emitting `code` (Superserve).
+
+### Medium effort (~100–300 LOC)
+
+- **`HttpResponsePromise<T>` dual-API** — keep the current `await`
+  shape; add `.withRawResponse()` for users who need `Retry-After` /
+  rate-limit headers. Single Promise subclass (Islo).
+- **Two-mode `runCommand({onStdout?, onStderr?, signal})`** — collapse
+  `runCommand` + `streamCommand` into one method that switches on
+  callback presence. Better DX than two methods (Superserve, Blaxel).
+- **Async-iterable on `streamCommand` result** for `proc.stdout` /
+  `proc.stderr` / `proc.logs` — adds `[Symbol.asyncIterator]()`
+  alongside callbacks (Beam, OpenSandbox).
+- **Streaming-fetch path** that bypasses the request timeout — current
+  `AbortSignal.timeout(timeoutMs)` could kill long streams
+  (OpenSandbox).
+- **Resource-spec parsers** (`parseCpu`, `parseMemory`, `parseGpu`) so
+  callers can pass `"512Mi"` / `"1Gi"` / `"2000m"` / `GpuType.H100`
+  uniformly. ~50 LOC each, zero deps (Beam).
+- **Enum + literal-union dual typing** for any future enum fields —
+  autocomplete + string-literal flexibility (Beam).
+- **`Sandbox.fromSession({url, token})` constructor** — same handle
+  for owner + shared / preview access. Useful for our future tunnel /
+  preview endpoints (Blaxel, Superserve).
+- ✅ **`Sandbox.waitForPortReady(port, options?)` via in-sandbox bash
+  `/dev/tcp/<host>/<port>`** — defeats the 502-race on fresh VMs
+  without a server-side probe. Shipped in v0.2.1 (Tensorlake).
+- **Targeted error subclasses for known body `code` values** —
+  `FcScalingLockedError` (403 + `code: "scaling_locked"`),
+  `FcPlanLimitError` (402). Awaits server-side commitment to a `code`
+  taxonomy; the field is already wired (OpenComputer).
+
+### Conditional / awaits server feature
+
+- **Code-interpreter primitive** (`Sandbox.code.run(code, {language,
+  context, handlers, signal})`) returning a Jupyter-shaped aggregate
+  with mime-bundle `result.raw` — only useful once fc-spawn exposes
+  Jupyter execd endpoints (OpenSandbox).
+- **`ExecutionEventDispatcher` shared state machine** consumed by both
+  `streamCommand` and a future `code.run` — same dispatcher fans out
+  to handlers (OpenSandbox).
+- **H2 connection pool warming during `createSandbox`** — only matters
+  if fc-spawn goes multi-region with edge domains (Blaxel).
+- **Sequence-numbered event subscriptions with `afterSequence` resume**
+  if FC adds an event bus (Runloop).
+- **Multipart upload with parallel parts and transient-marker
+  classifier** if FC adds a large-file endpoint (Blaxel).
+
+### Stylistic / testing
+
+- **MSW + chainable mock builder** for tests as the suite outgrows
+  `fetch`-option mocking (Islo).
+- **`tsconfig.check.json` extending build tsconfig with
+  `noEmit: true`** — explicit split for `npm run typecheck` (Runloop).
+- **PR-title scope CI gate**
+  (`amannn/action-semantic-pull-request`) with explicit scope
+  allowlist (Runloop).
+- **NPM provenance + OIDC publish** on the release workflow (Runloop).
+
+---
+
+## Server-side ideas worth filing in `../fc`
+
+These require control-plane changes, not SDK changes alone. File as
+issues in the sibling `fc` repo.
+
+### Snapshot / fork ergonomics
+
+- **`POST /v1/sandboxes/:id/branch` returning `{snapshot,
+  sandboxes[]}`** — atomic N-way fork in one round-trip vs N
+  client-driven calls (Morph).
+- **Stripe-style `metadata` map on snapshots + `GET
+  /snapshots?metadata[k]=v` filter** — tag and retrieve, backbone for
+  any layering / caching system (Morph).
+- **`digest` field on snapshots** — server-side content hash,
+  dedupe-on-create. Free idempotency across retries (Morph).
+- **Boot a snapshot with different vcpu / mem / disk than capture
+  time** (`POST /snapshots/:id/boot` with overrides) — decouples
+  capture-time from boot-time sizing (Morph).
+- **Named checkpoints registry** — `createCheckpoint(name)` + restore
+  by name, plus checkpoint patches as a delta layer (OpenComputer).
+- **Live-FS → image conversion** — `POST
+  /v1/sandboxes/:id/image-from-filesystem → {image_id}`. Significant
+  moat (Beam).
+- **Two-stage snapshot ready signal**: `local_ready` (resumable) vs
+  `completed` (uploaded / durable). `waitUntil*` callers can return as
+  soon as resume is possible without waiting for durable persistence
+  (Tensorlake).
+- **Resume token rotation** — `POST /v1/sandboxes/:id/resume` mints a
+  fresh per-sandbox capability token and invalidates the old one. A
+  leaked, long-paused token is auto-revoked (Superserve).
+
+### Lifecycle / cost / cleanup
+
+- **TTL on sandbox create** — `ttl_seconds`, `ttl_action: "stop" |
+  "pause"`. Server-side reaper, not client-side cleanup (Morph, Beam).
+- **`wake_on_ssh` / `wake_on_http` on paused instances** — auto-resume
+  on incoming traffic. Cost vs warmth dial (Morph).
+- **`POST /v1/sandboxes/:id/ttl` runtime keep-warm extension**;
+  `keep_warm_seconds: -1` for no timeout (Beam).
+- **`createIfNotExist` query param** on sandbox create — handles the
+  race where two clients try to create the same named sandbox (Blaxel).
+
+### Streaming / exec ergonomics
+
+- **Single `/v1/sandboxes/:id/run` SSE / NDJSON endpoint** emitting
+  typed-event frames `{type: "stdout" | "stderr" | "result", data}`
+  plus a final `{exit_code | signal}` — replaces start-process +
+  follow-stdout + follow-stderr + poll-pid (Tensorlake, Blaxel).
+- **Jupyter-style execd endpoints** (`POST /code` SSE stream, `POST
+  /code/context`, `GET / DELETE /code/contexts`) with mime-bundle
+  `result.results` map (`text/plain`, `text/html`, `image/png`,
+  `application/json`). Renders charts / dataframes natively in chat
+  UIs (OpenSandbox).
+- **Bash session lifecycle** — `POST /session`, `POST /session/:id/run`
+  (SSE), `DELETE /session/:id`. Persists env / cwd between commands;
+  cheaper than spawning a fresh container shell each call
+  (OpenSandbox).
+- **`execution_count` + `execution_complete{execution_time}` events**
+  for REPL parity (OpenSandbox).
+
+### Networking / preview
+
+- **`POST /v1/sandboxes/:id/network/update {block_network,
+  allow_list[]}`** runtime CIDR allowlist mutation (Beam).
+- **`GET /v1/sandboxes/:id/urls` → `{port: url}`** convenience listing
+  of all exposed ports (Beam).
+- **Preview URLs as first-class resources** — per-port lifecycle +
+  optional auth config + custom domains. Beyond the current static
+  `ingress_url_template` (OpenComputer).
+- **WS-Upgrade TCP tunnel endpoint** — keyed forwarding
+  (`/v1/tunnels/tcp?port=N`), complementing the unkeyed unmodeled
+  `tunnel/:port` (Tensorlake).
+- **SSH key rotation endpoint** — `instance.sshKeyRotate()` regenerates
+  and returns a fresh keypair (Morph).
+
+### Event bus / observability
+
+- **Sequence-numbered event records + `after_sequence=N` query param
+  on streaming endpoints** — clients resume by passing the last
+  sequence they saw. Strictly better than "tail from now" for
+  reconnect / multi-client / late-joiners (Runloop).
+- **Typed system event taxonomy** (`turn.started`, `devbox.{running,
+  suspended, shutdown, failed}`, `broker.error`, ...) instead of raw
+  log lines (Runloop).
+- **W3C `traceparent` honored end-to-end** so the SDK's returned
+  `traceId` pivots straight into server APM traces (Tensorlake).
+- **`API-Version: YYYY-MM-DD` date header** — Stripe-style API
+  pinning; SDK upgrades don't break old clients (Blaxel).
+
+### Error contract
+
+- **Stable `code` field on every error response** — typed SDK error
+  mapping is trivial when the server always sends a known string code,
+  not just an HTTP status (Islo).
+- **Build error envelope** `{code, build_id, template_id, message}`
+  rather than free-form prose (Superserve).
+- **`402 PlanLimit` / `403 scaling_locked` as discrete error codes**
+  with structured `{code, error}` body (OpenComputer).
+
+### Resource spec ergonomics
+
+- **Accept `cpu: 2 | "2" | "2000m"`, `memory: "512Mi" | "1Gi" | "2GB"
+  | number`, `gpu: "H100" | ["A100", "H100"]`** on create — server
+  normalizes to canonical wire form. Friendlier DX than strict numeric
+  (Beam).
+- **Volumes API** — `POST /v1/volumes {name, mount_path}` →
+  `{volume_id}`; sandbox create accepts `volumes: [{id, mount_path}]`
+  (Beam).
+- **Per-language preinstalled image** (Python / Node / Go / Java) —
+  template catalog entry for code-interpreter workloads (OpenSandbox).
+
+### Data plane / blast radius
+
+- **Two-plane URL design** — `boxd-{id}.sandbox.example.com` data
+  plane with per-sandbox capability tokens; master API key never
+  touches file / exec paths. Limits leak blast radius (Superserve).
+- **Signed download / upload URLs** for file paths inside a sandbox —
+  presigned S3-style, time-bound; browsers PUT / GET without an API
+  key (OpenComputer, Morph).
+- **In-sandbox grep**: `POST /v1/sandboxes/:id/files/find` returning
+  ranges (Beam).
+- **Object cache by content hash**: `HEAD
+  /v1/gateway/objects/:hash` → presigned upload PUT — dedupe multipart
+  sync across sandboxes in one workspace (Beam).

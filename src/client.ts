@@ -68,12 +68,13 @@ export class TemplatesApi {
   /** Fetches the build log so far as plain text. */
   async logs(id: string, options: TemplateLogsOptions = {}): Promise<string> {
     const { attempt, ...rest } = options;
-    const response = await this.#http.requestRaw("GET", `/v1/templates/${encodePath(id)}/logs`, {
+    const path = `/v1/templates/${encodePath(id)}/logs`;
+    const response = await this.#http.requestRaw("GET", path, {
       ...rest,
       query: { attempt },
     });
     if (!response.ok) {
-      await this.#http.throwForResponse(response);
+      await this.#http.throwForResponse(response, path);
     }
     return response.text();
   }
@@ -243,5 +244,15 @@ export class FcClient {
 
 /** Constructs an FcClient. Equivalent to `new FcClient(options)`. */
 export function createClient(options: FcClientOptions = {}): FcClient {
+  return new FcClient(options);
+}
+
+/**
+ * Internal bootstrap used by `Sandbox.create()` / `Sandbox.connect()`.
+ * Defined here to avoid an import cycle on the FcClient class.
+ *
+ * @internal
+ */
+export function bootstrapClient(options: FcClientOptions): FcClient {
   return new FcClient(options);
 }

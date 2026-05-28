@@ -27,41 +27,81 @@ export class FcApiError extends FcError {
   readonly envelope: FailEnvelope | ErrorEnvelope | undefined;
   /** The control plane's request id, when present. */
   readonly requestId: string | undefined;
+  /** The sandbox / template / network id parsed from the request path, when present. */
+  readonly resourceId: string | undefined;
+  /** Stable machine-readable code from `envelope.data.code`, when present. */
+  readonly code: string | undefined;
 
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
     super(message);
     this.name = "FcApiError";
     this.statusCode = response.status;
     this.response = response;
     this.envelope = envelope;
     this.requestId = response.headers.get("x-request-id") ?? undefined;
+    this.resourceId = resourceId;
+    this.code = extractCode(envelope);
   }
 }
 
+function extractCode(envelope?: FailEnvelope | ErrorEnvelope): string | undefined {
+  if (!envelope) return undefined;
+  if (envelope.status === "fail" && envelope.data && typeof envelope.data === "object") {
+    const code = (envelope.data as Record<string, unknown>).code;
+    if (typeof code === "string" && code.length > 0) return code;
+  }
+  return undefined;
+}
+
 export class FcAuthError extends FcApiError {
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcAuthError";
   }
 }
 
 export class FcPermissionError extends FcApiError {
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcPermissionError";
   }
 }
 
 export class FcNotFoundError extends FcApiError {
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcNotFoundError";
   }
 }
 
 export class FcValidationError extends FcApiError {
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcValidationError";
   }
 }
@@ -70,16 +110,26 @@ export class FcRateLimitError extends FcApiError {
   /** Seconds to wait before retrying, parsed from the Retry-After header. */
   readonly retryAfterSeconds: number | undefined;
 
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcRateLimitError";
     this.retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("retry-after"));
   }
 }
 
 export class FcServerError extends FcApiError {
-  constructor(message: string, response: Response, envelope?: FailEnvelope | ErrorEnvelope) {
-    super(message, response, envelope);
+  constructor(
+    message: string,
+    response: Response,
+    envelope?: FailEnvelope | ErrorEnvelope,
+    resourceId?: string,
+  ) {
+    super(message, response, envelope, resourceId);
     this.name = "FcServerError";
   }
 }
@@ -118,11 +168,13 @@ export function parseRetryAfterSeconds(value: string | null): number | undefined
 
 /**
  * Builds the right FcApiError subclass for a non-2xx response. The envelope,
- * when present, is the parsed JSend `fail` / `error` body.
+ * when present, is the parsed JSend `fail` / `error` body. `requestPath`,
+ * when supplied, lets the error carry the addressed resource id.
  */
 export function errorFromResponse(
   response: Response,
   envelope?: JSendEnvelope<unknown>,
+  requestPath?: string,
 ): FcApiError {
   const typed =
     envelope?.status === "fail" || envelope?.status === "error"
@@ -130,25 +182,39 @@ export function errorFromResponse(
       : undefined;
 
   const message = buildMessage(response.status, typed);
+  const resourceId = extractResourceId(requestPath);
 
   switch (response.status) {
     case 401:
-      return new FcAuthError(message, response, typed);
+      return new FcAuthError(message, response, typed, resourceId);
     case 403:
-      return new FcPermissionError(message, response, typed);
+      return new FcPermissionError(message, response, typed, resourceId);
     case 404:
-      return new FcNotFoundError(message, response, typed);
+      return new FcNotFoundError(message, response, typed, resourceId);
     case 400:
     case 409:
     case 422:
-      return new FcValidationError(message, response, typed);
+      return new FcValidationError(message, response, typed, resourceId);
     case 429:
-      return new FcRateLimitError(message, response, typed);
+      return new FcRateLimitError(message, response, typed, resourceId);
     default:
       if (response.status >= 500) {
-        return new FcServerError(message, response, typed);
+        return new FcServerError(message, response, typed, resourceId);
       }
-      return new FcApiError(message, response, typed);
+      return new FcApiError(message, response, typed, resourceId);
+  }
+}
+
+const RESOURCE_PATH_RE = /\/v1\/(?:sandboxes|templates|networks)\/([^/?#]+)/;
+
+function extractResourceId(path: string | undefined): string | undefined {
+  if (!path) return undefined;
+  const match = RESOURCE_PATH_RE.exec(path);
+  if (!match) return undefined;
+  try {
+    return decodeURIComponent(match[1] ?? "");
+  } catch {
+    return match[1];
   }
 }
 

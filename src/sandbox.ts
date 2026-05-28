@@ -1,16 +1,20 @@
 // The Sandbox handle: a stateful object returned by FcClient that owns a
 // sandbox id and exposes lifecycle, command, file and network operations.
 
-import { FcError } from "./errors.js";
+import { bootstrapClient } from "./client.js";
+import { FcError, FcTimeoutError } from "./errors.js";
 import { encodePath, type FcHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
 import type {
   BandwidthView,
+  CreateSandboxOptions,
+  CreateSandboxRequest,
   DestroyedResponse,
   EgressView,
   ExecOptions,
   ExecResponse,
   ExecStreamEvent,
+  FcClientOptions,
   ForkSandboxRequest,
   OKResponse,
   RequestOptions,
@@ -21,6 +25,9 @@ import type {
 } from "./types.js";
 
 const DEFAULT_WAIT_MS = 120_000;
+const DEFAULT_PORT_READY_TIMEOUT_MS = 30_000;
+const PORT_READY_BUFFER_MS = 5_000;
+const DEFAULT_PORT_READY_INTERVAL_MS = 200;
 
 /** File transfer scoped to one sandbox. Reached via `sandbox.files`. */
 export class SandboxFiles {
@@ -44,13 +51,13 @@ export class SandboxFiles {
 
   /** Downloads a file from the sandbox as raw bytes. */
   async download(path: string, options: RequestOptions = {}): Promise<ArrayBuffer> {
-    const response = await this.#http.requestRaw(
-      "GET",
-      `/v1/sandboxes/${encodePath(this.#sandboxId)}/files`,
-      { ...options, query: { path } },
-    );
+    const url = `/v1/sandboxes/${encodePath(this.#sandboxId)}/files`;
+    const response = await this.#http.requestRaw("GET", url, {
+      ...options,
+      query: { path },
+    });
     if (!response.ok) {
-      await this.#http.throwForResponse(response);
+      await this.#http.throwForResponse(response, url);
     }
     return response.arrayBuffer();
   }
@@ -69,6 +76,35 @@ export class Sandbox {
     this.#data = view;
     this.#ingressUrlTemplate = ingressUrlTemplate;
     this.files = new SandboxFiles(http, view.id);
+  }
+
+  // ── static factories ──────────────────────────────────────────────────
+
+  /**
+   * Creates a sandbox without first constructing an `FcClient`. Equivalent
+   * to `new FcClient(clientOpts).createSandbox(request, createOpts)`.
+   */
+  static async create(
+    request: CreateSandboxRequest,
+    options: FcClientOptions & CreateSandboxOptions = {},
+  ): Promise<Sandbox> {
+    const { clientOpts, requestOpts } = splitOptions(options);
+    const createOpts: CreateSandboxOptions = { ...requestOpts };
+    if (options.wait !== undefined) createOpts.wait = options.wait;
+    if (options.waitTimeoutMs !== undefined) createOpts.waitTimeoutMs = options.waitTimeoutMs;
+    return bootstrapClient(clientOpts).createSandbox(request, createOpts);
+  }
+
+  /**
+   * Connects to an existing sandbox by id without first constructing an
+   * `FcClient`. Equivalent to `new FcClient(clientOpts).getSandbox(id, opts)`.
+   */
+  static async connect(
+    id: string,
+    options: FcClientOptions & RequestOptions = {},
+  ): Promise<Sandbox> {
+    const { clientOpts, requestOpts } = splitOptions(options);
+    return bootstrapClient(clientOpts).getSandbox(id, requestOpts);
   }
 
   get id(): string {
@@ -273,6 +309,45 @@ export class Sandbox {
     );
   }
 
+  // ── port readiness ────────────────────────────────────────────────────
+
+  /**
+   * Polls a TCP port from inside the sandbox until something is listening,
+   * using `bash`'s `/dev/tcp` shim. Requires `bash` and GNU `timeout` in
+   * the rootfs (both are present in the fc-spawn default rootfs).
+   *
+   * Resolves to `this` once the port accepts a connection; throws
+   * `FcTimeoutError` if the port is still closed when the budget runs out.
+   */
+  async waitForPortReady(
+    port: number,
+    options: WaitOptions & { intervalMs?: number; host?: string } = {},
+  ): Promise<this> {
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
+    }
+    const host = options.host ?? "127.0.0.1";
+    const intervalMs = options.intervalMs ?? DEFAULT_PORT_READY_INTERVAL_MS;
+    const budgetMs = options.timeoutMs ?? DEFAULT_PORT_READY_TIMEOUT_MS;
+    const timeoutSec = Math.max(1, Math.ceil(budgetMs / 1000));
+    const sleepSec = (Math.max(50, intervalMs) / 1000).toFixed(3);
+    const script = `timeout ${timeoutSec} bash -c 'until (echo > /dev/tcp/${host}/${port}) 2>/dev/null; do sleep ${sleepSec}; done'`;
+    const execOptions: ExecOptions = {
+      ...options.request,
+      timeoutMs: budgetMs + PORT_READY_BUFFER_MS,
+    };
+    if (options.signal) {
+      execOptions.signal = options.signal;
+    }
+    const result = await this.runCommand("bash", ["-c", script], execOptions);
+    if (result.result.exit_code !== 0) {
+      throw new FcTimeoutError(
+        `Port ${port} did not become ready on sandbox ${this.id} within ${timeoutSec}s.`,
+      );
+    }
+    return this;
+  }
+
   // ── ingress ───────────────────────────────────────────────────────────
 
   /**
@@ -292,4 +367,27 @@ export class Sandbox {
     }
     return this.#ingressUrlTemplate.replace("<port>", String(port));
   }
+}
+
+function splitOptions(options: FcClientOptions & RequestOptions): {
+  clientOpts: FcClientOptions;
+  requestOpts: RequestOptions;
+} {
+  const clientOpts: FcClientOptions = {};
+  if (options.apiKey !== undefined) clientOpts.apiKey = options.apiKey;
+  if (options.authHeaders !== undefined) clientOpts.authHeaders = options.authHeaders;
+  if (options.baseUrl !== undefined) clientOpts.baseUrl = options.baseUrl;
+  if (options.fetch !== undefined) clientOpts.fetch = options.fetch;
+  if (options.userAgent !== undefined) clientOpts.userAgent = options.userAgent;
+  if (options.headers !== undefined) clientOpts.headers = options.headers;
+  if (options.timeoutMs !== undefined) clientOpts.timeoutMs = options.timeoutMs;
+  if (options.retry !== undefined) clientOpts.retry = options.retry;
+
+  const requestOpts: RequestOptions = {};
+  if (options.signal !== undefined) requestOpts.signal = options.signal;
+  if (options.headers !== undefined) requestOpts.headers = options.headers;
+  if (options.timeoutMs !== undefined) requestOpts.timeoutMs = options.timeoutMs;
+  if (options.retry !== undefined) requestOpts.retry = options.retry;
+
+  return { clientOpts, requestOpts };
 }

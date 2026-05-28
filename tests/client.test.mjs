@@ -1,14 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  detectRuntime,
   FcApiError,
   FcAuthError,
   FcClient,
   FcNotFoundError,
+  FcPermissionError,
   FcRateLimitError,
   FcServerError,
   FcTimeoutError,
   FcValidationError,
+  redactHeaders,
+  redactQuery,
+  redactUrl,
+  runtimeTag,
+  Sandbox,
 } from "../dist/index.js";
 
 const BASE = "https://example.test";
@@ -290,22 +297,65 @@ test("FcRateLimitError exposes the Retry-After header", async () => {
   );
 });
 
-test("sends bearer auth and omits it for health checks", async () => {
+test("sends X-Api-Key auth and omits it for health checks", async () => {
   const client = new FcClient({
     apiKey: "sk_test",
     baseUrl: BASE,
     fetch: async (url, init) => {
       if (String(url).endsWith("/healthz")) {
-        assert.equal(init.headers.has("authorization"), false);
+        assert.equal(init.headers.has("x-api-key"), false);
         return success({ up: true });
       }
-      assert.equal(init.headers.get("authorization"), "Bearer sk_test");
+      assert.equal(init.headers.get("x-api-key"), "sk_test");
       return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
     },
   });
 
   assert.deepEqual(await client.healthz(), { up: true });
   await client.whoami();
+});
+
+test("apiKey auth removes higher-priority generic auth headers", async () => {
+  const client = new FcClient({
+    apiKey: "sk_test",
+    baseUrl: BASE,
+    headers: {
+      Authorization: "Bearer stale",
+      "X-Access-Token": "stale",
+      "X-Auth-Token": "stale",
+    },
+    fetch: async (_url, init) => {
+      assert.equal(init.headers.get("x-api-key"), "sk_test");
+      assert.equal(init.headers.has("authorization"), false);
+      assert.equal(init.headers.has("x-access-token"), false);
+      assert.equal(init.headers.has("x-auth-token"), false);
+      return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
+    },
+  });
+
+  await client.whoami();
+});
+
+test("auth false strips every credential header", async () => {
+  const client = new FcClient({
+    apiKey: "sk_test",
+    baseUrl: BASE,
+    headers: {
+      Authorization: "Bearer stale",
+      "X-Api-Key": "stale",
+      "X-Access-Token": "stale",
+      "X-Auth-Token": "stale",
+    },
+    fetch: async (_url, init) => {
+      assert.equal(init.headers.has("authorization"), false);
+      assert.equal(init.headers.has("x-api-key"), false);
+      assert.equal(init.headers.has("x-access-token"), false);
+      assert.equal(init.headers.has("x-auth-token"), false);
+      return success({ up: true });
+    },
+  });
+
+  await client.healthz();
 });
 
 test("uses authHeaders instead of requiring an apiKey", async () => {
@@ -318,6 +368,31 @@ test("uses authHeaders instead of requiring an apiKey", async () => {
     fetch: async (_url, init) => {
       assert.equal(init.headers.get("authorization"), "Bearer app-session");
       assert.equal(init.headers.get("x-app-user"), "user_1");
+      return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
+    },
+  });
+
+  await client.whoami();
+});
+
+test("authHeaders remove generic credentials before applying configured auth", async () => {
+  const client = new FcClient({
+    authHeaders: {
+      Authorization: "Bearer app-session",
+      "X-App-User": "user_1",
+    },
+    baseUrl: BASE,
+    headers: {
+      "X-Api-Key": "stale",
+      "X-Access-Token": "stale",
+      "X-Auth-Token": "stale",
+    },
+    fetch: async (_url, init) => {
+      assert.equal(init.headers.get("authorization"), "Bearer app-session");
+      assert.equal(init.headers.get("x-app-user"), "user_1");
+      assert.equal(init.headers.has("x-api-key"), false);
+      assert.equal(init.headers.has("x-access-token"), false);
+      assert.equal(init.headers.has("x-auth-token"), false);
       return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
     },
   });
@@ -369,7 +444,7 @@ test("reads apiKey and baseUrl from environment variables", async () => {
     const client = new FcClient({
       fetch: async (url, init) => {
         assert.equal(String(url), "https://env.test/v1/whoami");
-        assert.equal(init.headers.get("authorization"), "Bearer sk_env");
+        assert.equal(init.headers.get("x-api-key"), "sk_env");
         return success({ user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } });
       },
     });
@@ -535,4 +610,292 @@ test("surfaces a request timeout as FcTimeoutError", async () => {
       }),
   });
   await assert.rejects(() => client.whoami(), FcTimeoutError);
+});
+
+// ── runtime detection ────────────────────────────────────────────────────
+
+test("sends User-Agent and X-Fc-Runtime headers tagged with the detected runtime", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      const ua = init.headers.get("user-agent") ?? "";
+      const tag = init.headers.get("x-fc-runtime") ?? "";
+      assert.match(ua, /^fc-sandbox-sdk\/0\.2\.1 \S+/);
+      assert.equal(tag, runtimeTag());
+      assert.ok(tag.startsWith("node-") || tag === "node");
+      return success({ up: true });
+    },
+  });
+  await client.healthz();
+});
+
+test("detectRuntime returns node when running tests under node", () => {
+  assert.equal(detectRuntime(), "node");
+  assert.match(runtimeTag(), /^node-/);
+});
+
+// ── resourceId + body code on errors ─────────────────────────────────────
+
+test("FcNotFoundError carries the sandbox id parsed from the path", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => fail({ id: "missing" }, 404),
+  });
+  await assert.rejects(
+    () => client.getSandbox("sb_abc123"),
+    (err) => {
+      assert.ok(err instanceof FcNotFoundError);
+      assert.equal(err.resourceId, "sb_abc123");
+      return true;
+    },
+  );
+});
+
+test("FcApiError preserves URL-encoded segments in resourceId", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => fail({}, 404),
+  });
+  await assert.rejects(
+    () => client.templates.get("tpl with space"),
+    (err) => {
+      assert.equal(err.resourceId, "tpl with space");
+      return true;
+    },
+  );
+});
+
+test("FcApiError populates code from envelope.data.code on 4xx", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => fail({ code: "scaling_locked", message: "host pool draining" }, 403),
+  });
+  await assert.rejects(
+    () => client.getSandbox("sb_xyz"),
+    (err) => {
+      assert.ok(err instanceof FcPermissionError);
+      assert.equal(err.code, "scaling_locked");
+      assert.equal(err.resourceId, "sb_xyz");
+      return true;
+    },
+  );
+});
+
+test("FcApiError.code is undefined when envelope omits a code", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    retry: false,
+    fetch: async () => fail({ id: "broken" }, 400),
+  });
+  await assert.rejects(
+    () => client.createSandbox({ shape: "s" }),
+    (err) => {
+      assert.ok(err instanceof FcValidationError);
+      assert.equal(err.code, undefined);
+      return true;
+    },
+  );
+});
+
+// ── NDJSON SSE tolerance ─────────────────────────────────────────────────
+
+test("streamCommand skips SSE control lines and strips data: prefix", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      if (init.method === "GET") {
+        return success(RUNNING_VIEW);
+      }
+      const payload =
+        ":heartbeat\n" +
+        "event: progress\n" +
+        "id: 42\n" +
+        "retry: 1000\n" +
+        'data: {"stdout":"hi\\n"}\n' +
+        '{"exit_code":0}\n';
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(payload));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: { "content-type": "application/x-ndjson" },
+      });
+    },
+  });
+
+  const sandbox = await client.getSandbox("sb_1");
+  const events = [];
+  for await (const event of sandbox.streamCommand("bash", ["-lc", "echo hi"])) {
+    events.push(event);
+  }
+  assert.deepEqual(events, [{ stdout: "hi\n" }, { exit_code: 0 }]);
+});
+
+// ── Sandbox static factories ─────────────────────────────────────────────
+
+test("Sandbox.create builds a client and returns a running sandbox", async () => {
+  const sandbox = await Sandbox.create(
+    { shape: "s-1vcpu-256mb" },
+    {
+      apiKey: "sk",
+      baseUrl: BASE,
+      fetch: async (_url, init) => {
+        if (init.method === "POST") {
+          return success({
+            id: "sb_factory",
+            name: "x",
+            ip: "10.0.0.9",
+            mode: "cold",
+            shape: "s-1vcpu-256mb",
+            rootfs: "r",
+            vcpu: 1,
+            mem_mib: 256,
+            disk_mib: 10240,
+            spawn_ms: 1,
+            egress: [],
+            bandwidth_quota_bytes: 0,
+          });
+        }
+        return success({ ...RUNNING_VIEW, id: "sb_factory" });
+      },
+    },
+  );
+  assert.equal(sandbox.id, "sb_factory");
+  assert.equal(sandbox.status, "running");
+});
+
+test("Sandbox.connect fetches an existing sandbox by id", async () => {
+  const sandbox = await Sandbox.connect("sb_existing", {
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      assert.equal(init.method, "GET");
+      assert.match(String(url), /\/v1\/sandboxes\/sb_existing$/);
+      return success({ ...RUNNING_VIEW, id: "sb_existing" });
+    },
+  });
+  assert.equal(sandbox.id, "sb_existing");
+});
+
+// ── waitForPortReady ─────────────────────────────────────────────────────
+
+test("waitForPortReady runs the bash probe and resolves on exit_code 0", async () => {
+  let execBody;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (url, init) => {
+      if (init.method === "GET") return success(RUNNING_VIEW);
+      assert.match(String(url), /\/v1\/sandboxes\/sb_1\/exec$/);
+      execBody = JSON.parse(init.body);
+      return success({
+        result: { stdout: "", stderr: "", exit_code: 0 },
+        exec_ms: 50,
+      });
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await sandbox.waitForPortReady(8080, { timeoutMs: 5000 });
+  assert.equal(execBody.cmd, "bash");
+  assert.match(execBody.args[1], /\/dev\/tcp\/127\.0\.0\.1\/8080/);
+  assert.match(execBody.args[1], /^timeout 5 bash -c /);
+});
+
+test("waitForPortReady honors a custom host", async () => {
+  let execBody;
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (_url, init) => {
+      if (init.method === "GET") return success(RUNNING_VIEW);
+      execBody = JSON.parse(init.body);
+      return success({
+        result: { stdout: "", stderr: "", exit_code: 0 },
+        exec_ms: 1,
+      });
+    },
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await sandbox.waitForPortReady(3000, { host: "0.0.0.0", timeoutMs: 1000 });
+  assert.match(execBody.args[1], /\/dev\/tcp\/0\.0\.0\.0\/3000/);
+});
+
+test("waitForPortReady throws FcTimeoutError on non-zero exit", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async (_url, init) =>
+      init.method === "GET"
+        ? success(RUNNING_VIEW)
+        : success({
+            result: { stdout: "", stderr: "", exit_code: 124 },
+            exec_ms: 1000,
+          }),
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await assert.rejects(() => sandbox.waitForPortReady(8080, { timeoutMs: 1000 }), FcTimeoutError);
+});
+
+test("waitForPortReady rejects invalid ports", async () => {
+  const client = new FcClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: async () => success(RUNNING_VIEW),
+  });
+  const sandbox = await client.getSandbox("sb_1");
+  await assert.rejects(() => sandbox.waitForPortReady(0), /Invalid port/);
+  await assert.rejects(() => sandbox.waitForPortReady(65_536), /Invalid port/);
+  await assert.rejects(() => sandbox.waitForPortReady(3.14), /Invalid port/);
+});
+
+// ── redaction helpers ────────────────────────────────────────────────────
+
+test("redactHeaders redacts sensitive headers and preserves others", () => {
+  const out = redactHeaders({
+    Authorization: "Bearer secret",
+    "X-Api-Key": "sk_real",
+    "Some-Token": "t",
+    "Some-Key": "k",
+    "Content-Type": "application/json",
+    "X-Request-Id": "rid_1",
+  });
+  assert.equal(out["authorization"], "redacted");
+  assert.equal(out["x-api-key"], "redacted");
+  assert.equal(out["some-token"], "redacted");
+  assert.equal(out["some-key"], "redacted");
+  assert.equal(out["content-type"], "application/json");
+  assert.equal(out["x-request-id"], "rid_1");
+});
+
+test("redactUrl strips userinfo and redacts sensitive query params", () => {
+  const redacted = redactUrl("https://user:pw@api.example/path?token=sk&keep=ok");
+  const parsed = new URL(redacted);
+  assert.equal(parsed.username, "");
+  assert.equal(parsed.password, "");
+  assert.equal(parsed.searchParams.get("token"), "redacted");
+  assert.equal(parsed.searchParams.get("keep"), "ok");
+});
+
+test("redactUrl returns the input unchanged when it does not parse", () => {
+  assert.equal(redactUrl("not a url"), "not a url");
+});
+
+test("redactQuery does not mutate the input", () => {
+  const original = new URLSearchParams("token=abc&q=ok");
+  const out = redactQuery(original);
+  assert.equal(original.get("token"), "abc");
+  assert.equal(out.get("token"), "redacted");
+  assert.equal(out.get("q"), "ok");
 });

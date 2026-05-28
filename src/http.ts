@@ -27,12 +27,19 @@ export interface HttpRequestOptions {
   /** Raw request body, sent as-is (file uploads). */
   rawBody?: BodyInit | undefined;
   contentType?: string | undefined;
-  /** Set false to skip the Authorization header (health probes). */
+  /** Set false to skip auth credentials (health probes). */
   auth?: boolean | undefined;
 }
 
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
 const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
+const AUTH_HEADER_NAMES = ["authorization", "x-api-key", "x-access-token", "x-auth-token"];
+
+function deleteAuthHeaders(headers: Headers): void {
+  for (const name of AUTH_HEADER_NAMES) {
+    headers.delete(name);
+  }
+}
 
 export class FcHttp {
   readonly baseUrl: string;
@@ -49,7 +56,7 @@ export class FcHttp {
   async request<T>(method: string, path: string, options: HttpRequestOptions = {}): Promise<T> {
     const response = await this.requestRaw(method, path, options);
     if (!response.ok) {
-      await this.throwForResponse(response);
+      await this.throwForResponse(response, path);
     }
     return unwrapJSend<T>(response);
   }
@@ -116,7 +123,7 @@ export class FcHttp {
   ): AsyncGenerator<T> {
     const response = await this.#fetchOnce(method, path, options);
     if (!response.ok) {
-      await this.throwForResponse(response);
+      await this.throwForResponse(response, path);
     }
     if (!response.body) {
       throw new FcError("The control plane returned an empty stream.");
@@ -124,8 +131,12 @@ export class FcHttp {
     yield* readNdjson<T>(response.body);
   }
 
-  /** Reads a non-2xx response and throws the matching typed error. */
-  async throwForResponse(response: Response): Promise<never> {
+  /**
+   * Reads a non-2xx response and throws the matching typed error. Pass
+   * the original request path so the error can carry the addressed
+   * resource id; falls back to `response.url` when omitted.
+   */
+  async throwForResponse(response: Response, requestPath?: string): Promise<never> {
     let envelope: JSendEnvelope<unknown> | undefined;
     if (hasJsonBody(response)) {
       try {
@@ -134,7 +145,15 @@ export class FcHttp {
         envelope = undefined;
       }
     }
-    throw errorFromResponse(response, envelope);
+    let resolvedPath = requestPath;
+    if (resolvedPath === undefined && response.url) {
+      try {
+        resolvedPath = new URL(response.url).pathname;
+      } catch {
+        resolvedPath = undefined;
+      }
+    }
+    throw errorFromResponse(response, envelope, resolvedPath);
   }
 
   async #fetchOnce(method: string, path: string, options: HttpRequestOptions): Promise<Response> {
@@ -193,16 +212,23 @@ export class FcHttp {
     if (!headers.has("user-agent")) {
       headers.set("User-Agent", this.#config.userAgent);
     }
+    if (!headers.has("x-fc-runtime")) {
+      headers.set("X-Fc-Runtime", this.#config.runtimeTag);
+    }
     if (options.auth === false) {
       // auth:false means "no auth on this request" (health probes). Drop any
-      // Authorization the caller supplied via default/per-request headers
+      // credentials the caller supplied via default/per-request headers
       // too — otherwise the opt-out is incomplete.
-      headers.delete("authorization");
+      deleteAuthHeaders(headers);
     } else {
       if (this.#config.authHeaders) {
+        deleteAuthHeaders(headers);
         new Headers(this.#config.authHeaders).forEach((value, key) => headers.set(key, value));
       } else if (this.#config.apiKey) {
-        headers.set("Authorization", `Bearer ${this.#config.apiKey}`);
+        // The control plane resolves X-Auth-Token/X-Access-Token/Authorization
+        // before X-Api-Key. Keep generic headers from shadowing the SDK key.
+        deleteAuthHeaders(headers);
+        headers.set("X-Api-Key", this.#config.apiKey);
       } else {
         throw new FcError(
           "Authentication is required. Pass apiKey, set FC_API_KEY, or pass authHeaders.",
@@ -215,8 +241,8 @@ export class FcHttp {
   #buildUrl(path: string, query: Query | undefined): string {
     const url = new URL(path.replace(/^\/+/, ""), `${this.baseUrl}/`);
     // Security: an absolute path (e.g. "https://elsewhere/...") resolves to a
-    // foreign origin yet the request still carries the Authorization header.
-    // Reject it before dispatch so the bearer token never leaves the
+    // foreign origin yet the request still carries the auth credentials.
+    // Reject it before dispatch so the API key never leaves the
     // configured control plane.
     if (url.origin !== this.#baseOrigin) {
       throw new FcError(`Refusing to send a request to a non-base origin: ${url.origin}`);

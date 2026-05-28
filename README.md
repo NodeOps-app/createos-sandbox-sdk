@@ -41,8 +41,9 @@ try {
 ## Configuration
 
 Every option is optional. `apiKey` and `baseUrl` fall back to the
-`FC_API_KEY` and `FC_BASE_URL` environment variables. Auth is required for
-control-plane calls: provide either `apiKey` or `authHeaders`.
+`FC_API_KEY` and `FC_BASE_URL` environment variables. `apiKey` is sent as
+`X-Api-Key`. Auth is required for control-plane calls: provide either
+`apiKey` or `authHeaders`.
 
 ```ts
 const fc = new FcClient({
@@ -103,6 +104,18 @@ console.log(sandbox.status); // "creating" — or "running" if the spawn already
 await sandbox.waitUntilRunning({ timeoutMs: 60_000 });
 ```
 
+Skip the client object entirely for one-off scripts — `Sandbox.create`
+constructs the client for you:
+
+```ts
+import { Sandbox } from "fc-sandbox-sdk";
+
+const sandbox = await Sandbox.create(
+  { shape: "s-1vcpu-256mb", ingress_enabled: true },
+  { apiKey: process.env.FC_API_KEY },
+);
+```
+
 ## Connecting to existing sandboxes
 
 ```ts
@@ -113,6 +126,12 @@ const running = await fc.listSandboxes({ status: "running", limit: 100 });
 for (const sbx of running) {
   console.log(sbx.id, sbx.status, sbx.ip);
 }
+```
+
+`Sandbox.connect` is the client-less analogue of `getSandbox`:
+
+```ts
+const sandbox = await Sandbox.connect("sb_01K...", { apiKey: process.env.FC_API_KEY });
 ```
 
 ## The Sandbox handle
@@ -223,11 +242,18 @@ const sandbox = await fc.createSandbox({
 // Redirect the background process's stdio so the buffered runCommand can
 // return — otherwise it waits for the inherited stdout pipe to close.
 await sandbox.runCommand("bash", ["-lc", "python3 -m http.server 8080 >/dev/null 2>&1 &"]);
+await sandbox.waitForPortReady(8080); // block until something listens
 console.log(sandbox.previewUrl(8080)); // https://<id>-8080.<domain>
 ```
 
 `previewUrl` is only available on sandboxes created with
 `ingress_enabled: true`.
+
+`waitForPortReady(port, options?)` opens a `/dev/tcp` probe inside the
+VM until the port accepts a connection. Defaults: 30 s budget, 200 ms
+poll interval, host `127.0.0.1`. Throws `FcTimeoutError` if the port
+stays closed. Requires a rootfs with `bash` and GNU `timeout` (both
+present in the fc-spawn default rootfs).
 
 ## Egress and bandwidth
 

@@ -41,7 +41,9 @@ with `pre-commit install`.
 | `poll.ts` | `pollUntil` (adaptive backoff) + `sleep`. Backs the `waitUntil*` helpers. |
 | `config.ts` | `resolveConfig` — merges options, env vars, defaults. Holds `VERSION`. |
 | `types.ts` | All wire types and option interfaces. |
-| `ndjson.ts` | NDJSON stream parser for streaming endpoints. |
+| `ndjson.ts` | NDJSON stream parser. Tolerates SSE control lines (`data:` / `event:` / `id:` / `retry:` / `:comment`). |
+| `runtime.ts` | Feature-detects node/bun/deno/workerd/edge-light/browser/react-native; tags `User-Agent` and `X-Fc-Runtime`. |
+| `redact.ts` | Pure helpers (`redactHeaders` / `redactUrl` / `redactQuery`) for logging middleware; never wired into the SDK transport. |
 
 Data flow: `FcClient` → `FcHttp` (transport) → returns `Sandbox` handles.
 `Sandbox` holds an `FcHttp` reference, never the client.
@@ -78,6 +80,12 @@ When a Go field is `omitempty`, the TS field is optional (`?`) and not
 - The Sandbox command method is `runCommand` / `streamCommand`, not
   `exec` — a global security hook false-positives on the token `exec`
   followed by `(`. Avoid that literal in source and docs.
+- **Keep `examples/` in sync.** Whenever a public-surface change lands
+  in `src/` (new method, renamed method, changed signature, new option,
+  removed export, new helper worth showcasing), grep `examples/` for
+  the affected symbol and update the affected example(s). Drive the
+  check from the diff, not from memory. Skip only when the change is
+  purely internal (private fields, retry timing, internal helpers).
 
 ## Retry policy
 

@@ -10,6 +10,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+      - id: check-json
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: mixed-line-ending
@@ -19,23 +20,24 @@ repos:
     hooks:
       - id: gitleaks
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: master
-    hooks:
-      - id: detect-secrets
-
   # ---------- TS / JS ----------
-  # oxlint + oxfmt resolve from devDependencies via npx. Build + test run
-  # in CI, not here — pre-commit stays fast.
+  # oxlint + oxfmt resolve from devDependencies via bunx. Build + test
+  # run in CI, not here — pre-commit stays fast.
   - repo: local
     hooks:
       - id: oxlint
         name: oxlint
-        entry: npx oxlint
+        entry: bunx oxlint
         language: system
-        files: '\.(ts|tsx|js|jsx|mjs)$'
+        files: '\.(ts|tsx|js|jsx|mjs|cjs)$'
       - id: oxfmt
         name: oxfmt
-        entry: npx oxfmt
+        entry: bunx oxfmt
         language: system
-        files: '\.(ts|tsx|js|jsx|mjs|json)$'
+        files: '\.(ts|tsx|js|jsx|mjs|cjs|json)$'
+      - id: typecheck
+        name: tsc --noEmit
+        entry: bunx tsc --noEmit
+        language: system
+        files: '\.(ts|tsx)$'
+        pass_filenames: false
