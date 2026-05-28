@@ -536,6 +536,28 @@ export interface DiskDetachedResponse {
   detached: boolean;
 }
 
+/** Options for {@link Sandbox.attachDisk}. */
+export interface AttachDiskOptions {
+  /** A `disk_<ulid>` id or the user-scoped disk name. */
+  diskId: string;
+  /** Absolute path inside the guest, e.g. `/mnt/data`. */
+  mountPath: string;
+  /** Optional bucket sub-folder to expose at `mountPath`. */
+  subPath?: string;
+}
+
+/** Options for {@link Sandbox.detachDisk}. */
+export interface DetachDiskOptions {
+  /** A `disk_<ulid>` id or the user-scoped disk name. */
+  diskId: string;
+  /**
+   * Absolute path inside the guest where the disk is currently mounted.
+   * Required — the same disk may be attached at multiple paths and the
+   * composite key is (sandbox, disk, mountPath).
+   */
+  mountPath: string;
+}
+
 // ── Networks ────────────────────────────────────────────────────────────
 
 export interface NetworkCreateRequest {

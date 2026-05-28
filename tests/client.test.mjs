@@ -1319,7 +1319,11 @@ test("sandbox.attachDisk posts disk_id, mount_path and sub_path", async () => {
     },
   });
   const sandbox = await client.getSandbox("sb_1");
-  const out = await sandbox.attachDisk("disk_01HFOO", "/mnt/data", "subdir");
+  const out = await sandbox.attachDisk({
+    diskId: "disk_01HFOO",
+    mountPath: "/mnt/data",
+    subPath: "subdir",
+  });
   assert.equal(out.ok, true);
   assert.equal(new URL(url).pathname, "/v1/sandboxes/sb_1/disks");
   assert.deepEqual(body, {
@@ -1343,7 +1347,7 @@ test("sandbox.attachDisk omits sub_path when not provided", async () => {
     },
   });
   const sandbox = await client.getSandbox("sb_1");
-  await sandbox.attachDisk("disk_01HFOO", "/mnt/data");
+  await sandbox.attachDisk({ diskId: "disk_01HFOO", mountPath: "/mnt/data" });
   assert.deepEqual(body, { disk_id: "disk_01HFOO", mount_path: "/mnt/data" });
 });
 
@@ -1361,7 +1365,7 @@ test("sandbox.detachDisk sends mount_path as a query param", async () => {
     },
   });
   const sandbox = await client.getSandbox("sb_1");
-  const out = await sandbox.detachDisk("disk_01HFOO", "/mnt/data");
+  const out = await sandbox.detachDisk({ diskId: "disk_01HFOO", mountPath: "/mnt/data" });
   assert.equal(out.detached, true);
   assert.equal(captured.pathname, "/v1/sandboxes/sb_1/disks/disk_01HFOO");
   assert.equal(captured.searchParams.get("mount_path"), "/mnt/data");

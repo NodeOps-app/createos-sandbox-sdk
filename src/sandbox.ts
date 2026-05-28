@@ -6,10 +6,12 @@ import { FcError, FcTimeoutError } from "./errors.js";
 import { encodePath, type FcHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
 import type {
+  AttachDiskOptions,
   BandwidthView,
   CreateSandboxOptions,
   CreateSandboxRequest,
   DestroyedResponse,
+  DetachDiskOptions,
   DiskDetachedResponse,
   EgressView,
   ExecOptions,
@@ -367,22 +369,13 @@ export class Sandbox {
    * rejects with 409 if the sandbox is not `running` — paused sandboxes
    * pick up new mounts on resume via `CreateSandboxRequest.disks` at
    * create or fork time.
-   *
-   * @param diskId  disk id (`disk_<ulid>`) or user-scoped name
-   * @param mountPath  absolute path inside the guest, e.g. `/mnt/data`
-   * @param subPath  optional bucket sub-folder to expose at `mountPath`
    */
-  attachDisk(
-    diskId: string,
-    mountPath: string,
-    subPath?: string,
-    options: RequestOptions = {},
-  ): Promise<OKResponse> {
+  attachDisk(opts: AttachDiskOptions, options: RequestOptions = {}): Promise<OKResponse> {
     const body: { disk_id: string; mount_path: string; sub_path?: string } = {
-      disk_id: diskId,
-      mount_path: mountPath,
+      disk_id: opts.diskId,
+      mount_path: opts.mountPath,
     };
-    if (subPath !== undefined) body.sub_path = subPath;
+    if (opts.subPath !== undefined) body.sub_path = opts.subPath;
     return this.#http.request<OKResponse>("POST", this.#path("/disks"), {
       ...options,
       body,
@@ -392,17 +385,13 @@ export class Sandbox {
   /**
    * Detaches a disk from this sandbox. `mountPath` is required because the
    * same disk may be mounted at multiple paths — the composite key is
-   * (sandbox, disk, mount_path). Bucket contents are untouched.
+   * (sandbox, disk, mountPath). Bucket contents are untouched.
    */
-  detachDisk(
-    diskId: string,
-    mountPath: string,
-    options: RequestOptions = {},
-  ): Promise<DiskDetachedResponse> {
+  detachDisk(opts: DetachDiskOptions, options: RequestOptions = {}): Promise<DiskDetachedResponse> {
     return this.#http.request<DiskDetachedResponse>(
       "DELETE",
-      this.#path(`/disks/${encodePath(diskId)}`),
-      { ...options, query: { mount_path: mountPath } },
+      this.#path(`/disks/${encodePath(opts.diskId)}`),
+      { ...options, query: { mount_path: opts.mountPath } },
     );
   }
 
