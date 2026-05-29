@@ -21,14 +21,7 @@ if (!baseUrl || !apiKey) {
   throw new Error("set FCSPAWN_URL and FC_API_KEY in .env (see .env.example)");
 }
 
-// The control plane currently uses a self-signed TLS certificate.
-// Bun's fetch accepts `tls: { rejectUnauthorized: false }` as an undocumented
-// option; wrapping globalThis.fetch here keeps the bypass scoped to SDK calls.
-const fetchInsecure: typeof globalThis.fetch = (input, init?) =>
-  // @ts-ignore — bun-specific tls option not in the standard fetch types
-  globalThis.fetch(input, { ...init, tls: { rejectUnauthorized: false } });
-
-const fc = new FcClient({ baseUrl, apiKey, fetch: fetchInsecure });
+const fc = new FcClient({ baseUrl, apiKey });
 
 async function sh(
   sb: Awaited<ReturnType<typeof fc.createSandbox>>,
