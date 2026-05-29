@@ -1,0 +1,7 @@
+fc-sandbox-sdk: 0.3.0
+astro: 6.4.2 (resolved by npm install inside the sandbox)
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-29
+rootfs: devbox:1 (Node 24, npm 11)
+shape: s-2vcpu-2gb
+verified end-to-end: yes
