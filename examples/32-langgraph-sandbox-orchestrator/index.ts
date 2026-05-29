@@ -215,6 +215,7 @@ try {
   console.log("\n─────────────────────────────────");
   console.log("Graph completed.");
   console.log(`Sandbox: ${finalState.sandboxId}`);
+  if (finalState.error) console.log(`Error:  ${finalState.error}`);
   console.log(`Answer: ${finalState.finalAnswer}`);
 } finally {
   if (sandbox) {
