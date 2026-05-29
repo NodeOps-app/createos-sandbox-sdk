@@ -1,0 +1,7 @@
+fc-sandbox-sdk: 0.3.0
+control plane: https://api.fc-api-geo.bhautik.in (region eu)
+captured: 2026-05-29
+rootfs: devbox:1
+shape: s-1vcpu-1gb
+pushgateway: 1.11.1
+verified end-to-end: yes
