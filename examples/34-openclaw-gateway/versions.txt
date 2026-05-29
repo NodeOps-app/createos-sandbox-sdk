@@ -1,0 +1,8 @@
+fc-sandbox-sdk: 0.3.0
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-29
+rootfs: devbox:1
+shape: s-1vcpu-2gb
+openclaw: 2026.5.27 (27ae826)
+node (in sandbox): v24.15.0
+verified end-to-end: yes
