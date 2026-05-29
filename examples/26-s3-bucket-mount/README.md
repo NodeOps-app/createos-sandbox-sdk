@@ -25,7 +25,7 @@ Expected runtime: ~3 minutes (dominated by downloading ~40 MB of Parquet from S3
    - `agg_annual.sql` — aggregates to annual average maximum temperature per station.
    - `rpt_trend.sql` — ranks the 15 stations with the largest temperature rise
      from 2020 to 2024.
-4. Runs the full pipeline inside the sandbox; streams the trend report to stdout.
+4. Runs the full pipeline inside the sandbox and prints the trend report to stdout.
 5. Exports the results to `/tmp/trend.parquet` inside the sandbox and downloads
    it locally as `trend.parquet`.
 6. Destroys the sandbox in the `finally` block.

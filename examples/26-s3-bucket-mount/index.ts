@@ -5,7 +5,7 @@
 // (s3://noaa-ghcn-pds) and runs a multi-year temperature trend analysis
 // with an in-sandbox dbt-style SQL transformation pipeline.
 //
-// FC primitives: createSandbox, files.upload, runCommand, streamCommand, destroy
+// FC primitives: createSandbox, files.upload, runCommand, destroy
 
 import { writeFileSync } from "node:fs";
 import { FcClient } from "fc-sandbox-sdk";
@@ -137,7 +137,6 @@ SELECT * FROM rpt_trend;
 `;
   await sandbox.files.upload("/tmp/driver.sql", driverSql);
 
-  // Stream the pipeline output live so we can show progress.
   console.log(
     `      querying ${YEARS[0]}–${YEARS[YEARS.length - 1]} TMAX data across ${YEARS.length} years...`,
   );
