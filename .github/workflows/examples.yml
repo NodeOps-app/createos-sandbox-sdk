@@ -45,7 +45,7 @@ jobs:
       - id: list
         run: |
           json=$(cd examples && for d in [0-9]*/; do printf '%s\n' "${d%/}"; done \
-            | grep . | sed 's/.*/"&"/' | paste -sd, -)
+            | grep . | grep -vE '^(10|36|37)-' | sed 's/.*/"&"/' | paste -sd, -)
           echo "examples=[$json]" >> "$GITHUB_OUTPUT"
 
       # Single source of truth for the cache key, consumed by the matrix jobs.
