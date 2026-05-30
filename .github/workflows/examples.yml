@@ -32,10 +32,14 @@ permissions:
 jobs:
   # Build the example matrix from the examples/ directory so new examples are
   # picked up automatically — no edits to this file when one is added.
+  # Discover also builds the SDK and installs example deps ONCE, seeding a
+  # shared cache. The matrix jobs restore dist/ + examples/node_modules from
+  # it instead of repeating `bun install` + `bun run build` 37 times.
   discover:
     runs-on: arc-runner-set
     outputs:
       examples: ${{ steps.list.outputs.examples }}
+      cache-key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: list
@@ -43,6 +47,33 @@ jobs:
           json=$(cd examples && for d in [0-9]*/; do printf '%s\n' "${d%/}"; done \
             | grep . | sed 's/.*/"&"/' | paste -sd, -)
           echo "examples=[$json]" >> "$GITHUB_OUTPUT"
+
+      # Single source of truth for the cache key, consumed by the matrix jobs.
+      # dist/ depends on src + tsconfig; examples/node_modules on its lockfile.
+      - id: key
+        run: |
+          echo "key=examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}" >> "$GITHUB_OUTPUT"
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - id: cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            dist
+            examples/node_modules
+          key: ${{ steps.key.outputs.key }}
+
+      # Only build/install on a cache miss; cache@ saves dist/ +
+      # examples/node_modules in its post step when the key was absent.
+      - name: Build SDK + install example deps
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          bun install
+          bun run build
+          cd examples && bun install
 
   run:
     needs: discover
@@ -63,16 +94,26 @@ jobs:
         with:
           bun-version: latest
 
-      # The SDK is consumed by examples via `file:../`, whose `main` points at
-      # dist/. Build it before installing/running any example.
-      - name: Build SDK
+      # Restore dist/ + examples/node_modules seeded by the discover job.
+      # The SDK is consumed via `file:../` (bun symlinks examples/node_modules/
+      # fc-sandbox-sdk → repo root, whose `main` points at dist/), so a real
+      # dist/ plus the cached symlink are all a job needs to run.
+      - id: cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            dist
+            examples/node_modules
+          key: ${{ needs.discover.outputs.cache-key }}
+
+      # Self-heal if the cache was evicted or the service is unreachable on the
+      # self-hosted runner — rebuild exactly what discover would have cached.
+      - name: Build SDK + install example deps (cache miss fallback)
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           bun install
           bun run build
-
-      - name: Install example dependencies
-        working-directory: examples
-        run: bun install
+          cd examples && bun install
 
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}
