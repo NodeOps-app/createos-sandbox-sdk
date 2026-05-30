@@ -1,7 +1,7 @@
 // HTTP transport: URL building, auth, JSend unwrapping, retries with
 // exponential backoff, per-request timeouts and AbortSignal composition.
 
-import type { ResolvedConfig } from "./config.js";
+import { DEFAULT_RETRY, type ResolvedConfig } from "./config.js";
 import {
   errorFromResponse,
   FcConnectionError,
@@ -82,10 +82,11 @@ export class FcHttp {
     const maxRetries = retry ? retry.maxRetries : 0;
     let attempt = 0;
 
+    // hookMeta (redacted url/method/headers) is identical across retry
+    // attempts — build it once rather than rebuilding Headers per attempt.
+    const hookMeta = this.#config.hooks ? this.#prepareHookMeta(method, path, options) : undefined;
+
     for (;;) {
-      const hookMeta = this.#config.hooks
-        ? this.#prepareHookMeta(method, path, options)
-        : undefined;
       let response: Response;
       let startMs = 0;
       try {
@@ -337,7 +338,7 @@ export class FcHttp {
     if (!perRequest) {
       return base;
     }
-    const fallback = base || { maxRetries: 2, baseDelayMs: 500, maxDelayMs: 30_000 };
+    const fallback = base || DEFAULT_RETRY;
     return {
       maxRetries: perRequest.maxRetries ?? fallback.maxRetries,
       baseDelayMs: perRequest.baseDelayMs ?? fallback.baseDelayMs,

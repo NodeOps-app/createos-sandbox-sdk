@@ -13,7 +13,7 @@ export const DEFAULT_BASE_URL = "https://fc-spawn.bhautik.in";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
-const DEFAULT_RETRY: Required<RetryOptions> = {
+export const DEFAULT_RETRY: Required<RetryOptions> = {
   maxRetries: 2,
   baseDelayMs: 500,
   maxDelayMs: 30_000,
