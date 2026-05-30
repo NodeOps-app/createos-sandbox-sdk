@@ -17,8 +17,7 @@ try {
 
   await sandbox.waitForPortReady(8080, { timeoutMs: 10_000 });
 
-  const ulid = sandbox.id.replace(/^sb-/, "");
-  const url = `http://${ulid}-8080.eu.bhautik.in/`;
+  const url = sandbox.previewUrl(8080);
   console.log("URL:", url);
 
   console.log("--- response ---");

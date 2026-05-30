@@ -5,6 +5,7 @@
 // Pushgateway's /metrics/job/<job> endpoint, then scrapes /metrics through
 // the public ingress URL to verify the metric round-trips.
 
+import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-1gb";
@@ -23,12 +24,7 @@ if (!baseUrl || !apiKey) {
 
 const fc = new FcClient({ baseUrl, apiKey });
 
-async function sh(
-  sb: Awaited<ReturnType<typeof fc.createSandbox>>,
-  label: string,
-  script: string,
-  timeoutMs = 120_000,
-) {
+async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
   const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
   if (result.exit_code !== 0) {
     console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);

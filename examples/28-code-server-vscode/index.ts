@@ -90,19 +90,19 @@ try {
   let healthBody = "";
   let healthStatus = 0;
   let healthy = false;
+  let healthJson: { status?: string; data?: { up?: boolean } } = {};
   while (Date.now() < deadline) {
     try {
       const res = await fetch(`${previewUrl}/healthz`, { signal: AbortSignal.timeout(10_000) });
       healthStatus = res.status;
       healthBody = await res.text();
       if (res.ok) {
-        let json: { status?: string; data?: { up?: boolean } } = {};
         try {
-          json = JSON.parse(healthBody);
+          healthJson = JSON.parse(healthBody);
         } catch {
           // not JSON yet — keep polling
         }
-        if (json.data?.up === true) {
+        if (healthJson.data?.up === true) {
           healthy = true;
           break;
         }
@@ -122,13 +122,6 @@ try {
       `GET /healthz never returned a live response (last HTTP ${healthStatus}).\n` +
         `Body: ${healthBody.slice(0, 300)}\ncode-server log:\n${log}`,
     );
-  }
-
-  let healthJson: { status?: string; data?: { up?: boolean } } = {};
-  try {
-    healthJson = JSON.parse(healthBody);
-  } catch {
-    // non-fatal — healthy flag already confirmed data.up === true
   }
 
   console.log(`\n── GET /healthz  (HTTP ${healthStatus}) ────────────────────────────────`);

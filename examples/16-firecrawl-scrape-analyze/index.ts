@@ -214,8 +214,10 @@ const { source, listings } = await acquireListings();
 console.log(`      ${listings.length} listings from ${source}`);
 
 console.log("[2/6] asking Claude to write the analysis script…");
-const analysisCode = await generateAnalysis();
-await mkdir(OUTPUT_DIR, { recursive: true });
+const [analysisCode] = await Promise.all([
+  generateAnalysis(),
+  mkdir(OUTPUT_DIR, { recursive: true }),
+]);
 await writeFile(`${OUTPUT_DIR}analysis.py`, analysisCode);
 console.log(
   `      generated ${analysisCode.split("\n").length}-line script → ./output/analysis.py`,

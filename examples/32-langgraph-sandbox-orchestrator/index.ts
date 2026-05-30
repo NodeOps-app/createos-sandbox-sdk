@@ -130,12 +130,13 @@ async function runInSandboxNode(state: AgentStateType): Promise<Partial<AgentSta
   // Read the written output file for verification
   const catResult = await sandbox.runCommand("cat", [`${WORKDIR}/output.txt`]);
   const runOutput = catResult.result.stdout.trim();
-  console.log(`  output.txt (${runOutput.split("\n").length} lines):`);
-  for (const line of runOutput.split("\n").slice(0, 5)) {
+  const lines = runOutput.split("\n");
+  console.log(`  output.txt (${lines.length} lines):`);
+  for (const line of lines.slice(0, 5)) {
     console.log(`    ${line}`);
   }
-  if (runOutput.split("\n").length > 5) {
-    console.log(`    … (${runOutput.split("\n").length} lines total)`);
+  if (lines.length > 5) {
+    console.log(`    … (${lines.length} lines total)`);
   }
 
   return { runOutput };

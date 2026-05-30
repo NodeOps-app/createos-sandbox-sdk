@@ -112,18 +112,20 @@ ORDER BY delta_c DESC
 LIMIT 15;
 `;
 
-  await sandbox.files.upload("/tmp/stg_tmax.sql", stgTmax);
-  await sandbox.files.upload("/tmp/agg_annual.sql", aggAnnual);
-  await sandbox.files.upload("/tmp/rpt_trend.sql", rptTrend);
+  await Promise.all([
+    sandbox.files.upload("/tmp/stg_tmax.sql", stgTmax),
+    sandbox.files.upload("/tmp/agg_annual.sql", aggAnnual),
+    sandbox.files.upload("/tmp/rpt_trend.sql", rptTrend),
+  ]);
   console.log("      uploaded: stg_tmax.sql, agg_annual.sql, rpt_trend.sql");
 
   // ── step 4: configure DuckDB S3 access + run the pipeline ───────────────
   console.log(`[4/6] mounting s3://${S3_BUCKET} via DuckDB httpfs (anonymous)...`);
 
-  // Write a driver script that installs httpfs, loads all three SQL models,
-  // and runs the report query. Idiomatic DuckDB shell: each -c arg is executed
+  // Shared preamble for both DuckDB scripts: enable anonymous S3 access and
+  // load the three SQL model files. Idiomatic DuckDB shell: statements execute
   // in order; output from the last SELECT goes to stdout.
-  const driverSql = `
+  const duckdbPreamble = `
 INSTALL httpfs;
 LOAD httpfs;
 SET s3_region='${S3_REGION}';
@@ -132,8 +134,9 @@ SET s3_secret_access_key='';
 .read /tmp/stg_tmax.sql
 .read /tmp/agg_annual.sql
 .read /tmp/rpt_trend.sql
-SELECT * FROM rpt_trend;
 `;
+
+  const driverSql = duckdbPreamble + "SELECT * FROM rpt_trend;\n";
   await sandbox.files.upload("/tmp/driver.sql", driverSql);
 
   console.log(
@@ -148,17 +151,8 @@ SELECT * FROM rpt_trend;
   // ── step 5: save results locally ────────────────────────────────────────
   // Write a separate export script so we don't need complex shell quoting.
   console.log("[5/6] exporting results to Parquet inside sandbox + downloading...");
-  const exportSql = `
-INSTALL httpfs;
-LOAD httpfs;
-SET s3_region='${S3_REGION}';
-SET s3_access_key_id='';
-SET s3_secret_access_key='';
-.read /tmp/stg_tmax.sql
-.read /tmp/agg_annual.sql
-.read /tmp/rpt_trend.sql
-COPY (SELECT * FROM rpt_trend) TO '/tmp/trend.parquet' (FORMAT PARQUET);
-`;
+  const exportSql =
+    duckdbPreamble + "COPY (SELECT * FROM rpt_trend) TO '/tmp/trend.parquet' (FORMAT PARQUET);\n";
   await sandbox.files.upload("/tmp/export.sql", exportSql);
   await sh(sandbox, "export-parquet", "duckdb < /tmp/export.sql", 180_000);
 
