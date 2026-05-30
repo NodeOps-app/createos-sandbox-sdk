@@ -7,7 +7,7 @@ public web page, and extract structured content via the DOM.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL + FC_API_KEY
+# fill in FC_BASE_URL + FC_API_KEY
 bun index.ts
 ```
 
@@ -32,12 +32,12 @@ bun index.ts
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
-| Create sandbox | `fc.createSandbox({ shape, rootfs, envs })` |
-| Upload script into the VM | `sandbox.files.upload(path, contents)` |
-| Run commands (install, scrape) | `sandbox.runCommand("bash", ["-lc", ...])` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| Primitive                      | SDK call                                    |
+| ------------------------------ | ------------------------------------------- |
+| Create sandbox                 | `fc.createSandbox({ shape, rootfs, envs })` |
+| Upload script into the VM      | `sandbox.files.upload(path, contents)`      |
+| Run commands (install, scrape) | `sandbox.runCommand("bash", ["-lc", ...])`  |
+| Tear the sandbox down          | `sandbox.destroy()`                         |
 
 ## Versions captured at build time
 

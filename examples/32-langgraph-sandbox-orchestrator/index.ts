@@ -15,11 +15,6 @@ import { FcClient, type Sandbox } from "fc-sandbox-sdk";
 
 loadParentEnvFallback();
 
-// Bridge FCSPAWN_URL -> FC_BASE_URL so the SDK can find the control plane
-if (process.env.FCSPAWN_URL && !process.env.FC_BASE_URL) {
-  process.env.FC_BASE_URL = process.env.FCSPAWN_URL;
-}
-
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
 const WORKDIR = "/root/agent-workspace";

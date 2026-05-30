@@ -8,7 +8,7 @@ works by fetching `/json/version` through the public ingress URL.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL and FC_API_KEY
+# fill in FC_BASE_URL and FC_API_KEY
 bun index.ts
 ```
 
@@ -61,14 +61,14 @@ verified end-to-end: Chrome/148.0.7778.215 reachable at http://<id>-8080.eu.bhau
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-|---|---|
-| Sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Run commands (install, daemonize) | `sandbox.runCommand("bash", ["-lc", script])` |
-| Upload a config file | `sandbox.files.upload(path, content)` |
-| Wait for a port to bind | `sandbox.waitForPortReady(port, { timeoutMs })` |
-| Public ingress URL | `sandbox.previewUrl(port)` |
-| Cleanup | `sandbox.destroy()` in `finally` |
+| Primitive                         | SDK call                                        |
+| --------------------------------- | ----------------------------------------------- |
+| Sandbox with public ingress       | `fc.createSandbox({ ingress_enabled: true })`   |
+| Run commands (install, daemonize) | `sandbox.runCommand("bash", ["-lc", script])`   |
+| Upload a config file              | `sandbox.files.upload(path, content)`           |
+| Wait for a port to bind           | `sandbox.waitForPortReady(port, { timeoutMs })` |
+| Public ingress URL                | `sandbox.previewUrl(port)`                      |
+| Cleanup                           | `sandbox.destroy()` in `finally`                |
 
 ## Versions captured at build time
 

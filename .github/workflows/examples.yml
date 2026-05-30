@@ -1,0 +1,103 @@
+name: examples
+
+# Runs every example end-to-end against the live fc-spawn control plane.
+# Each example is a one-shot `bun index.ts` that creates a sandbox, verifies
+# it, and destroys it in a `finally` block — so a green job means the example
+# worked against production.
+#
+# Cost note: every run spawns real microVMs and makes paid LLM API calls.
+# Triggers are kept deliberate: nightly, manual, and on SDK source changes.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *" # nightly 03:17 UTC
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".github/workflows/examples.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/examples.yml"
+
+concurrency:
+  group: examples-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # checkout only; no write scope needed
+
+jobs:
+  # Build the example matrix from the examples/ directory so new examples are
+  # picked up automatically — no edits to this file when one is added.
+  discover:
+    runs-on: arc-runner-set
+    outputs:
+      examples: ${{ steps.list.outputs.examples }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: list
+        run: |
+          json=$(cd examples && for d in [0-9]*/; do printf '%s\n' "${d%/}"; done \
+            | grep . | sed 's/.*/"&"/' | paste -sd, -)
+          echo "examples=[$json]" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: discover
+    runs-on: arc-runner-set
+    timeout-minutes: 20
+    strategy:
+      # No max-parallel: GitHub runs as many matrix jobs in parallel as the
+      # runner pool allows (unlimited by request). The fc-spawn control plane
+      # is the backstop that queues sandbox creation under load.
+      fail-fast: false # one failing example must not cancel the others
+      matrix:
+        example: ${{ fromJson(needs.discover.outputs.examples) }}
+    name: ${{ matrix.example }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      # The SDK is consumed by examples via `file:../`, whose `main` points at
+      # dist/. Build it before installing/running any example.
+      - name: Build SDK
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Install example dependencies
+        working-directory: examples
+        run: bun install --frozen-lockfile
+
+      - name: Run ${{ matrix.example }}
+        working-directory: examples/${{ matrix.example }}
+        env:
+          # --- fc-spawn control plane (read by the SDK + most examples) ---
+          FC_API_KEY: ${{ secrets.FC_API_KEY }}
+          FC_BASE_URL: ${{ secrets.FC_BASE_URL }}
+          # --- OpenAI / OpenAI-compatible ---
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_URL: ${{ secrets.OPENAI_API_URL }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+          # OPENAI_USE_CHAT_COMPLETIONS: ${{ secrets.OPENAI_USE_CHAT_COMPLETIONS }}
+          # OPENAI_AGENTS_DISABLE_TRACING: ${{ secrets.OPENAI_AGENTS_DISABLE_TRACING }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          # --- Anthropic ---
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          # --- third-party integrations (per-example) ---
+          # BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
+          # BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
+          # FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          # FIRECRAWL_API_URL: ${{ secrets.FIRECRAWL_API_URL }}
+          # OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
+          # SCRAPE_URL: ${{ secrets.SCRAPE_URL }}
+        run: bun index.ts

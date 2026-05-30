@@ -34,14 +34,14 @@ production control plane and only needs to be set to override.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Public ingress | `ingress_enabled: true` on `Sandbox.create()` |
-| URL derivation | `http://<ulid>-<port>.<region>.<domain>/` |
-| Background process in VM | `nohup setsid … &` (devbox:1 has no systemd) |
-| Port readiness | `sandbox.waitForPortReady()` |
-| Loopback gotcha | bind `0.0.0.0`, not `127.0.0.1` — ingress is via eth0 |
-| Tear down | `sandbox.destroy()` |
+| primitive                | SDK call                                              |
+| ------------------------ | ----------------------------------------------------- |
+| Public ingress           | `ingress_enabled: true` on `Sandbox.create()`         |
+| URL derivation           | `http://<ulid>-<port>.<region>.<domain>/`             |
+| Background process in VM | `nohup setsid … &` (devbox:1 has no systemd)          |
+| Port readiness           | `sandbox.waitForPortReady()`                          |
+| Loopback gotcha          | bind `0.0.0.0`, not `127.0.0.1` — ingress is via eth0 |
+| Tear down                | `sandbox.destroy()`                                   |
 
 ## Versions captured at build time
 

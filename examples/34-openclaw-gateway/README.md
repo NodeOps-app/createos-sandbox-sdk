@@ -33,15 +33,15 @@ Expected run time: ~90 seconds (install 372 packages + gateway startup).
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
-| Sandbox create with ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Env injection | `createSandbox({ envs: { OPENCLAW_GATEWAY_TOKEN } })` |
-| Buffered command | `sandbox.runCommand("bash", ["-lc", script])` |
-| Streaming command | `sandbox.streamCommand("bash", ["-lc", script])` |
-| Port readiness poll | `sandbox.waitForPortReady(18789)` |
-| Public preview URL | `sandbox.previewUrl(18789)` |
-| Cleanup | `sandbox.destroy()` |
+| Primitive                   | SDK call                                              |
+| --------------------------- | ----------------------------------------------------- |
+| Sandbox create with ingress | `fc.createSandbox({ ingress_enabled: true })`         |
+| Env injection               | `createSandbox({ envs: { OPENCLAW_GATEWAY_TOKEN } })` |
+| Buffered command            | `sandbox.runCommand("bash", ["-lc", script])`         |
+| Streaming command           | `sandbox.streamCommand("bash", ["-lc", script])`      |
+| Port readiness poll         | `sandbox.waitForPortReady(18789)`                     |
+| Public preview URL          | `sandbox.previewUrl(18789)`                           |
+| Cleanup                     | `sandbox.destroy()`                                   |
 
 ## Versions captured at build time
 

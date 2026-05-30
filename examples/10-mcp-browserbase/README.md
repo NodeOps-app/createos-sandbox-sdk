@@ -39,15 +39,15 @@ values from `../.env`.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Create an isolated microVM with HTTP ingress | `client.createSandbox({ ingress_enabled: true })` |
-| Pass credentials to sandbox processes | `createSandbox({ envs: { ... } })` |
-| Install packages inside sandbox | `sandbox.runCommand("bash", ["-lc", "npm install -g ..."])` |
-| Start background services | `sandbox.runCommand("bash", ["-lc", "nohup setsid ... &"])` |
-| Poll for readiness | `sandbox.runCommand("bash", ["-lc", "curl -sf ..."])` |
-| Get public ingress URL | `sandbox.previewUrl(8080)` |
-| Tear down | `sandbox.destroy()` |
+| primitive                                    | SDK call                                                    |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Create an isolated microVM with HTTP ingress | `client.createSandbox({ ingress_enabled: true })`           |
+| Pass credentials to sandbox processes        | `createSandbox({ envs: { ... } })`                          |
+| Install packages inside sandbox              | `sandbox.runCommand("bash", ["-lc", "npm install -g ..."])` |
+| Start background services                    | `sandbox.runCommand("bash", ["-lc", "nohup setsid ... &"])` |
+| Poll for readiness                           | `sandbox.runCommand("bash", ["-lc", "curl -sf ..."])`       |
+| Get public ingress URL                       | `sandbox.previewUrl(8080)`                                  |
+| Tear down                                    | `sandbox.destroy()`                                         |
 
 ## Versions captured at build time
 

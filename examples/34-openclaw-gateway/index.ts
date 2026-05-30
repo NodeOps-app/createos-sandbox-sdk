@@ -9,8 +9,7 @@ import { FcClient } from "fc-sandbox-sdk";
 const GATEWAY_PORT = 18789;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-token";
 
-// Bridge FCSPAWN_URL -> baseUrl: the shared .env uses FCSPAWN_URL.
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.FC_BASE_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const fc = new FcClient(baseUrl ? { baseUrl } : {});
 
 async function sh(

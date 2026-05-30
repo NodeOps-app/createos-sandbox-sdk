@@ -8,7 +8,7 @@ then scrapes `/metrics` through the ingress URL to verify the full round-trip.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL and FC_API_KEY
+# fill in FC_BASE_URL and FC_API_KEY
 bun index.ts
 ```
 
@@ -36,13 +36,13 @@ releases and runs entirely inside the sandbox.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Boot with HTTP ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Public preview URL | `sandbox.previewUrl(9091)` |
-| Run buffered commands in guest | `sandbox.runCommand()` |
-| Wait for server to bind port | `sandbox.waitForPortReady(9091)` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| primitive                      | SDK call                                      |
+| ------------------------------ | --------------------------------------------- |
+| Boot with HTTP ingress         | `fc.createSandbox({ ingress_enabled: true })` |
+| Public preview URL             | `sandbox.previewUrl(9091)`                    |
+| Run buffered commands in guest | `sandbox.runCommand()`                        |
+| Wait for server to bind port   | `sandbox.waitForPortReady(9091)`              |
+| Tear the sandbox down          | `sandbox.destroy()`                           |
 
 ## Versions captured at build time
 

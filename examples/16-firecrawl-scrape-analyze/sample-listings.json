@@ -1,0 +1,169 @@
+{
+  "source": "fixture",
+  "query": "studio + 1-bedroom short-stay rentals (sample data)",
+  "scraped_at": "2026-05-28T00:00:00Z",
+  "listings": [
+    {
+      "title": "Sunny studio near the harbour",
+      "neighborhood": "Harbourside",
+      "room_type": "Entire studio",
+      "price_per_night": 92,
+      "rating": 4.81,
+      "reviews": 214,
+      "beds": 1
+    },
+    {
+      "title": "Bright 1BR with balcony",
+      "neighborhood": "Harbourside",
+      "room_type": "Entire home",
+      "price_per_night": 138,
+      "rating": 4.92,
+      "reviews": 87,
+      "beds": 1
+    },
+    {
+      "title": "Cosy loft, walk to centre",
+      "neighborhood": "Old Town",
+      "room_type": "Entire home",
+      "price_per_night": 165,
+      "rating": 4.74,
+      "reviews": 412,
+      "beds": 2
+    },
+    {
+      "title": "Budget room, shared kitchen",
+      "neighborhood": "Old Town",
+      "room_type": "Private room",
+      "price_per_night": 54,
+      "rating": 4.41,
+      "reviews": 521,
+      "beds": 1
+    },
+    {
+      "title": "Designer studio, top floor",
+      "neighborhood": "Riverside",
+      "room_type": "Entire studio",
+      "price_per_night": 119,
+      "rating": 4.88,
+      "reviews": 143,
+      "beds": 1
+    },
+    {
+      "title": "Riverside 1BR, fast wifi",
+      "neighborhood": "Riverside",
+      "room_type": "Entire home",
+      "price_per_night": 147,
+      "rating": 4.79,
+      "reviews": 96,
+      "beds": 1
+    },
+    {
+      "title": "Quiet private room w/ garden",
+      "neighborhood": "Greenfield",
+      "room_type": "Private room",
+      "price_per_night": 61,
+      "rating": 4.66,
+      "reviews": 308,
+      "beds": 1
+    },
+    {
+      "title": "Family home, 2 bedrooms",
+      "neighborhood": "Greenfield",
+      "room_type": "Entire home",
+      "price_per_night": 203,
+      "rating": 4.95,
+      "reviews": 64,
+      "beds": 3
+    },
+    {
+      "title": "Compact studio, metro 2 min",
+      "neighborhood": "Central",
+      "room_type": "Entire studio",
+      "price_per_night": 108,
+      "rating": 4.7,
+      "reviews": 256,
+      "beds": 1
+    },
+    {
+      "title": "Penthouse 1BR, city views",
+      "neighborhood": "Central",
+      "room_type": "Entire home",
+      "price_per_night": 289,
+      "rating": 4.9,
+      "reviews": 41,
+      "beds": 1
+    },
+    {
+      "title": "Shared dorm bed, hostel-style",
+      "neighborhood": "Central",
+      "room_type": "Shared room",
+      "price_per_night": 33,
+      "rating": 4.12,
+      "reviews": 689,
+      "beds": 1
+    },
+    {
+      "title": "Boutique studio, antiques",
+      "neighborhood": "Old Town",
+      "room_type": "Entire studio",
+      "price_per_night": 132,
+      "rating": 4.85,
+      "reviews": 178,
+      "beds": 1
+    },
+    {
+      "title": "Garden flat, pet friendly",
+      "neighborhood": "Greenfield",
+      "room_type": "Entire home",
+      "price_per_night": 124,
+      "rating": 4.83,
+      "reviews": 205,
+      "beds": 2
+    },
+    {
+      "title": "Minimalist studio loft",
+      "neighborhood": "Riverside",
+      "room_type": "Entire studio",
+      "price_per_night": 101,
+      "rating": 4.77,
+      "reviews": 132,
+      "beds": 1
+    },
+    {
+      "title": "Spacious 1BR, free parking",
+      "neighborhood": "Harbourside",
+      "room_type": "Entire home",
+      "price_per_night": 156,
+      "rating": 4.86,
+      "reviews": 73,
+      "beds": 1
+    },
+    {
+      "title": "Private room, sea breeze",
+      "neighborhood": "Harbourside",
+      "room_type": "Private room",
+      "price_per_night": 69,
+      "rating": 4.58,
+      "reviews": 364,
+      "beds": 1
+    },
+    {
+      "title": "Industrial-chic studio",
+      "neighborhood": "Central",
+      "room_type": "Entire studio",
+      "price_per_night": 145,
+      "rating": 4.8,
+      "reviews": 119,
+      "beds": 1
+    },
+    {
+      "title": "Charming attic 1BR",
+      "neighborhood": "Old Town",
+      "room_type": "Entire home",
+      "price_per_night": 171,
+      "rating": 4.91,
+      "reviews": 58,
+      "beds": 1
+    }
+  ]
+}

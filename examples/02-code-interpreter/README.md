@@ -28,12 +28,12 @@ production control plane and only needs to be set to override.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| File upload | `sandbox.files.upload()` |
-| Buffered exec | `sandbox.runCommand()` |
+| primitive                | SDK call                          |
+| ------------------------ | --------------------------------- |
+| File upload              | `sandbox.files.upload()`          |
+| Buffered exec            | `sandbox.runCommand()`            |
 | Streaming exec (blocked) | `sandbox.streamCommand()` — fc#40 |
-| Tear down | `sandbox.destroy()` |
+| Tear down                | `sandbox.destroy()`               |
 
 ## Versions captured at build time
 

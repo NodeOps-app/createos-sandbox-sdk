@@ -20,12 +20,11 @@ const ROOTFS = "devbox:1";
 const CDP_PORT = 9222;
 const PROXY_PORT = 8080;
 
-// Bridge FCSPAWN_URL -> baseUrl (the SDK option name).
 // exactOptionalPropertyTypes: narrow to string before passing to FcClient.
-const baseUrl = process.env.FCSPAWN_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FCSPAWN_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
 }
 
 const fc = new FcClient({ baseUrl, apiKey });

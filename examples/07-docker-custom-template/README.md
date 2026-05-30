@@ -27,14 +27,14 @@ tokens) are documented in `.env.example`.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Build a custom rootfs from a Dockerfile | `fc.templates.create()` |
-| Stream live build logs | `fc.templates.followLogs()` |
-| Launch sandbox from custom template | `fc.createSandbox({ rootfs: template.id })` |
-| Run a buffered command | `sandbox.runCommand()` |
-| Tear down sandbox | `sandbox.destroy()` |
-| Delete a template | `fc.templates.delete()` |
+| primitive                               | SDK call                                    |
+| --------------------------------------- | ------------------------------------------- |
+| Build a custom rootfs from a Dockerfile | `fc.templates.create()`                     |
+| Stream live build logs                  | `fc.templates.followLogs()`                 |
+| Launch sandbox from custom template     | `fc.createSandbox({ rootfs: template.id })` |
+| Run a buffered command                  | `sandbox.runCommand()`                      |
+| Tear down sandbox                       | `sandbox.destroy()`                         |
+| Delete a template                       | `fc.templates.delete()`                     |
 
 ## Versions captured at build time
 

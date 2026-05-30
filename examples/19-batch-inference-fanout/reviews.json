@@ -1,0 +1,402 @@
+[
+  {
+    "id": 0,
+    "text": "An absolute triumph from start to finish, I loved every minute.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 1,
+    "text": "A tedious slog that overstays its welcome by an hour.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 2,
+    "text": "Brilliant performances and a script that crackles with wit.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 3,
+    "text": "Flat performances and a script with zero spark.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 4,
+    "text": "A heartfelt, beautifully shot film that stays with you.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 5,
+    "text": "I have never been so bored in a theater.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 6,
+    "text": "Easily the best thing I have seen all year.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 7,
+    "text": "An incoherent mess that wastes a talented cast.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 8,
+    "text": "Charming, funny, and surprisingly moving.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 9,
+    "text": "Dull, derivative, and utterly forgettable.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 10,
+    "text": "The soundtrack alone is worth the price of admission.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 11,
+    "text": "The plot makes no sense and the pacing is glacial.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 12,
+    "text": "A masterclass in tension and pacing.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 13,
+    "text": "A lifeless retread of far better films.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 14,
+    "text": "Gorgeous visuals paired with a genuinely smart story.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 15,
+    "text": "Painfully unfunny and dramatically inert.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 16,
+    "text": "I walked out grinning from ear to ear.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 17,
+    "text": "I checked my watch every five minutes.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 18,
+    "text": "Every actor brings their A game here.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 19,
+    "text": "Cheap effects and wooden acting throughout.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 20,
+    "text": "A rare sequel that outshines the original.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 21,
+    "text": "A sequel nobody asked for and nobody needed.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 22,
+    "text": "Tender, thoughtful, and impeccably acted.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 23,
+    "text": "Clumsy, cliched, and emotionally hollow.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 24,
+    "text": "The kind of movie you want to watch again immediately.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 25,
+    "text": "The dialogue is cringe-worthy from start to finish.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 26,
+    "text": "Sharp dialogue and a satisfying, earned ending.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 27,
+    "text": "A meandering bore with no payoff whatsoever.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 28,
+    "text": "A delightful surprise that exceeded all my expectations.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 29,
+    "text": "Disappointing on every conceivable level.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 30,
+    "text": "Visually stunning and emotionally resonant.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 31,
+    "text": "Visually drab and narratively confused.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 32,
+    "text": "Pure joy from the opening scene onward.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 33,
+    "text": "A complete waste of two hours of my life.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 34,
+    "text": "A bold, inventive piece of filmmaking.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 35,
+    "text": "Lazy writing and charmless leads sink it.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 36,
+    "text": "The chemistry between the leads is electric.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 37,
+    "text": "The chemistry between the leads is nonexistent.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 38,
+    "text": "Smart, warm, and wonderfully entertaining.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 39,
+    "text": "Tiresome, predictable, and joyless.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 40,
+    "text": "An instant classic that deserves every accolade.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 41,
+    "text": "An instant misfire that deserves to be forgotten.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 42,
+    "text": "Gripping, gorgeous, and genuinely heartfelt.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 43,
+    "text": "Tedious, ugly, and completely heartless.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 44,
+    "text": "A near-perfect blend of comedy and drama.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 45,
+    "text": "A clumsy mix of bad comedy and worse drama.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 46,
+    "text": "I was riveted from the first frame to the last.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 47,
+    "text": "I was checking the exits within ten minutes.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 48,
+    "text": "Wonderfully paced with a knockout finale.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 49,
+    "text": "Sluggishly paced with a limp, unearned ending.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 50,
+    "text": "A glowing, generous, deeply human story.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 51,
+    "text": "A cold, cynical, deeply tedious slog.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 52,
+    "text": "The cinematography took my breath away.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 53,
+    "text": "The cinematography is murky and uninspired.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 54,
+    "text": "Hilarious and heartfelt in equal measure.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 55,
+    "text": "Neither funny nor moving, just empty.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 56,
+    "text": "A confident, dazzling directorial debut.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 57,
+    "text": "A shaky, amateurish disaster of a debut.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 58,
+    "text": "Everything about this just works beautifully.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 59,
+    "text": "Almost nothing about this works at all.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 60,
+    "text": "An exhilarating ride with real emotional stakes.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 61,
+    "text": "An exhausting ordeal with no emotional stakes.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 62,
+    "text": "A thoughtful gem that rewards close attention.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 63,
+    "text": "A muddled mess that punishes your patience.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 64,
+    "text": "Endlessly rewatchable and consistently delightful.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 65,
+    "text": "Forgettable the moment the credits roll.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 66,
+    "text": "The writing is razor-sharp and full of heart.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 67,
+    "text": "The writing is dull and devoid of any heart.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 68,
+    "text": "A stunning achievement on every level.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 69,
+    "text": "A failure on nearly every level.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 70,
+    "text": "Joyful, inventive, and impossible not to love.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 71,
+    "text": "Grating, derivative, and impossible to enjoy.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 72,
+    "text": "A beautifully crafted and deeply satisfying film.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 73,
+    "text": "A poorly crafted and thoroughly unsatisfying film.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 74,
+    "text": "Captivating performances elevate an already strong script.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 75,
+    "text": "Stiff performances drag down an already weak script.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 76,
+    "text": "One of the most moving films I have seen in years.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 77,
+    "text": "One of the most tedious films I have endured in years.",
+    "label": "NEGATIVE"
+  },
+  {
+    "id": 78,
+    "text": "A genuine crowd-pleaser with brains and soul.",
+    "label": "POSITIVE"
+  },
+  {
+    "id": 79,
+    "text": "A grim chore with neither brains nor soul.",
+    "label": "NEGATIVE"
+  }
+]

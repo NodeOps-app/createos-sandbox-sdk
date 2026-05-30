@@ -18,7 +18,7 @@ across examples.
 
 ## What it does
 
-1. Bridges `FCSPAWN_URL` to `FC_BASE_URL` so the SDK finds the control plane.
+1. Reads `FC_BASE_URL` from the environment so the SDK finds the control plane.
 2. Defines a four-node LangGraph `StateGraph`: `create_sandbox` →
    `generate_code` → `run_in_sandbox` → `summarise`.
 3. `create_sandbox` — calls `fc.createSandbox()` and seeds a workspace directory.
@@ -34,12 +34,12 @@ across examples.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Create sandbox | `fc.createSandbox({ shape, rootfs })` |
-| Run buffered command | `sandbox.runCommand("python3", […], { timeoutMs })` |
-| Upload file to sandbox | `sandbox.files.upload(path, content)` |
-| Destroy sandbox | `sandbox.destroy()` |
+| primitive              | SDK call                                            |
+| ---------------------- | --------------------------------------------------- |
+| Create sandbox         | `fc.createSandbox({ shape, rootfs })`               |
+| Run buffered command   | `sandbox.runCommand("python3", […], { timeoutMs })` |
+| Upload file to sandbox | `sandbox.files.upload(path, content)`               |
+| Destroy sandbox        | `sandbox.destroy()`                                 |
 
 ## Versions captured at build time
 

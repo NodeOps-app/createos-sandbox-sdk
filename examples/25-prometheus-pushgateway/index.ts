@@ -15,10 +15,10 @@ const PUSHGATEWAY_VERSION = "1.11.1";
 // Pushgateway listens on port 9091 by default.
 // Bind 0.0.0.0 so the FC ingress proxy can forward external traffic.
 
-const baseUrl = process.env.FCSPAWN_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FCSPAWN_URL and FC_API_KEY in .env (see .env.example)");
+  throw new Error("set FC_BASE_URL and FC_API_KEY in .env (see .env.example)");
 }
 
 const fc = new FcClient({ baseUrl, apiKey });

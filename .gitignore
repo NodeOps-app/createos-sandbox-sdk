@@ -31,3 +31,7 @@ pnpm-debug.log*
 
 # Local tooling/cache
 .firecrawl/
+__pycache__
+
+# Claude Code internal state
+.claude/worktrees/

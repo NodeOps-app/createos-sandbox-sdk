@@ -33,12 +33,12 @@ still runs end-to-end.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Create an isolated microVM workspace | `client.createSandbox()` |
-| Push files into the workspace | `sandbox.files.upload()` |
-| Run buffered commands for agent tools | `sandbox.runCommand()` |
-| Tear down | `sandbox.destroy()` |
+| primitive                             | SDK call                 |
+| ------------------------------------- | ------------------------ |
+| Create an isolated microVM workspace  | `client.createSandbox()` |
+| Push files into the workspace         | `sandbox.files.upload()` |
+| Run buffered commands for agent tools | `sandbox.runCommand()`   |
+| Tear down                             | `sandbox.destroy()`      |
 
 ## Versions captured at build time
 

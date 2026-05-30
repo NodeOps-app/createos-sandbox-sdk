@@ -4,8 +4,10 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "0.98.0",
-    "@openai/agents": "0.11.4",
+    "@langchain/langgraph": "1.3.2",
+    "@openai/agents": "0.11.5",
     "fc-sandbox-sdk": "file:../",
+    "openai": "6.39.1",
     "zod": "4.4.3"
   }
 }

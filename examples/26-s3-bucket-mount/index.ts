@@ -21,8 +21,7 @@ const DUCKDB_VERSION = "v1.5.3";
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 
-// Bridge FCSPAWN_URL → baseUrl (the shared .env exports FCSPAWN_URL, not FC_BASE_URL).
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.FC_BASE_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const fcOptions = baseUrl ? { baseUrl } : {};
 const fc = new FcClient(fcOptions);
 

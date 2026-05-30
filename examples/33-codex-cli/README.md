@@ -8,7 +8,7 @@ OpenAI-compatible provider, then drives a coding task non-interactively with
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY, FCSPAWN_URL, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
+# fill in FC_API_KEY, FC_BASE_URL, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
 bun index.ts
 ```
 
@@ -29,13 +29,13 @@ bun auto-loads `.env` from this directory.
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
-| Sandbox create with env injection | `fc.createSandbox({ shape, rootfs, envs: { OPENAI_API_KEY } })` |
-| Buffered command (install, configure) | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })` |
-| File upload (config + task prompt) | `sandbox.files.upload(path, content)` |
-| File download (generated code) | `sandbox.files.download(path)` |
-| Cleanup | `sandbox.destroy()` |
+| Primitive                             | SDK call                                                        |
+| ------------------------------------- | --------------------------------------------------------------- |
+| Sandbox create with env injection     | `fc.createSandbox({ shape, rootfs, envs: { OPENAI_API_KEY } })` |
+| Buffered command (install, configure) | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })`         |
+| File upload (config + task prompt)    | `sandbox.files.upload(path, content)`                           |
+| File download (generated code)        | `sandbox.files.download(path)`                                  |
+| Cleanup                               | `sandbox.destroy()`                                             |
 
 ## Versions captured at build time
 

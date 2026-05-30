@@ -7,7 +7,7 @@ inside an FC sandbox, expose it via HTTP ingress, and print the live preview URL
 
 1. Creates a sandbox with `ingress_enabled: true` (1 vCPU / 1 GB).
 2. Sparse-clones the `hello-world` example from the Next.js repo (`--depth=1
-   --filter=blob:none --sparse`) — under 2 MB download.
+--filter=blob:none --sparse`) — under 2 MB download.
 3. Runs `npm install` inside the clone.
 4. Daemonises `npx next dev -p 3000` via `nohup setsid` (no systemd in FC).
 5. Polls the ingress URL until Next.js responds (up to 90 s — cold compile takes

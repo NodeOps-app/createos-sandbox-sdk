@@ -10,12 +10,12 @@ from inside the sandbox — capturing real LSP responses for `initialize`,
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL and FC_API_KEY
+# fill in FC_BASE_URL and FC_API_KEY
 bun index.ts
 ```
 
 bun auto-loads `.env` from the working directory. `FC_API_KEY` and
-`FCSPAWN_URL` (or `FC_BASE_URL`) are the required variables.
+`FC_BASE_URL` is the required variable.
 
 ## What it does
 
@@ -39,12 +39,12 @@ framing complexity of piping stdio across the control-plane network.
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
-| Sandbox create | `Sandbox.create({ shape, rootfs })` |
-| Buffered command | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })` |
-| File upload (driver → sandbox) | `sandbox.files.upload(path, bytes)` |
-| Sandbox destroy | `sandbox.destroy()` |
+| Primitive                      | SDK call                                                |
+| ------------------------------ | ------------------------------------------------------- |
+| Sandbox create                 | `Sandbox.create({ shape, rootfs })`                     |
+| Buffered command               | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })` |
+| File upload (driver → sandbox) | `sandbox.files.upload(path, bytes)`                     |
+| Sandbox destroy                | `sandbox.destroy()`                                     |
 
 ## Versions captured at build time
 

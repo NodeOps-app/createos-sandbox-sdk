@@ -17,9 +17,7 @@ const ROOTFS = "devbox:1";
 const PORT = 8000;
 
 const fc = new FcClient({
-  // Bridge FCSPAWN_URL -> SDK's baseUrl (SDK reads FC_BASE_URL, but the
-  // canonical env var in this project is FCSPAWN_URL).
-  baseUrl: process.env.FCSPAWN_URL,
+  baseUrl: process.env.FC_BASE_URL,
 });
 
 const anthropic = new Anthropic({

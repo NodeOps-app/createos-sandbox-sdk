@@ -34,13 +34,13 @@ bun index.ts
 
 ## Environment variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `FC_API_KEY` | yes | FC control-plane API key |
-| `ANTHROPIC_API_KEY` | yes* | Anthropic API key |
-| `ANTHROPIC_AUTH_TOKEN` | yes* | Alternative to `ANTHROPIC_API_KEY` (custom proxy) |
-| `ANTHROPIC_BASE_URL` | no | Custom Anthropic proxy URL |
-| `ANTHROPIC_MODEL` | no | Model to use inside the sandbox (default: `claude-sonnet-4-6`) |
+| Variable               | Required | Description                                                    |
+| ---------------------- | -------- | -------------------------------------------------------------- |
+| `FC_API_KEY`           | yes      | FC control-plane API key                                       |
+| `ANTHROPIC_API_KEY`    | yes\*    | Anthropic API key                                              |
+| `ANTHROPIC_AUTH_TOKEN` | yes\*    | Alternative to `ANTHROPIC_API_KEY` (custom proxy)              |
+| `ANTHROPIC_BASE_URL`   | no       | Custom Anthropic proxy URL                                     |
+| `ANTHROPIC_MODEL`      | no       | Model to use inside the sandbox (default: `claude-sonnet-4-6`) |
 
 \* Either `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` is required.
 

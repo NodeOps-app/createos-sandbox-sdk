@@ -15,10 +15,10 @@ const MARKER = "astro-on-fc-ok"; // emitted by src/pages/index.astro
 
 // exactOptionalPropertyTypes: narrow env vars to strings before constructing
 // the client, so no possibly-undefined value reaches an optional field.
-const baseUrl = process.env.FCSPAWN_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FCSPAWN_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
 }
 
 const fc = new FcClient({ baseUrl, apiKey });

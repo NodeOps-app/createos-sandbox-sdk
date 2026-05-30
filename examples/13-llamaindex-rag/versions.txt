@@ -1,0 +1,12 @@
+fc-sandbox-sdk: 0.2.1
+llama-index-core: 0.14.22
+llama-index-embeddings-huggingface: 0.7.0
+llama-index-llms-openai-like: 0.7.2
+sentence-transformers: 5.5.1
+torch: 2.9.1 (CPU)
+embedding model: sentence-transformers/all-MiniLM-L6-v2
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-28
+rootfs: devbox:1
+shape: s-2vcpu-2gb
+verified end-to-end: yes

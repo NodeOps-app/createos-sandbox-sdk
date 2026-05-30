@@ -8,7 +8,7 @@ by hitting `GET /global/health`.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL, FC_API_KEY, and ANTHROPIC_* vars
+# fill in FC_BASE_URL, FC_API_KEY, and ANTHROPIC_* vars
 bun index.ts
 ```
 
@@ -32,14 +32,14 @@ bun index.ts
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
+| Primitive                          | SDK call                                      |
+| ---------------------------------- | --------------------------------------------- |
 | Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Upload config file into the VM | `sandbox.files.upload(path, contents)` |
-| Run commands (install, daemonise) | `sandbox.runCommand("bash", ["-lc", ...])` |
-| Build the public preview URL | `sandbox.previewUrl(port)` |
-| Block until the server listens | `sandbox.waitForPortReady(port)` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| Upload config file into the VM     | `sandbox.files.upload(path, contents)`        |
+| Run commands (install, daemonise)  | `sandbox.runCommand("bash", ["-lc", ...])`    |
+| Build the public preview URL       | `sandbox.previewUrl(port)`                    |
+| Block until the server listens     | `sandbox.waitForPortReady(port)`              |
+| Tear the sandbox down              | `sandbox.destroy()`                           |
 
 ## Versions captured at build time
 

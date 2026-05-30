@@ -8,7 +8,7 @@ URL — then fetch that URL from the host and confirm Astro rendered the page.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL + FC_API_KEY
+# fill in FC_BASE_URL + FC_API_KEY
 bun index.ts
 ```
 
@@ -32,14 +32,14 @@ otherwise rejects the non-local ingress Host header.
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
+| Primitive                          | SDK call                                      |
+| ---------------------------------- | --------------------------------------------- |
 | Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Upload project files into the VM | `sandbox.files.upload(path, contents)` |
-| Run commands (install, daemonise) | `sandbox.runCommand("bash", ["-lc", ...])` |
-| Build the public preview URL | `sandbox.previewUrl(port)` |
-| Block until the dev server listens | `sandbox.waitForPortReady(port)` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| Upload project files into the VM   | `sandbox.files.upload(path, contents)`        |
+| Run commands (install, daemonise)  | `sandbox.runCommand("bash", ["-lc", ...])`    |
+| Build the public preview URL       | `sandbox.previewUrl(port)`                    |
+| Block until the dev server listens | `sandbox.waitForPortReady(port)`              |
+| Tear the sandbox down              | `sandbox.destroy()`                           |
 
 ## Versions captured at build time
 

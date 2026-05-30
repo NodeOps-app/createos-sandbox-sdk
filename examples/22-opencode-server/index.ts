@@ -11,11 +11,10 @@ const ROOTFS = "devbox:1"; // ships Node 24 + npm
 const PORT = 4096; // opencode serve default port
 const APP_DIR = "/root/workspace"; // working directory for opencode
 
-// Bridge FCSPAWN_URL -> baseUrl (env uses FCSPAWN_URL, SDK uses baseUrl)
-const baseUrl = process.env.FCSPAWN_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FCSPAWN_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
 }
 
 // The available env has ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL.

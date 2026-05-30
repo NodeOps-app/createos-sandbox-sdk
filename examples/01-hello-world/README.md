@@ -22,11 +22,11 @@ production control plane and only needs to be set to override.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
+| primitive         | SDK call                                    |
+| ----------------- | ------------------------------------------- |
 | Sandbox lifecycle | `Sandbox.create()` (blocks until `running`) |
-| Buffered exec | `sandbox.runCommand()` |
-| Tear down | `sandbox.destroy()` |
+| Buffered exec     | `sandbox.runCommand()`                      |
+| Tear down         | `sandbox.destroy()`                         |
 
 ## Versions captured at build time
 

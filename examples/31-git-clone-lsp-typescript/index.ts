@@ -7,11 +7,10 @@
 import { readFile } from "node:fs/promises";
 import { Sandbox } from "fc-sandbox-sdk";
 
-// Bridge FCSPAWN_URL → SDK baseUrl (SDK reads FC_BASE_URL, not FCSPAWN_URL).
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.FC_BASE_URL;
+const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl) {
-  console.error("FCSPAWN_URL (or FC_BASE_URL) must be set");
+  console.error("FC_BASE_URL (or FC_BASE_URL) must be set");
   process.exit(1);
 }
 

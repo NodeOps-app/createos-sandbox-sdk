@@ -1,0 +1,16 @@
+fc-sandbox-sdk: 0.3.0
+@anthropic-ai/sdk: 0.98.0
+pandas: 2.3.3 (installed inside sandbox)
+matplotlib: 3.10.7 (installed inside sandbox)
+firecrawl API: v2 (/v2/scrape, host-side fetch — no SDK)
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-29
+rootfs: devbox:1
+shape: s-2vcpu-2gb
+verified end-to-end: yes
+  scrape: https://www.airbnb.com/s/Lisbon--Portugal/homes → 23981 chars markdown
+  extracted: 24 listings (Claude, ANTHROPIC_MODEL via proxy)
+  analysis: 53-line pandas/matplotlib script ran in sandbox sb-01ksr20v
+  result: Cascais mean 443.67 (6), Lisbon mean 364.00 (18), median 368.1
+  chart: price_chart.png 28514 bytes (valid PNG)
+  sandbox destroyed cleanly

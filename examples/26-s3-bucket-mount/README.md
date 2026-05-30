@@ -8,7 +8,7 @@ modelled after a dbt transformation workflow.
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY (and FCSPAWN_URL if not using the default control plane)
+# fill in FC_API_KEY (and FC_BASE_URL if not using the default control plane)
 bun index.ts
 ```
 
@@ -32,12 +32,12 @@ Expected runtime: ~3 minutes (dominated by downloading ~40 MB of Parquet from S3
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-|---|---|
+| Primitive         | SDK call                                   |
+| ----------------- | ------------------------------------------ |
 | Sandbox lifecycle | `fc.createSandbox()` / `sandbox.destroy()` |
-| Shell commands | `sandbox.runCommand("bash", ["-lc", ...])` |
-| File upload | `sandbox.files.upload(path, content)` |
-| File download | `sandbox.files.download(path)` |
+| Shell commands    | `sandbox.runCommand("bash", ["-lc", ...])` |
+| File upload       | `sandbox.files.upload(path, content)`      |
+| File download     | `sandbox.files.download(path)`             |
 
 ## Versions captured at build time
 

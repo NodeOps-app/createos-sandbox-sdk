@@ -1,0 +1,10 @@
+fc-sandbox-sdk: 0.3.0
+@anthropic-ai/sdk: 0.98.0
+ant CLI: 1.10.0 (anthropics/anthropic-cli)
+anthropic-beta: managed-agents-2026-04-01
+agent model: claude-haiku-4-5
+fc control plane: https://fc-spawn.bhautik.in (region eu)
+captured: 2026-05-30
+rootfs: devbox:1 (Ubuntu 24.04, glibc 2.39)
+shape: s-4vcpu-4gb
+verified end-to-end: yes

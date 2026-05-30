@@ -7,7 +7,7 @@ fully-functional VS Code IDE through the sandbox's public ingress URL.
 
 ```sh
 cp .env.example .env
-# fill in FCSPAWN_URL and FC_API_KEY
+# fill in FC_BASE_URL and FC_API_KEY
 bun index.ts
 ```
 
@@ -25,13 +25,13 @@ bun index.ts
 
 ## FC primitives exercised
 
-| Primitive | SDK call |
-| --- | --- |
+| Primitive                          | SDK call                                      |
+| ---------------------------------- | --------------------------------------------- |
 | Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
-| Run commands inside the VM | `sandbox.runCommand("bash", ["-lc", ...])` |
-| Build the public preview URL | `sandbox.previewUrl(port)` |
-| Block until the server listens | `sandbox.waitForPortReady(port)` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| Run commands inside the VM         | `sandbox.runCommand("bash", ["-lc", ...])`    |
+| Build the public preview URL       | `sandbox.previewUrl(port)`                    |
+| Block until the server listens     | `sandbox.waitForPortReady(port)`              |
+| Tear the sandbox down              | `sandbox.destroy()`                           |
 
 ## Versions captured at build time
 

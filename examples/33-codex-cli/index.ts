@@ -7,14 +7,13 @@
 
 import { FcClient } from "fc-sandbox-sdk";
 
-// Bridged from FCSPAWN_URL (examples/.env convention) -> baseUrl
-const FCSPAWN_URL = process.env.FCSPAWN_URL;
+const FC_BASE_URL = process.env.FC_BASE_URL;
 const FC_API_KEY = process.env.FC_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_API_URL = process.env.OPENAI_API_URL; // gateway base url
 const OPENAI_MODEL = process.env.OPENAI_MODEL;
 
-if (!FCSPAWN_URL) throw new Error("FCSPAWN_URL is not set");
+if (!FC_BASE_URL) throw new Error("FC_BASE_URL is not set");
 if (!FC_API_KEY) throw new Error("FC_API_KEY is not set");
 if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 if (!OPENAI_API_URL) throw new Error("OPENAI_API_URL is not set");
@@ -31,7 +30,7 @@ const CODEX_TASK =
   "The script must also print the result of calling fizzbuzz with 15 when run directly. " +
   "After writing fizzbuzz.py run it with python3 fizzbuzz.py to confirm it produces output.";
 
-const fc = new FcClient({ baseUrl: FCSPAWN_URL, apiKey: FC_API_KEY });
+const fc = new FcClient({ baseUrl: FC_BASE_URL, apiKey: FC_API_KEY });
 
 const tail = (s: string) => s.slice(-1200);
 

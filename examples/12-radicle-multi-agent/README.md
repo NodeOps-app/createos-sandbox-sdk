@@ -158,16 +158,16 @@ git show "refs/namespaces/<peer-NID>/refs/heads/feat/code:src/fizzbuzz.ts"
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Overlay network create / delete | `client.networks.create()` / `client.networks.delete()` |
-| Overlay member discovery | `client.networks.get(id).members[]` |
-| Sandbox create with network join | `Sandbox.create({ networks: [{ id }] })` |
-| Per-sandbox env injection | `Sandbox.create({ envs: { RAD_PASSPHRASE } })` |
-| Buffered command | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })` |
-| File upload (agent output → sandbox) | `sandbox.files.upload(path, body)` |
-| File download (bundle → host) | `sandbox.files.download("/tmp/repo.bundle")` |
-| Cleanup | `sandbox.destroy()` + `client.networks.delete()` |
+| primitive                            | SDK call                                                |
+| ------------------------------------ | ------------------------------------------------------- |
+| Overlay network create / delete      | `client.networks.create()` / `client.networks.delete()` |
+| Overlay member discovery             | `client.networks.get(id).members[]`                     |
+| Sandbox create with network join     | `Sandbox.create({ networks: [{ id }] })`                |
+| Per-sandbox env injection            | `Sandbox.create({ envs: { RAD_PASSPHRASE } })`          |
+| Buffered command                     | `sandbox.runCommand("bash", ["-lc", …], { timeoutMs })` |
+| File upload (agent output → sandbox) | `sandbox.files.upload(path, body)`                      |
+| File download (bundle → host)        | `sandbox.files.download("/tmp/repo.bundle")`            |
+| Cleanup                              | `sandbox.destroy()` + `client.networks.delete()`        |
 
 ## Future work
 

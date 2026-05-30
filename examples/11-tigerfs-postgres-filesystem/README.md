@@ -33,7 +33,7 @@ demo user.
    backgrounded via `nohup setsid` because `tigerfs mount` stays in the
    foreground holding the FUSE loop.
 7. Creates a `notes` markdown app with `echo "markdown,history" >
-   /mnt/db/.build/notes`, then writes `hello.md` through the mount.
+/mnt/db/.build/notes`, then writes `hello.md` through the mount.
 8. Uploads `hello.py` and runs it. The Python script reads `hello.md`,
    writes a second note, and lists the directory — all through ordinary
    `pathlib` calls.
@@ -42,13 +42,13 @@ demo user.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Boot stock devbox rootfs | `fc.createSandbox({ rootfs: "devbox:1" })` |
-| Inject Postgres password into every command | `envs: { PGPASSWORD: … }` |
-| Run buffered commands | `sandbox.runCommand()` |
-| Upload local script to the guest | `sandbox.files.upload()` |
-| Tear the sandbox down | `sandbox.destroy()` |
+| primitive                                   | SDK call                                   |
+| ------------------------------------------- | ------------------------------------------ |
+| Boot stock devbox rootfs                    | `fc.createSandbox({ rootfs: "devbox:1" })` |
+| Inject Postgres password into every command | `envs: { PGPASSWORD: … }`                  |
+| Run buffered commands                       | `sandbox.runCommand()`                     |
+| Upload local script to the guest            | `sandbox.files.upload()`                   |
+| Tear the sandbox down                       | `sandbox.destroy()`                        |
 
 ## Versions captured at build time
 

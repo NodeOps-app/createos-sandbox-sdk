@@ -30,14 +30,14 @@ production control plane and only needs to be set to override.
 
 ## FC primitives exercised
 
-| primitive | SDK call |
-| --- | --- |
-| Snapshot a running sandbox to storage | `sandbox.pause()` + `waitUntilPaused()` |
-| Clone a paused sandbox into a new independent VM | `sandbox.fork()` |
-| Restore a paused sandbox in place | `sandbox.resume()` + `waitUntilRunning()` |
-| Push a file into a sandbox | `sandbox.files.upload()` |
-| Run a buffered command | `sandbox.runCommand()` |
-| Tear down | `sandbox.destroy()` |
+| primitive                                        | SDK call                                  |
+| ------------------------------------------------ | ----------------------------------------- |
+| Snapshot a running sandbox to storage            | `sandbox.pause()` + `waitUntilPaused()`   |
+| Clone a paused sandbox into a new independent VM | `sandbox.fork()`                          |
+| Restore a paused sandbox in place                | `sandbox.resume()` + `waitUntilRunning()` |
+| Push a file into a sandbox                       | `sandbox.files.upload()`                  |
+| Run a buffered command                           | `sandbox.runCommand()`                    |
+| Tear down                                        | `sandbox.destroy()`                       |
 
 ## Versions captured at build time
 
