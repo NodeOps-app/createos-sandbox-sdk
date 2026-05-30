@@ -67,12 +67,12 @@ jobs:
       # dist/. Build it before installing/running any example.
       - name: Build SDK
         run: |
-          bun install --frozen-lockfile
+          bun install
           bun run build
 
       - name: Install example dependencies
         working-directory: examples
-        run: bun install --frozen-lockfile
+        run: bun install
 
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}

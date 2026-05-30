@@ -34,4 +34,6 @@ pnpm-debug.log*
 __pycache__
 
 # Claude Code internal state
-.claude/worktrees/
+.claude/
+.pi
+.agents
