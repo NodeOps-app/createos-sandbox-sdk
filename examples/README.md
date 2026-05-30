@@ -18,6 +18,7 @@ FC SDK examples. Each subdirectory holds a self-contained runnable example.
 | 10  | [mcp-browserbase](10-mcp-browserbase/)                         | Browserbase MCP server running in a sandbox                                                                     |
 | 11  | [tigerfs-postgres-filesystem](11-tigerfs-postgres-filesystem/) | TigerFS + PostgreSQL filesystem layer                                                                           |
 | 12  | [radicle-multi-agent](12-radicle-multi-agent/)                 | multi-agent workflow with Radicle                                                                               |
+| 38  | [s3-disk-ffmpeg-transcode](38-s3-disk-ffmpeg-transcode/)       | S3-disk register → mount-at-boot → ffmpeg transcode → detach → destroy/pause                                    |
 
 ## Running
 
