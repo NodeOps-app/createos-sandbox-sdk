@@ -109,10 +109,7 @@ try {
 
   // ── 6. Wait for port to become reachable via ingress ─────────────────────
   console.log("[6/7] waiting for ingress to forward traffic...");
-  await sandbox.waitForPortReady(PORT, {
-    timeoutMs: 60_000,
-    url: previewUrl,
-  });
+  await sandbox.waitForPortReady(PORT, { timeoutMs: 60_000 });
   console.log("      port ready");
 
   // Fetch the page through the public ingress URL and print a snippet.

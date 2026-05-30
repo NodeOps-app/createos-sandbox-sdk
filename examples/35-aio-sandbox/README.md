@@ -50,7 +50,7 @@ true` to obtain a public preview URL.
 | File upload into sandbox             | `sandbox.files.upload(path, content)`         |
 | Streaming command output             | `sandbox.streamCommand(cmd, args)`            |
 | Fire-and-forget command              | `sandbox.runCommand(cmd, args)`               |
-| Port-readiness poll                  | `sandbox.waitForPortReady(port, { url })`     |
+| Port-readiness poll                  | `sandbox.waitForPortReady(port)`              |
 | File download from sandbox           | `sandbox.files.download(path)`                |
 | Sandbox teardown                     | `sandbox.destroy()`                           |
 
