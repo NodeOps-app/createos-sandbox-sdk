@@ -58,17 +58,24 @@ jobs:
         with:
           bun-version: latest
 
+      # We cache the global bun store, NOT node_modules: examples depend on the
+      # SDK via `file:../`, which bun materializes as a symlink back to the repo
+      # root — a cycle that makes node_modules un-tar-able. The global store is
+      # content-addressed and flat. Derive its path rather than hardcoding it.
+      - id: buncache
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
       - id: cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
+            ${{ steps.buncache.outputs.dir }}
             dist
-            examples/node_modules
           key: ${{ steps.key.outputs.key }}
 
-      # Only build/install on a cache miss; cache@ saves dist/ +
-      # examples/node_modules in its post step when the key was absent.
-      - name: Build SDK + install example deps
+      # On a cache miss, warm the global store (root + example deps) and build
+      # dist/. cache@ saves both in its post step when the key was absent.
+      - name: Build SDK + warm dependency cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           bun install
@@ -94,26 +101,33 @@ jobs:
         with:
           bun-version: latest
 
-      # Restore dist/ + examples/node_modules seeded by the discover job.
-      # The SDK is consumed via `file:../` (bun symlinks examples/node_modules/
-      # fc-sandbox-sdk → repo root, whose `main` points at dist/), so a real
-      # dist/ plus the cached symlink are all a job needs to run.
+      - id: buncache
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+      # Restore the global bun store + dist/ seeded by discover. node_modules is
+      # NOT cached (the file:../ SDK symlink cycles); we relink it below with a
+      # warm install that hits the restored store instead of the network.
       - id: cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
+            ${{ steps.buncache.outputs.dir }}
             dist
-            examples/node_modules
           key: ${{ needs.discover.outputs.cache-key }}
 
-      # Self-heal if the cache was evicted or the service is unreachable on the
-      # self-hosted runner — rebuild exactly what discover would have cached.
-      - name: Build SDK + install example deps (cache miss fallback)
+      # Rebuild dist/ only if the cache (and thus dist/) was missing — self-heals
+      # on eviction or an unreachable cache service on the self-hosted runner.
+      - name: Build SDK (cache miss fallback)
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           bun install
           bun run build
-          cd examples && bun install
+
+      # Warm install: links example deps from the restored store and recreates
+      # the fc-sandbox-sdk → dist/ symlink. No network on a cache hit.
+      - name: Install example deps
+        working-directory: examples
+        run: bun install
 
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}
