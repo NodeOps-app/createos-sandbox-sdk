@@ -18,6 +18,24 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** a base URL is now required. `FcClient` / `resolveConfig`
+  no longer fall back to a built-in default control plane — pass `baseUrl`
+  or set the `FC_BASE_URL` environment variable, otherwise construction
+  throws. The previous fallback pointed at a non-public host.
+
+### Docs
+
+- Prepared the repository for public release: added `AGENTS.md`,
+  `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, GitHub issue/PR
+  templates, and a machine-readable `examples/manifest.json`.
+- The example catalog in `examples/README.md` and `llms.txt`, plus the
+  `llms-full.txt` bundle, are generated from the manifest
+  (`bun run docs:gen`; verified by `bun run docs:check`).
+- Completed TSDoc coverage across the exported wire types and entry-point
+  classes.
+
 ## [0.3.0] — 2026-05-28
 
 ### Added

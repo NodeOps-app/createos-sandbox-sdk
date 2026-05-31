@@ -3,15 +3,18 @@
 TypeScript SDK for the `fc-spawn` microVM sandbox control plane — spawn
 Firecracker VMs, run commands, move files, and manage networks.
 
-`v0.2` is a redesign: `createSandbox()` returns a stateful `Sandbox`
-handle instead of a raw response, errors are a typed hierarchy, and the
-transport retries transient failures automatically.
+`createSandbox()` returns a stateful `Sandbox` handle, errors are a typed
+hierarchy, and the transport retries transient failures automatically.
 
 ## Install
 
 ```sh
 npm install fc-sandbox-sdk
 ```
+
+> **Not yet published to npm.** Until the first release, install from a
+> local checkout (`bun install && bun run build`, then depend on it via a
+> `file:` path). The name above is reserved for the first published release.
 
 Requires Node 20+ (or any runtime with global `fetch`, `ReadableStream`
 and `AbortSignal.any` — Bun, Deno, modern edge runtimes).
@@ -21,7 +24,7 @@ and `AbortSignal.any` — Bun, Deno, modern edge runtimes).
 ```ts
 import { FcClient } from "fc-sandbox-sdk";
 
-const fc = new FcClient({ apiKey: process.env.FC_API_KEY });
+const fc = new FcClient({ apiKey: process.env.FC_API_KEY }); // baseUrl from FC_BASE_URL
 
 const sandbox = await fc.createSandbox({
   shape: "s-1vcpu-256mb",
@@ -40,10 +43,10 @@ try {
 
 ## Configuration
 
-Every option is optional. `apiKey` and `baseUrl` fall back to the
-`FC_API_KEY` and `FC_BASE_URL` environment variables. `apiKey` is sent as
-`X-Api-Key`. Auth is required for control-plane calls: provide either
-`apiKey` or `authHeaders`.
+`baseUrl` is required: pass it explicitly or set the `FC_BASE_URL`
+environment variable — the client throws if neither is set. `apiKey` is
+optional and falls back to `FC_API_KEY`, sent as `X-Api-Key`. Auth is
+required for control-plane calls: provide either `apiKey` or `authHeaders`.
 
 ```ts
 const fc = new FcClient({
@@ -71,7 +74,7 @@ const fc = new FcClient({
 `apiKey` and `authHeaders` are mutually exclusive.
 
 ```ts
-// Zero-config: reads FC_API_KEY + FC_BASE_URL from the environment.
+// Reads FC_API_KEY + FC_BASE_URL from the environment (FC_BASE_URL required).
 const fc = new FcClient();
 ```
 
@@ -112,7 +115,7 @@ import { Sandbox } from "fc-sandbox-sdk";
 
 const sandbox = await Sandbox.create(
   { shape: "s-1vcpu-256mb", ingress_enabled: true },
-  { apiKey: process.env.FC_API_KEY },
+  { apiKey: process.env.FC_API_KEY }, // baseUrl from FC_BASE_URL
 );
 ```
 
@@ -131,7 +134,7 @@ for (const sbx of running) {
 `Sandbox.connect` is the client-less analogue of `getSandbox`:
 
 ```ts
-const sandbox = await Sandbox.connect("sb_01K...", { apiKey: process.env.FC_API_KEY });
+const sandbox = await Sandbox.connect("sb_01K...", { apiKey: process.env.FC_API_KEY }); // baseUrl from FC_BASE_URL
 ```
 
 ## The Sandbox handle
@@ -302,7 +305,7 @@ Build a custom rootfs from a Dockerfile:
 const template = await fc.templates.create({
   name: "rg-base",
   dockerfile:
-    "FROM bhautikchudasama/fc-base:debian-1\n" +
+    "FROM your-registry/fc-base:latest\n" + // your fc-spawn base rootfs image
     "RUN apt-get update && apt-get install -y ripgrep",
 });
 
@@ -474,17 +477,3 @@ ComputeSDK, Modal, Cloudflare, CodeSandbox, Vercel). See
 [docs/explanation/sdk-analysis.md](docs/explanation/sdk-analysis.md) for the full competitive
 analysis — what each does well and badly, which ideas this SDK borrowed,
 and where it leads.
-
-## Publishing
-
-```sh
-npm whoami
-npm version patch
-npm run publish:dry
-npm run publish:npm
-git push --follow-tags
-```
-
-`prepublishOnly` runs the test and typecheck gates before a real publish.
-If publish fails with `E401`, the local npm token is invalid — run
-`npm login --registry=https://registry.npmjs.org/` and retry.

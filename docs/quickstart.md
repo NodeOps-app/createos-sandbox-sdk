@@ -10,6 +10,9 @@ npm install fc-sandbox-sdk
 # or: bun add fc-sandbox-sdk
 ```
 
+> Not yet published to npm — until the first release, install from a local
+> checkout (see the README).
+
 The SDK is ESM-only with zero runtime dependencies. It works on Node 20+,
 Bun, Deno, Cloudflare Workers, Vercel Edge, and the browser.
 
@@ -19,23 +22,24 @@ Provision one through your fc-spawn control plane (`fcctl token create`
 or the operator's identity portal). The key is per-user; treat it like
 a database password.
 
-## 3. Authenticate
+## 3. Configure and authenticate
 
-Either pass `apiKey` to the constructor, or set the `FC_API_KEY`
-environment variable and let `resolveConfig` pick it up:
+Point the client at your control plane — `baseUrl` is **required** (the
+client throws without it) — and give it an API key. The simplest path is
+two environment variables:
 
 ```sh
+export FC_BASE_URL="https://your-fc-spawn-control-plane"
 export FC_API_KEY="sk_…"
 ```
 
 ```ts
 import { FcClient } from "fc-sandbox-sdk";
 
-const fc = new FcClient();
-// or: new FcClient({ apiKey: "sk_…" })
+const fc = new FcClient(); // reads FC_BASE_URL + FC_API_KEY from the env
+// or pass them explicitly:
+// new FcClient({ baseUrl: "https://…", apiKey: "sk_…" })
 ```
-
-For a non-default control plane, set `FC_BASE_URL` or pass `baseUrl`.
 
 ## 4. Spawn a sandbox
 

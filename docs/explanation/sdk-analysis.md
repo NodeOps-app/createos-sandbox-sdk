@@ -681,7 +681,7 @@ Patterns from the 2026-05-28 survey worth backporting into
 - **W3C `traceparent` per request** — deferred; user opted out for
   this batch.
 - **+5s buffer on client vs server timeout** — awaits server-side
-  `ExecRequest.timeout_ms` field. File `../fc` issue first (Superserve).
+  `ExecRequest.timeout_ms` field. File a control-plane issue first (Superserve).
 - **Idle (not absolute) timeout for streaming reads** — deferred until
   long-poll timeouts become a known pain point (Superserve).
 - ✅ **NDJSON parser tolerant of SSE control lines** — `src/ndjson.ts`
@@ -753,10 +753,10 @@ Patterns from the 2026-05-28 survey worth backporting into
 
 ---
 
-## Server-side ideas worth filing in `../fc`
+## Server-side ideas worth filing with the control-plane team
 
-These require control-plane changes, not SDK changes alone. File as
-issues in the sibling `fc` repo.
+These require control-plane changes, not SDK changes alone. File them as
+control-plane issues, not SDK issues.
 
 ### Snapshot / fork ergonomics
 
