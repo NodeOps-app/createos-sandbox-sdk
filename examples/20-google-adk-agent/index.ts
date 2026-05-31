@@ -1,13 +1,20 @@
-// 20 — Google ADK agent backed by FC sandbox tools.
-//
-// A Google Agent Development Kit (ADK) agent runs on the host in Python; its
-// tools execute inside an FC microVM. This thin TypeScript entry owns the
-// sandbox lifecycle: it creates one sandbox with `fc-sandbox-sdk`, then spawns
-// the Python ADK driver (`adk_agent.py`) as a child process, handing it the
-// sandbox id plus the FC connection creds via env. The driver's tools call the
-// FC HTTP API directly (runCommand / files) so the agent's reasoning steps land
-// as real sandbox operations. The sandbox is destroyed in a `finally` block —
-// the Python child never tears it down, only this file does.
+/**
+ * Google ADK agent backed by FC sandbox tools.
+ *
+ * A Google Agent Development Kit (ADK) agent runs on the host in Python; its
+ * tools execute inside an FC microVM. This thin TypeScript entry owns the
+ * sandbox lifecycle: it creates one sandbox with `fc-sandbox-sdk`, then spawns
+ * the Python ADK driver (`adk_agent.py`) as a child process, handing it the
+ * sandbox id plus the FC connection creds via env. The driver's tools call the
+ * FC HTTP API directly (runCommand / files) so the agent's reasoning steps land
+ * as real sandbox operations. The sandbox is destroyed in a `finally` block —
+ * the Python child never tears it down, only this file does.
+ *
+ * Run:   bun 20-google-adk-agent/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_URL / OPENAI_API_KEY /
+ *        OPENAI_MODEL (the LLM ADK drives, via a LiteLLM OpenAI-compatible
+ *        proxy). A local Python venv with google-adk + litellm (see below).
+ */
 
 import { spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
@@ -20,9 +27,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SHAPE = "s-1vcpu-256mb";
 const ROOTFS = "devbox:1";
 
-// Base URL for the control plane, also handed to the Python child; falls back
-// to the SDK's production default.
-const FC_BASE_URL = process.env.FC_BASE_URL ?? "https://fc-spawn.bhautik.in";
+// Base URL for the control plane, also handed to the Python child.
+const FC_BASE_URL = process.env.FC_BASE_URL;
+if (!FC_BASE_URL) {
+  console.error("FC_BASE_URL must be set (see .env.example).");
+  process.exit(1);
+}
 const FC_API_KEY = process.env.FC_API_KEY;
 if (!FC_API_KEY) {
   console.error("FC_API_KEY must be set (see .env.example).");
@@ -54,6 +64,7 @@ try {
 
 const fc = new FcClient({ apiKey: FC_API_KEY, baseUrl: FC_BASE_URL });
 
+// 1. Create the sandbox the agent's tools will act on.
 console.log(`[1/3] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -63,6 +74,8 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
+  // 2. Run the agent. stdio:"inherit" wires the child's prompts/output straight
+  //    to this terminal; the agent loops in Python until it exits.
   console.log("[2/3] launching Python ADK driver (tools backed by this sandbox)...");
   const driver = join(here, "adk_agent.py");
   const exitCode = await new Promise<number>((resolve, reject) => {

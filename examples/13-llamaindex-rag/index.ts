@@ -1,10 +1,18 @@
-// 13 — LlamaIndex RAG inside a single FC sandbox.
-// Uploads a 4-doc corpus, installs llama-index + sentence-transformers
-// (local CPU embeddings), builds a VectorStoreIndex, snapshots the
-// sandbox with pause/resume to bracket the indexed state, then asks a
-// question against the persisted index using an OpenAI-compatible chat
-// model. Final answer + top-k retrieved chunks land on the host.
-
+/**
+ * LlamaIndex RAG in a single sandbox, surviving a snapshot. Uploads a 4-doc
+ * corpus, installs llama-index + sentence-transformers (local CPU embeddings),
+ * builds a VectorStoreIndex persisted to disk, then pause/resumes the sandbox
+ * — the key point: the on-disk index survives the snapshot, so the query phase
+ * runs against the *same* index after the VM was checkpointed and restored.
+ * Asks a question via an OpenAI-compatible chat model; the answer and the
+ * top-k retrieved chunks land on the host.
+ *
+ * Run:   bun 13-llamaindex-rag/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY and an OpenAI-compatible endpoint
+ *        (OPENAI_API_KEY + OPENAI_API_URL, optional OPENAI_MODEL). The sandbox
+ *        needs outbound network to install packages and pull the embed model.
+ *        See .env.example.
+ */
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient, FcValidationError } from "fc-sandbox-sdk";

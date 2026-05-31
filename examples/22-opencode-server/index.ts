@@ -1,7 +1,16 @@
-// 22 — OpenCode Server in a Sandbox.
-// Installs opencode-ai inside an FC microVM, runs `opencode serve` bound
-// to 0.0.0.0, exposes the HTTP API through the sandbox ingress URL, and
-// verifies the server is live by hitting GET /global/health.
+/**
+ * OpenCode Server in a Sandbox.
+ *
+ * Installs opencode-ai inside an FC microVM, runs `opencode serve` bound
+ * to 0.0.0.0, exposes the HTTP API through the sandbox ingress URL, and
+ * verifies the server is live by hitting GET /global/health.
+ *
+ * Run:   bun 22-opencode-server/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY (ingress must be granted
+ *        for previewUrl() to resolve), plus ANTHROPIC_AUTH_TOKEN /
+ *        ANTHROPIC_BASE_URL / ANTHROPIC_MODEL — written into opencode's
+ *        provider config so the in-VM server can reach an LLM.
+ */
 
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
@@ -59,6 +68,7 @@ const opencodeConfig = JSON.stringify(
   2,
 );
 
+// 1. Create the sandbox with ingress enabled so the HTTP API gets a public URL.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -73,10 +83,12 @@ const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
 console.log(`      preview URL (port ${PORT}): ${previewUrl}`);
 
 try {
+  // 2. Write opencode's provider config into the working dir.
   console.log("[2/6] creating workspace and writing opencode config...");
   await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}`);
   await sandbox.files.upload(`${APP_DIR}/opencode.json`, opencodeConfig);
 
+  // 3. Install the opencode CLI inside the VM.
   console.log("[3/6] installing opencode-ai (npm install -g)...");
   // devbox:1 ships Node 24 + npm; npm i -g is the most reliable install path.
   await sh(sandbox, "npm-install", "npm install -g opencode-ai --no-audit --no-fund 2>&1", 600_000);
@@ -88,6 +100,7 @@ try {
   // server reachable through ingress (127.0.0.1 would only be reachable via
   // the agent tunnel). The `;` before nohup ensures the chain doesn't block
   // on the forked process's stdout pipe.
+  // 4. Start the server as a daemon (see the nohup/hostname notes above).
   console.log(`[4/6] starting opencode serve on port ${PORT} (daemonised)...`);
   await sh(
     sandbox,
@@ -97,10 +110,12 @@ try {
       `>opencode.log 2>&1 </dev/null & sleep 1; echo launched`,
   );
 
+  // 5. Wait for the in-VM port before reaching it over ingress.
   console.log(`[5/6] waiting for opencode serve to bind port ${PORT}...`);
   await sandbox.waitForPortReady(PORT, { timeoutMs: 60_000 });
   console.log("      port is accepting connections");
 
+  // 6. Verify the server over the public ingress URL.
   // Poll the health endpoint through the ingress URL until the server responds
   // with valid JSON containing { healthy: true }. Ingress routing propagation
   // and opencode startup can take a moment, so poll with a deadline.

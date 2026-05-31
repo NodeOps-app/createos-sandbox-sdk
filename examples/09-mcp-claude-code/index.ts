@@ -1,3 +1,17 @@
+/**
+ * Run the Claude Code CLI *inside* a sandbox and drive it headlessly. Installs
+ * `@anthropic-ai/claude-code`, pipes a coding task into `claude -p`, and prints
+ * what the agent produced. The agent's keys and model are passed through the
+ * sandbox's `envs`, so the CLI talks to Anthropic from within the microVM.
+ *
+ * The task is collected with a single `runCommand`, not `streamCommand`:
+ * `streamCommand` exits -1 for long-running CLIs on this backend, so we block
+ * on the full result instead (see the note at the call site).
+ *
+ * Run:   bun 09-mcp-claude-code/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, plus ANTHROPIC_API_KEY (or the proxy pair
+ *        ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL). See .env.example.
+ */
 import { Sandbox } from "fc-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";
 

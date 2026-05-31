@@ -1,3 +1,13 @@
+/**
+ * Live dev-server preview — git-clone a repo, run `next dev` in the background,
+ * and expose it on a public ingress URL. Shows the ingress flow end to end:
+ * `ingress_enabled` at create time, `previewUrl(port)` for the public address,
+ * a daemonised dev server (no systemd in a microVM), and `waitForPortReady`
+ * to gate on the bind before handing out the link.
+ *
+ * Run:   bun 08-dev-server-git-preview/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ */
 import { Sandbox } from "fc-sandbox-sdk";
 
 // 1 vCPU is enough for next dev cold-compile; ingress required for public URL

@@ -5,11 +5,10 @@ over a Unix socket — shared Python state across calls, like a Jupyter
 notebook. Pause the sandbox mid-session, then fork two branches that
 inherit the kernel checkpoint and diverge independently.
 
-> The fork stage is currently blocked on
-> [fc#42](https://github.com/NodeOps-app/fc/issues/42) (fork stuck in
-> `forking` state on prod). The example degrades cleanly: it still
-> verifies the singleton kernel and `pause()` end-to-end, prints the
-> blocker note, and exits 0.
+> The fork stage may be blocked by a known control-plane limitation
+> (fork stuck in `forking` state in some environments). The example
+> degrades cleanly: it still verifies the singleton kernel and
+> `pause()` end-to-end, prints the blocker note, and exits 0.
 
 ## Run
 

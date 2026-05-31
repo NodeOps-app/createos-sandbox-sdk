@@ -1,11 +1,24 @@
+/**
+ * Docker custom template — build a bespoke rootfs from a Dockerfile, then run
+ * Docker containers inside the microVM (Docker-in-microVM). Shows the full
+ * template lifecycle: submit a build, follow its logs to ready, boot a sandbox
+ * on it, and use the baked-in tooling.
+ *
+ * Run:   bun 07-docker-custom-template/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). You MUST edit DOCKERFILE
+ *        below to a real fc-spawn base image — the default is a placeholder. The
+ *        in-VM `docker run` steps also need network egress to pull images.
+ */
 import { FcClient } from "fc-sandbox-sdk";
 
+// Unique name per run so repeated runs don't collide on an existing template.
 const TEMPLATE_NAME = `docker-ce-${Date.now()}`;
 const SHAPE = "s-1vcpu-1gb";
 
 // Installs Docker CE via the official convenience script.
 // FC v1 Dockerfile rules: single FROM (fc-allowed base only), no COPY/ADD.
-const DOCKERFILE = `FROM bhautikchudasama/fc-base:debian-1
+// replace with your fc-spawn base rootfs image
+const DOCKERFILE = `FROM your-registry/fc-base:latest
 
 RUN apt-get update -qq \\
  && apt-get install -y --no-install-recommends curl ca-certificates \\
@@ -13,13 +26,18 @@ RUN apt-get update -qq \\
  && rm -rf /var/lib/apt/lists/*
 `;
 
+// Template builds are a catalog-level operation, so go through FcClient
+// directly rather than the per-sandbox Sandbox.create factory.
 const fc = new FcClient();
 
+// 1. Submit the build. Returns immediately with a pending template; the actual
+//    image build runs server-side.
 console.log(`[1/5] submitting template build: ${TEMPLATE_NAME}`);
 const tmpl = await fc.templates.create({ name: TEMPLATE_NAME, dockerfile: DOCKERFILE });
 console.log(`      template id: ${tmpl.id}  status: ${tmpl.status}`);
 
 try {
+  // 2. Follow the build logs until the build emits its final event.
   console.log("[2/5] streaming build logs...");
   try {
     for await (const event of fc.templates.followLogs(tmpl.id)) {
@@ -33,6 +51,9 @@ try {
     // stream may close before a final event; confirm status via poll below
   }
 
+  // Poll to a terminal status: the log stream can close before the `final`
+  // event arrives, so the build result is confirmed here rather than trusted
+  // from the stream alone.
   // Confirm status via direct API call — the stream may not deliver a final event.
   let { status } = await fc.templates.get(tmpl.id);
   while (status === "pending" || status === "building") {
@@ -44,15 +65,21 @@ try {
   }
   console.log(`      template ready: ${tmpl.id}`);
 
+  // 3. Boot a sandbox on the freshly built template (rootfs = the template id).
   console.log(`[3/5] creating sandbox (shape=${SHAPE}, rootfs=${tmpl.id})...`);
   const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: tmpl.id });
   console.log(`      sandbox created: ${sandbox.id}`);
 
   try {
+    // 4. Start the Docker daemon and wait for it. As in example 03, the daemon
+    //    is detached (nohup setsid + redirected stdio) so the buffered runCommand
+    //    returns instead of blocking on the long-lived process.
     // No systemd — daemonize dockerd with nohup setsid.
     console.log("[4/5] starting dockerd...");
     await sandbox.runCommand("sh", ["-c", "nohup setsid dockerd > /var/log/dockerd.log 2>&1 &"]);
 
+    // Poll `docker info` until the daemon answers — dockerd needs a few seconds
+    // to come up and the socket isn't ready the instant the command returns.
     let ready = false;
     for (let i = 0; i < 30; i++) {
       const { result } = await sandbox.runCommand(
@@ -71,6 +98,7 @@ try {
     }
     if (!ready) throw new Error("dockerd did not start within 60 s");
 
+    // 5. Run containers inside the microVM — proof Docker-in-microVM works.
     console.log("[5/5] running containers...\n");
 
     console.log("── docker run hello-world ──────────────────────────────────────");
@@ -91,6 +119,8 @@ try {
     const imgs = await sandbox.runCommand("docker", ["images"]);
     console.log(imgs.result.stdout.trim());
   } finally {
+    // Nested teardown: destroy the sandbox first, then (outer finally) the
+    // template. .catch(() => {}) so a failed cleanup can't mask the real error.
     await sandbox.destroy().catch(() => {});
     console.log(`\ndestroyed sandbox: ${sandbox.id}`);
   }

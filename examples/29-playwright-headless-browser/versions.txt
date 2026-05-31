@@ -1,8 +1,0 @@
-fc-sandbox-sdk: 0.3.0
-fc control plane: https://fc-spawn.bhautik.in (region eu)
-captured: 2026-05-29
-rootfs: devbox:1
-shape: s-2vcpu-2gb
-playwright: 1.60.0
-chromium: managed by playwright (playwright install --with-deps chromium)
-verified end-to-end: yes

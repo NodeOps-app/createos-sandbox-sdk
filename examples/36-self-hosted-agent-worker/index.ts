@@ -1,3 +1,21 @@
+/**
+ * Self-hosted agent worker — back a Claude Managed Agent with ONE persistent
+ * FC microVM.
+ *
+ * Boots a single long-lived sandbox, installs the `ant` CLI, and runs
+ * `ant beta:worker poll` inside it as an always-on daemon. That worker claims
+ * every session assigned to the self-hosted environment and executes the
+ * agent's tool calls locally, so agent code, files, and egress never leave the
+ * FC boundary. The script then drives one agent session and proves the work
+ * ran in-VM by reading the file the tool wrote. Contrast with example 37, which
+ * spawns a FRESH microVM per session instead of reusing one persistent worker.
+ *
+ * Run:   bun 36-self-hosted-agent-worker/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (the repo symlinks .env -> ../.env), plus a
+ *        gitignored .env.ant holding ANTHROPIC_API_KEY (org key, Managed Agents
+ *        beta), ANTHROPIC_ENVIRONMENT_ID, and ANTHROPIC_ENVIRONMENT_KEY for a
+ *        self_hosted environment (see .env.example).
+ */
 import { readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { Sandbox } from "fc-sandbox-sdk";
@@ -67,10 +85,12 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
 }
 
 // The agent only has its sandbox tools — no python preinstalled in devbox, so
-// the task is pure shell. `tee` both writes the file (proof the tool ran inside
-// the FC microVM — uname reports the guest kernel) and prints to stdout, so the
-// tool result is non-empty. (An empty bash stdout currently trips a Managed
-// Agents API validation error when the worker posts the result.)
+// the task is pure shell. GOTCHA: the Managed Agents worker rejects an empty
+// tool-result text with a 400 when it posts the result back. `tee` defends
+// against that — it both writes the file (proof the tool ran inside the FC
+// microVM, since `uname` reports the guest kernel) AND echoes to stdout, so the
+// tool result is guaranteed non-empty. Any bash tool call here must print
+// something; a silent command would 400 the session.
 const PROMPT =
   "Use your bash tool to run exactly this command: `uname -a | tee /workspace/report.txt`. " +
   "Then reply with the exact output it printed.";

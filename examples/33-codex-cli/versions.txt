@@ -1,8 +1,0 @@
-fc-sandbox-sdk: 0.3.0
-@openai/codex: 0.135.0 (codex-cli)
-node.js: 22.x (via NodeSource)
-fc control plane: https://fc-spawn.bhautik.in (region eu)
-captured: 2026-05-29
-rootfs: devbox:1
-shape: s-2vcpu-2gb
-verified end-to-end: yes

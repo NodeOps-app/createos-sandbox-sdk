@@ -1,7 +1,17 @@
-// 29 — Playwright Headless Browser in an FC sandbox.
-// Installs Playwright + Chromium (with system deps) inside an FC microVM,
-// runs a headless scrape of example.com, and captures extracted content.
-
+/**
+ * Playwright + headless Chromium inside an FC sandbox to scrape a page.
+ *
+ * Installs Playwright and Chromium (with all OS-level deps) in a microVM,
+ * uploads a scrape script, runs it headless against example.com, and parses
+ * the extracted DOM (title, heading, paragraph, link count) back on the host.
+ * Shows the "heavy browser toolchain in a disposable VM" pattern: the install
+ * cost stays inside the sandbox and is torn down with it.
+ *
+ * Run:   bun 29-playwright-headless-browser/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The scrape runs entirely
+ *        inside the VM, so no ingress/gateway is involved (FCSPAWN_GATEWAY in
+ *        .env.example is unused here).
+ */
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
 
@@ -30,6 +40,8 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// 1. Create the sandbox. DEBIAN_FRONTEND=noninteractive keeps apt from
+//    blocking on tzdata/debconf prompts when --with-deps pulls packages.
 console.log(`[1/5] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -39,8 +51,8 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
-  // Install Node.js package manager tools (devbox:1 ships node/npm)
-  // and initialise a local npm project so Playwright resolves from there.
+  // 2. Install Playwright into a local npm project (devbox:1 ships node/npm),
+  //    so Playwright resolves from ${APP_DIR} rather than a global install.
   console.log("[2/5] creating project dir + installing Playwright...");
   await sh(
     sandbox,
@@ -73,7 +85,7 @@ npx playwright install --with-deps chromium 2>&1 | tail -20`,
   ).trim();
   console.log(`      playwright: ${pwVer}`);
 
-  // Upload the scrape script that Playwright will run inside the VM.
+  // 3. Build the scrape script that Playwright will run inside the VM.
   const scrapeScript = `
 const { chromium } = require('playwright');
 
@@ -104,6 +116,8 @@ const { chromium } = require('playwright');
   console.log("[3/5] uploading scrape script...");
   await sandbox.files.upload(`${APP_DIR}/scrape.js`, scrapeScript);
 
+  // 4. Run the scrape. The script prints a JSON blob on stdout; we parse it
+  //    back on the host below to verify the DOM was actually extracted.
   console.log("[4/5] running Playwright scrape of example.com...");
   const scrapeOut = await sh(sandbox, "scrape", `cd ${APP_DIR} && node scrape.js`, 120_000);
   console.log("── scrape output ────────────────────────────────────────────────");
@@ -132,6 +146,7 @@ const { chromium } = require('playwright');
   console.log(`  paragraph: ${scraped.paragraph}`);
   console.log(`  links    : ${scraped.linkCount}`);
 
+  // 5. Report the Chromium build Playwright installed (for the run summary).
   console.log("[5/5] checking Chromium version...");
   const chromiumVer = (
     await sh(

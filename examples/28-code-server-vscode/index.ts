@@ -1,8 +1,16 @@
-// 28 — code-server (VS Code in Browser) inside an FC sandbox.
-// Installs code-server inside an FC microVM, binds it on 0.0.0.0:8080
-// with auth disabled, exposes it through the public ingress URL, and
-// verifies the workbench is live by hitting GET /healthz.
-
+/**
+ * code-server (VS Code in the browser) inside an FC sandbox, reached over ingress.
+ *
+ * Installs code-server in a microVM, binds it on 0.0.0.0:8080 with auth
+ * disabled, exposes that port through the sandbox's public ingress URL, and
+ * proves the workbench is live by polling GET /healthz from the host. The
+ * takeaway: any TCP server bound to 0.0.0.0 inside the VM becomes a public
+ * URL via `sandbox.previewUrl(port)` — no SSH tunnel, no port mapping.
+ *
+ * Run:   bun 28-code-server-vscode/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). Ingress is provisioned
+ *        per-sandbox by the control plane — no gateway/tunnel host required.
+ */
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
 
@@ -30,6 +38,8 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// 1. Create the sandbox with ingress_enabled — this is what allocates the
+//    public URL; without it previewUrl() would point at nothing routable.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -44,12 +54,13 @@ const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
-  // Ensure curl is available (devbox:1 is Debian-based).
+  // 2. Ensure curl is available (devbox:1 is Debian-based).
   console.log("[2/6] ensuring curl is available...");
   await sh(sandbox, "curl-check", "curl --version >/dev/null || apt-get install -y curl", 60_000);
 
-  // Standalone install bundles the Node runtime — predictable, no PATH conflicts.
-  // ~120-200 MB download; 300 s budget is sufficient on the FC egress link.
+  // 3. Install code-server. Standalone install bundles the Node runtime —
+  //    predictable, no PATH conflicts. ~120-200 MB download; 300 s budget is
+  //    sufficient on the FC egress link.
   console.log("[3/6] installing code-server (standalone, ~100-200 MB)...");
   await sh(
     sandbox,
@@ -66,7 +77,7 @@ try {
       .find((l) => /^\d+\.\d+/.test(l)) ?? "unknown";
   console.log(`      code-server ${codeServerVer}`);
 
-  // Daemonise with nohup/setsid — devbox:1 has no systemd.
+  // 4. Daemonise with nohup/setsid — devbox:1 has no systemd.
   // `;` before nohup so the chain does not hold the /exec stdout pipe open.
   // --auth none: no password prompt for a short-lived demo sandbox.
   // --bind-addr 0.0.0.0:PORT: required for ingress (127.0.0.1 is not reachable from outside the VM).
@@ -79,12 +90,16 @@ try {
       `>/tmp/code-server.log 2>&1 </dev/null & sleep 1; echo launched`,
   );
 
+  // 5. Wait for the bind to land. waitForPortReady probes from inside the VM,
+  //    so it confirms the listener is up before we depend on ingress routing.
   console.log(`[5/6] waiting for code-server to bind port ${PORT}...`);
   await sandbox.waitForPortReady(PORT, { timeoutMs: 60_000 });
   console.log("      port is accepting connections");
 
-  // Poll GET /healthz through the ingress URL until code-server responds.
-  // /healthz is an auth-exempt route that returns JSON {"status":"success","data":{"up":true}}.
+  // 6. Poll GET /healthz through the ingress URL until code-server responds.
+  //    /healthz is an auth-exempt route that returns {"status":"success","data":{"up":true}}.
+  //    The port can be bound (step 5) before ingress routing has propagated,
+  //    so we retry the public URL here rather than asserting on the first hit.
   console.log(`[6/6] polling ${previewUrl}/healthz for a live response...`);
   const deadline = Date.now() + 90_000;
   let healthBody = "";

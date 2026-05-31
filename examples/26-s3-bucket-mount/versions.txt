@@ -1,8 +1,0 @@
-fc-sandbox-sdk: 0.3.0
-fc control plane: https://fc-spawn.bhautik.in (region eu)
-captured: 2026-05-29
-rootfs: devbox:1
-shape: s-2vcpu-2gb
-duckdb: v1.5.3 (Variegata) 14eca11bd9
-s3 dataset: s3://noaa-ghcn-pds/parquet/by_year/YEAR=*/ELEMENT=TMAX/ (public, no creds)
-verified end-to-end: yes

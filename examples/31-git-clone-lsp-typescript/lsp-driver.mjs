@@ -1,10 +1,24 @@
-// lsp-driver.mjs — runs INSIDE the sandbox via `node lsp-driver.mjs`
-// Drives typescript-language-server over stdio JSON-RPC, captures real
-// responses for initialize, documentSymbol, definition, and completion,
-// then prints a JSON summary to stdout before hard-exiting.
-//
-// Framing: Content-Length: <bytes>\r\n\r\n<json>
-
+/**
+ * LSP client driver — runs INSIDE the sandbox via `node lsp-driver.mjs`.
+ *
+ * Spawns typescript-language-server (`--stdio`) and speaks the Language Server
+ * Protocol to it over the child's stdin/stdout, capturing real responses for
+ * initialize, documentSymbol, definition, and completion. It prints a single
+ * `LSP_RESULTS:<json>` line that 31/index.ts greps out of stdout, then hard-exits.
+ *
+ * Two LSP details this file demonstrates:
+ *
+ *   1. Framing. Every message is `Content-Length: <bytes>\r\n\r\n<json-body>`
+ *      (HTTP-style headers). The stream has no message boundaries of its own, so
+ *      a reader must buffer bytes, read the header to learn the body length, and
+ *      slice exactly that many bytes — see encode()/parseFrames() below.
+ *
+ *   2. Request/response correlation. LSP is JSON-RPC: each request carries a
+ *      numeric `id`, and the server's reply echoes that same `id`. Replies can
+ *      arrive out of order and are interleaved with id-less notifications, so we
+ *      key a pending-promise map on the id and resolve by matching it — see the
+ *      reader loop and request().
+ */
 import { spawn } from "node:child_process";
 
 const REPO_DIR = "/workspace/repo";
@@ -14,20 +28,24 @@ const LSP_SERVER = "typescript-language-server";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+// Frame an outgoing message: byte length (NOT char length — hence
+// Buffer.byteLength) in the header, blank line, then the JSON body.
 function encode(msg) {
   const body = JSON.stringify(msg);
   return `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`;
 }
 
-// Parse the Content-Length framing from a raw stream.
-// Returns an async generator yielding parsed message objects.
+// Reassemble framed messages from the raw stdout byte stream. A single chunk
+// may hold a partial message or several messages; we accumulate into `buf` and
+// only emit a frame once its full declared body has arrived. Yields parsed
+// message objects as an async generator.
 async function* parseFrames(readable) {
   let buf = "";
   for await (const chunk of readable) {
     buf += chunk.toString("utf8");
     while (true) {
       const headerEnd = buf.indexOf("\r\n\r\n");
-      if (headerEnd === -1) break;
+      if (headerEnd === -1) break; // header not fully received yet
       const header = buf.slice(0, headerEnd);
       const lenMatch = header.match(/Content-Length:\s*(\d+)/i);
       if (!lenMatch) {
@@ -36,10 +54,11 @@ async function* parseFrames(readable) {
         continue;
       }
       const len = parseInt(lenMatch[1], 10);
-      const bodyStart = headerEnd + 4;
-      if (buf.length < bodyStart + len) break; // need more data
+      const bodyStart = headerEnd + 4; // 4 = the "\r\n\r\n" separator
+      // Body not fully buffered — leave it in `buf` and wait for more chunks.
+      if (buf.length < bodyStart + len) break;
       const body = buf.slice(bodyStart, bodyStart + len);
-      buf = buf.slice(bodyStart + len);
+      buf = buf.slice(bodyStart + len); // consume; leave any trailing bytes
       try {
         yield JSON.parse(body);
       } catch {
@@ -76,6 +95,9 @@ proc.stderr.on("data", () => {}); // suppress tsserver logs
   }
 })();
 
+// Send a request and resolve when the reply with the matching id arrives.
+// The id is allocated here, parked in pendingRequests, and the reader loop
+// above resolves this promise when it sees a frame echoing that id.
 function request(method, params) {
   const id = nextId++;
   const msg = { jsonrpc: "2.0", id, method, params };
@@ -85,6 +107,8 @@ function request(method, params) {
   });
 }
 
+// Notifications carry no id and get no reply (JSON-RPC fire-and-forget) — used
+// for lifecycle signals like `initialized`, `didOpen`, and `exit`.
 function notify(method, params) {
   proc.stdin.write(encode({ jsonrpc: "2.0", method, params }));
 }

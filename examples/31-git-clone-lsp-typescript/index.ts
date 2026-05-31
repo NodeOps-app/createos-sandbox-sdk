@@ -1,9 +1,18 @@
-// 31 — Git clone + LSP (TypeScript)
-// Clones a small public TypeScript repo into an FC sandbox, installs
-// typescript-language-server, uploads a Node.js driver that speaks the
-// LSP JSON-RPC stdio protocol from inside the sandbox, and captures real
-// responses for initialize, documentSymbol, definition, and completion.
-
+/**
+ * Clone a TypeScript repo into an FC sandbox and drive a language server over it.
+ *
+ * Shallow-clones microsoft/vscode-json-languageservice into a microVM, installs
+ * typescript-language-server, then uploads and runs `lsp-driver.mjs` (see that
+ * file) which speaks the LSP JSON-RPC stdio protocol to the server from *inside*
+ * the VM and captures real responses for initialize, documentSymbol, definition,
+ * and completion. This file orchestrates the sandbox; the driver is the LSP
+ * client. They communicate by a one-line `LSP_RESULTS:<json>` sentinel on stdout
+ * — the simplest way to return structured data out of a `runCommand` call.
+ *
+ * Run:   bun 31-git-clone-lsp-typescript/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services
+ *        beyond the public GitHub repo the clone pulls.
+ */
 import { readFile } from "node:fs/promises";
 import { Sandbox } from "fc-sandbox-sdk";
 
@@ -23,6 +32,9 @@ const REPO_DIR = "/workspace/repo";
 const SHAPE = "s-2vcpu-2gb"; // tsserver is memory-hungry; 1 GB can OOM
 const ROOTFS = "devbox:1";
 
+// ── 1. create ──────────────────────────────────────────────────────────────
+// Sandbox.create is the client-less factory; baseUrl/apiKey are spread only
+// when set so exactOptionalPropertyTypes does not see `undefined` scalars.
 console.log("[1/6] creating sandbox...");
 const sandbox = await Sandbox.create({
   shape: SHAPE,

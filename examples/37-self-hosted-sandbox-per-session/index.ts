@@ -1,3 +1,22 @@
+/**
+ * Self-hosted Managed Agent — a FRESH FC microVM per session.
+ *
+ * Same self-hosted-execution idea as example 36, but with the opposite
+ * lifecycle: instead of one always-on worker claiming every session, the host
+ * here polls the environment queue and spawns a brand-new sandbox for each
+ * claimed session, runs `ant beta:worker run` (which attaches to exactly that
+ * one work item and exits at idle), then destroys the VM. The host poller is
+ * control-plane only and holds the environment key; the agent's tool calls run
+ * inside the per-session sandbox. Use this model for clean per-task isolation
+ * and no idle VM cost; use 36 when you want a warm worker and lower per-session
+ * startup latency.
+ *
+ * Run:   bun 37-self-hosted-sandbox-per-session/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (the repo symlinks .env -> ../.env), plus a
+ *        gitignored .env.ant holding ANTHROPIC_API_KEY (org key, Managed Agents
+ *        beta), ANTHROPIC_ENVIRONMENT_ID, and ANTHROPIC_ENVIRONMENT_KEY for a
+ *        self_hosted environment (see .env.example).
+ */
 import { readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { Sandbox } from "fc-sandbox-sdk";
@@ -65,9 +84,9 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
   }
   throw lastErr;
 }
-// `tee` writes the file (proof the tool ran inside the per-session microVM) and
-// prints to stdout so the tool result is non-empty. (An empty bash stdout
-// currently trips a Managed Agents API validation error when the worker posts.)
+// GOTCHA (same as example 36): the Managed Agents worker 400s on an empty
+// tool-result text. `tee` writes the file (proof the tool ran inside the
+// per-session microVM) AND echoes to stdout, keeping the tool result non-empty.
 const PROMPT =
   "Use your bash tool to run exactly this command: `uname -a | tee /workspace/report.txt`. " +
   "Then reply with the exact output it printed.";

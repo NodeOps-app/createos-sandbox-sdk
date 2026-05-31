@@ -1,3 +1,23 @@
+/**
+ * S3-backed disk + ffmpeg transcode — mount a bucket into a sandbox.
+ *
+ * Registers an S3-compatible bucket as an FC disk, mounts it at boot on a
+ * fresh sandbox (s3fs), runs an ffmpeg audio-extraction against files on the
+ * mount, then detaches the disk and verifies the output landed durably in the
+ * bucket from this host. Structured as a bounded watcher: it self-seeds a clip,
+ * polls the input prefix, and transcodes each new video in its own short-lived
+ * VM (serial, to respect the 5-sandbox cap).
+ *
+ * GOTCHA: detachDisk requires the disk's resolved `disk_<ulid>` id, NOT its
+ * name — the detach handler matches the attachment row by raw id and never
+ * resolves a name (attach accepts either). See the DISK_ID note below.
+ *
+ * Run:   bun 38-s3-disk-ffmpeg-transcode/index.ts
+ * Needs: FC_API_KEY + FC_BASE_URL, and an S3-compatible bucket
+ *        reachable from BOTH this machine and the FC agent — S3_BUCKET,
+ *        S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY (AWS S3 / R2 / MinIO; set
+ *        S3_USE_PATH_STYLE=1 for MinIO). See .env.example for tuning vars.
+ */
 import { FcClient, FcNotFoundError, type Sandbox } from "fc-sandbox-sdk";
 
 // ── config ──────────────────────────────────────────────────────────────

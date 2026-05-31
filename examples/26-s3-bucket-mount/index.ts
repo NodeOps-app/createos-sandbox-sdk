@@ -1,11 +1,18 @@
-// 26 — S3 Bucket Mount
-//
-// Mounts a public S3 bucket as a queryable data source inside an FC sandbox
-// using DuckDB's httpfs extension. Reads NOAA GHCN climate parquet data
-// (s3://noaa-ghcn-pds) and runs a multi-year temperature trend analysis
-// with an in-sandbox dbt-style SQL transformation pipeline.
-//
-// FC primitives: createSandbox, files.upload, runCommand, destroy
+/**
+ * S3 Bucket Mount (read a public bucket via DuckDB httpfs).
+ *
+ * "Mounts" a public S3 bucket as a queryable data source inside an FC sandbox
+ * using DuckDB's httpfs extension — no real FUSE mount; httpfs reads the parquet
+ * objects over HTTP on demand. Reads NOAA GHCN climate data (s3://noaa-ghcn-pds)
+ * and runs a multi-year temperature trend analysis with an in-sandbox dbt-style
+ * SQL transformation pipeline, then downloads the result parquet to the host.
+ *
+ * FC primitives: createSandbox, files.upload / files.download, runCommand, destroy
+ *
+ * Run:   bun 26-s3-bucket-mount/index.ts
+ * Needs: FC_API_KEY (FC_BASE_URL optional — overrides the default control plane).
+ *        Reads the public NOAA GHCN bucket over the network; no AWS creds.
+ */
 
 import { writeFileSync } from "node:fs";
 import { FcClient } from "fc-sandbox-sdk";
@@ -39,12 +46,13 @@ async function sh(
   return result.stdout.trim();
 }
 
+// 1. Create the sandbox. No ingress needed — this example only reaches outward.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
-  // ── step 2: install DuckDB CLI ───────────────────────────────────────────
+  // 2. Install the DuckDB CLI inside the VM.
   console.log(`[2/6] installing DuckDB ${DUCKDB_VERSION} + httpfs extension...`);
   await sh(
     sandbox,
@@ -61,7 +69,7 @@ try {
   const version = await sh(sandbox, "version", "duckdb --version");
   console.log(`      installed: ${version}`);
 
-  // ── step 3: upload SQL transformation models ─────────────────────────────
+  // 3. Upload the SQL transformation models.
   // Three SQL models that mimic a lightweight dbt pipeline:
   //   stg_tmax.sql  — stage raw TMAX readings from S3
   //   agg_annual.sql — aggregate to annual avg per station
@@ -119,7 +127,7 @@ LIMIT 15;
   ]);
   console.log("      uploaded: stg_tmax.sql, agg_annual.sql, rpt_trend.sql");
 
-  // ── step 4: configure DuckDB S3 access + run the pipeline ───────────────
+  // 4. Configure anonymous S3 access and run the pipeline.
   console.log(`[4/6] mounting s3://${S3_BUCKET} via DuckDB httpfs (anonymous)...`);
 
   // Shared preamble for both DuckDB scripts: enable anonymous S3 access and
@@ -148,7 +156,7 @@ SET s3_secret_access_key='';
   console.log("\n── temperature trend report ────────────────────────────────────────");
   console.log(pipelineOutput);
 
-  // ── step 5: save results locally ────────────────────────────────────────
+  // 5. Export the result to parquet in the VM, then download it to the host.
   // Write a separate export script so we don't need complex shell quoting.
   console.log("[5/6] exporting results to Parquet inside sandbox + downloading...");
   const exportSql =
@@ -161,7 +169,7 @@ SET s3_secret_access_key='';
   writeFileSync(localOut, new Uint8Array(parquetBuf));
   console.log(`      saved ${parquetBuf.byteLength} bytes → ${localOut}`);
 
-  // ── step 6: verify the parquet locally with DuckDB SQL ──────────────────
+  // 6. Print the run summary (S3 source, years, versions, output size).
   console.log("[6/6] verified end-to-end: S3 bucket mounted, pipeline ran, results downloaded.");
   console.log(`\n  S3 source : s3://${S3_BUCKET}/${S3_PREFIX}/YEAR=*/ELEMENT=TMAX/`);
   console.log(`  Years     : ${YEARS.join(", ")}`);

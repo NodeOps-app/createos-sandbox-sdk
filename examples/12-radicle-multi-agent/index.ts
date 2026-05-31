@@ -1,9 +1,19 @@
-// 12 — Radicle p2p git across 3 FC sandboxes with role-specialised
-// Claude agents. Each sandbox runs a Radicle node on an FC overlay
-// network. Node A inits the repo, Nodes B/C clone via gossip, each
-// agent writes its role's contribution on its own branch and pushes
-// back over Radicle. Finally we download the .git bundle from Node A.
-
+/**
+ * Radicle p2p git mesh across 3 sandboxes with role-specialised Claude agents.
+ * Each sandbox runs a Radicle node joined to one FC overlay network (created
+ * via the networks API) so peers reach each other by overlay IP. Node A inits
+ * the repo; nodes B/C clone it via gossip; each agent (coder / tester / docs)
+ * writes its contribution on its own branch and pushes back over Radicle; we
+ * then bundle every peer's namespace to the host.
+ *
+ * The FC-specific piece is `fc.networks.create` + `networks: [{ id }]` at
+ * sandbox-create time: that overlay is what lets the nodes gossip privately
+ * instead of through Radicle's public bootstrap peers.
+ *
+ * Run:   bun 12-radicle-multi-agent/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY and ANTHROPIC_API_KEY (see .env.example).
+ *        Each sandbox needs outbound network to fetch the Radicle installer.
+ */
 import { mkdir, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
 import { FcClient, Sandbox } from "fc-sandbox-sdk";

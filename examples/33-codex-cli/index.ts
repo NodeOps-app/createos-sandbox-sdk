@@ -1,10 +1,18 @@
-// 33 — Codex CLI in Sandbox
-//
-// Installs the OpenAI Codex CLI (Rust edition, @openai/codex) inside an FC
-// sandbox, configures a custom OpenAI-compatible provider via config.toml,
-// then runs a small coding task non-interactively with `codex exec`. The
-// generated file is downloaded and printed to stdout.
-
+/**
+ * Run the OpenAI Codex CLI inside a sandbox to execute a coding task.
+ *
+ * Installs the Codex CLI (Rust edition, @openai/codex) in an FC sandbox, points
+ * it at an OpenAI-compatible provider via ~/.codex/config.toml, then runs a
+ * coding task non-interactively with `codex exec`. The generated file is
+ * downloaded and re-run on the VM as proof. The interesting part is making an
+ * autonomous coding agent safe to let loose: it gets danger-full-access +
+ * approval=never, which is only acceptable *because* the blast radius is a
+ * disposable microVM that gets destroyed in the finally block.
+ *
+ * Run:   bun 33-codex-cli/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL (the
+ *        provider base_url), and OPENAI_MODEL — all required (see .env.example).
+ */
 import { FcClient } from "fc-sandbox-sdk";
 
 const FC_BASE_URL = process.env.FC_BASE_URL;
@@ -50,6 +58,9 @@ async function sh(
   return result.stdout;
 }
 
+// 1. Create the sandbox. envs are injected into the VM's environment so the
+//    Codex CLI (which reads OPENAI_API_KEY for auth) sees the key without us
+//    having to write it into a file.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -63,6 +74,8 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
+  // 2. Install Node 22 (NodeSource) then the Codex CLI (the Rust binary ships
+  //    as the @openai/codex npm package).
   console.log("[2/6] installing Node.js 22 + Codex CLI...");
   await sh(
     sandbox,
@@ -83,6 +96,8 @@ try {
   const codexVer = await sh(sandbox, "codex-version", "codex --version");
   console.log(`      codex: ${codexVer.trim()}`);
 
+  // 3. Write Codex's config. The settings below are what wire it to the custom
+  //    gateway and let it run unattended inside the disposable VM.
   console.log("[3/6] writing ~/.codex/config.toml (custom provider)...");
   // Configure Codex to use the OpenAI-compatible gateway.
   // model_provider = "gateway" links the active model to the custom provider.
@@ -105,6 +120,9 @@ supports_websockets = false
   await sandbox.files.upload("/root/.codex/config.toml", configToml);
   console.log("      config written");
 
+  // 4. Run the task. The prompt is uploaded to a file and piped via stdin
+  //    rather than passed as an argv string, so its prose can't be mangled by
+  //    bash quoting/expansion.
   console.log("[4/6] running codex exec (non-interactive)...");
   // Create a dedicated workspace directory so Codex has a clear write target.
   await sh(sandbox, "mkdir-work", "mkdir -p /root/work");
@@ -124,6 +142,7 @@ supports_websockets = false
   console.log("\n── codex output ─────────────────────────────────────────────────");
   console.log(codexOut.trim());
 
+  // 5. Pull the file the agent wrote back to the host to inspect it.
   console.log("\n[5/6] downloading generated file...");
   const fileBytes = await sandbox.files.download("/root/work/fizzbuzz.py");
   const fileContent = Buffer.from(fileBytes).toString("utf8");
@@ -131,6 +150,7 @@ supports_websockets = false
   console.log("\n── /root/work/fizzbuzz.py ───────────────────────────────────────");
   console.log(fileContent.trim());
 
+  // 6. Re-run the generated script in the VM as end-to-end proof it works.
   console.log("\n[6/6] running generated code as proof...");
   const pyOut = await sh(sandbox, "python-run", "python3 /root/work/fizzbuzz.py");
   console.log("\n── python3 /root/work/fizzbuzz.py ───────────────────────────────");

@@ -1,15 +1,19 @@
-// 16 — Firecrawl scrape + data analysis inside an FC sandbox.
-//
-// Scrapes a rental-listings page with Firecrawl (host side, plain `fetch`),
-// asks Claude to write a pandas/matplotlib analysis script against a fixed
-// JSON schema, uploads the scraped records + the generated script into one
-// FC sandbox, installs pandas + matplotlib, runs the analysis to produce a
-// price chart PNG, and downloads the chart + summary back to ./output/.
-//
-// Firecrawl needs FIRECRAWL_API_KEY. When it is absent (or the scrape
-// fails) the example falls back to the bundled sample-listings.json so the
-// FC sandbox / Claude / chart path still runs end-to-end. The data source
-// is reported in the output and in the saved summary.
+/**
+ * Firecrawl scrape → Claude analysis → chart, end-to-end through an FC sandbox.
+ *
+ * Scrapes a rental-listings page with Firecrawl (host side, plain `fetch`),
+ * asks Claude to write a pandas/matplotlib analysis script against a fixed JSON
+ * schema, uploads the scraped records + the generated script into one FC
+ * sandbox, installs pandas + matplotlib, runs the analysis to produce a price
+ * chart PNG, and downloads the chart + summary back to ./output/. The Firecrawl
+ * key is optional: when it is absent (or the scrape fails) the example falls
+ * back to the bundled sample-listings.json so the FC / Claude / chart path
+ * still runs. The chosen data source is reported in the output and the summary.
+ *
+ * Run:   bun 16-firecrawl-scrape-analyze/index.ts
+ * Needs: FC_API_KEY + ANTHROPIC_AUTH_TOKEN/ANTHROPIC_BASE_URL (Claude writes the
+ *        code). FIRECRAWL_API_KEY optional — falls back to a bundled fixture.
+ */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";

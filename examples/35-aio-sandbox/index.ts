@@ -1,14 +1,21 @@
-// 35 — AIO Sandbox (all-in-one)
-//
-// Demonstrates the full FC SDK surface in a single script:
-//   createSandbox (ingress) → files.upload → streamCommand (install) →
-//   runCommand (daemonize server) → waitForPortReady → fetch ingress URL →
-//   files.download → destroy
-//
-// An LLM agent generates the page content served over ingress — the AI
-// output is injected into the sandbox via files.upload rather than printed
-// to stdout, proving the complete agent → sandbox → public-URL pipeline.
-
+/**
+ * All-in-one tour — every core sandbox primitive in a single run.
+ *
+ * Exercises the full FC SDK surface end-to-end:
+ *   createSandbox (ingress) → files.upload → streamCommand (install) →
+ *   runCommand (daemonize server) → waitForPortReady → previewUrl/fetch →
+ *   files.download → destroy
+ *
+ * An LLM generates the HTML page that gets served: the AI output is injected
+ * into the VM via files.upload (not printed to stdout), so a green run proves
+ * the whole agent → sandbox → public-URL pipeline, not just one call. This is
+ * the showcase example — start here to see what a sandbox can do.
+ *
+ * Run:   bun 35-aio-sandbox/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, and ANTHROPIC_BASE_URL +
+ *        ANTHROPIC_AUTH_TOKEN (+ optional ANTHROPIC_MODEL) for the page
+ *        generation (see .env.example).
+ */
 import Anthropic from "@anthropic-ai/sdk";
 import { FcClient } from "fc-sandbox-sdk";
 

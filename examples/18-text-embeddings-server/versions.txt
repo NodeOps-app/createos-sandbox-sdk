@@ -1,9 +1,0 @@
-fc-sandbox-sdk: 0.3.0
-torch: 2.9.1 (CPU)
-sentence-transformers: 5.5.1
-embedding model: BAAI/bge-small-en-v1.5 (384-dim)
-fc control plane: https://fc-spawn.bhautik.in (region eu)
-captured: 2026-05-29
-rootfs: devbox:1
-shape: s-2vcpu-2gb
-verified end-to-end: yes — 4 × 384-dim vectors from BAAI/bge-small-en-v1.5 over ingress

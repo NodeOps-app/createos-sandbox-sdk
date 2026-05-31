@@ -1,9 +1,17 @@
-// 34 — OpenClaw Gateway in FC Sandbox
-//
-// Installs the OpenClaw AI-assistant gateway (Node.js) inside an FC sandbox,
-// exposes it via HTTP ingress, and verifies the gateway is live by probing
-// its OpenAI-compatible /v1/models endpoint through the public preview URL.
-
+/**
+ * OpenClaw gateway over ingress — run a third-party HTTP service in a sandbox.
+ *
+ * Installs the OpenClaw AI-assistant gateway (Node.js) inside an FC sandbox,
+ * exposes it on the public preview URL via HTTP ingress, then verifies it is
+ * live by probing its OpenAI-compatible /v1/models endpoint — first from
+ * inside the VM, then from this host through ingress. The pattern (install →
+ * daemonize → waitForPortReady → fetch previewUrl) generalizes to any long-
+ * running server you want reachable from outside the sandbox.
+ *
+ * Run:   bun 34-openclaw-gateway/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). OPENCLAW_GATEWAY_TOKEN
+ *        is optional — a built-in demo token is used when unset.
+ */
 import { FcClient } from "fc-sandbox-sdk";
 
 const GATEWAY_PORT = 18789;

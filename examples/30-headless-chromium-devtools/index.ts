@@ -1,17 +1,24 @@
-// 30 — Headless Chromium + DevTools Port
-//
-// Installs Google Chrome stable inside an FC sandbox, launches it in headless
-// mode with the Chrome DevTools Protocol (CDP) port at 9222, then exposes it
-// via a public ingress URL through an nginx reverse proxy on port 8080.
-//
-// Chrome's /json/* HTTP endpoints have DNS-rebinding protection: they reject
-// any request whose Host header is a DNS name. Since the ingress Host will be
-// the sandbox's public domain, we front Chrome with nginx and rewrite the Host
-// header to 127.0.0.1:9222 before proxying — this satisfies Chrome's check.
-//
-// Proof: GET /json/version through the public ingress URL returns JSON with a
-// `Browser` field (e.g. "Chrome/148…") confirming remote debugging is live.
-
+/**
+ * Headless Chrome with the remote-debugging (CDP) port exposed over ingress.
+ *
+ * Installs Google Chrome stable in an FC sandbox, launches it headless with the
+ * Chrome DevTools Protocol port on 9222, then publishes it via the sandbox's
+ * public ingress URL through an nginx reverse proxy on port 8080.
+ *
+ * The FC-specific twist is the nginx hop: Chrome's /json/* HTTP endpoints have
+ * DNS-rebinding protection and reject any request whose Host header is a DNS
+ * name. The ingress Host *is* the sandbox's public domain, so a direct proxy
+ * would be refused. nginx fronts Chrome and rewrites Host to 127.0.0.1:9222
+ * before proxying, which satisfies Chrome's check. The same trick applies to
+ * any service that pins/validates Host but must be reached over ingress.
+ *
+ * Proof: GET /json/version through the public URL returns JSON with a `Browser`
+ * field (e.g. "Chrome/148…"), confirming remote debugging is live.
+ *
+ * Run:   bun 30-headless-chromium-devtools/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). Ingress is provisioned
+ *        per-sandbox by the control plane — no gateway/tunnel host required.
+ */
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
 
@@ -40,6 +47,8 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// 1. Create with ingress_enabled so previewUrl(8080) resolves to a public URL.
+//    DEBIAN_FRONTEND=noninteractive stops apt blocking on debconf prompts.
 console.log(`[1/8] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -55,8 +64,9 @@ const previewUrl = sandbox.previewUrl(PROXY_PORT).replace(/^https:/, "http:");
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
-  // Ubuntu 24.04 (Noble) ships chromium as a snap-only wrapper — not usable
-  // in the microVM. Install Google Chrome stable via the official .deb instead.
+  // 2. Install Chrome's shared-library deps + nginx. Ubuntu 24.04 (Noble)
+  //    ships chromium as a snap-only wrapper — unusable in a microVM — so we
+  //    pull Google Chrome stable from the official .deb in step 3 instead.
   console.log("[2/8] installing Chrome deps + nginx (apt-get)...");
   await sh(
     sandbox,
@@ -71,6 +81,7 @@ try {
     300_000,
   );
 
+  // 3. Download + install Chrome stable from the official .deb.
   console.log("[3/8] downloading + installing Google Chrome stable...");
   await sh(
     sandbox,
@@ -87,9 +98,10 @@ try {
   ).trim();
   console.log(`      ${chromeVer}`);
 
-  // Chrome's /json/* endpoints reject DNS-name Host headers (DNS-rebinding
-  // protection). nginx fronts Chrome on 0.0.0.0:8080 (reachable by ingress)
-  // and rewrites Host to the IP literal before proxying to Chrome's 127.0.0.1:9222.
+  // 4. Write the nginx config. Chrome's /json/* endpoints reject DNS-name Host
+  //    headers (DNS-rebinding protection). nginx listens on 0.0.0.0:8080
+  //    (reachable by ingress) and rewrites Host to the IP literal before
+  //    proxying to Chrome's 127.0.0.1:9222 — that is what makes CDP reachable.
   console.log("[4/8] writing nginx reverse proxy config...");
   const nginxConf = [
     "server {",
@@ -118,7 +130,7 @@ try {
     ].join(" && "),
   );
 
-  // Launch Chrome headless. Flags required in a microVM running as root:
+  // 5. Launch Chrome headless. Flags required in a microVM running as root:
   //   --no-sandbox          — Chrome refuses to start as root without this
   //   --disable-dev-shm-usage — prevents OOM on the small /dev/shm
   //   --disable-gpu         — no GPU in the microVM
@@ -141,7 +153,7 @@ try {
       `sleep 3; echo launched`,
   );
 
-  // Start nginx after Chrome is up (so it has a backend to proxy to).
+  // 6. Start nginx after Chrome is up (so it has a backend to proxy to).
   console.log("[6/8] starting nginx proxy...");
   await sh(
     sandbox,
@@ -149,12 +161,15 @@ try {
     `nohup setsid nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 </dev/null & sleep 1; echo launched`,
   );
 
+  // 7. Confirm nginx is listening (probed from inside the VM) before we start
+  //    hitting the public URL.
   console.log(`[7/8] waiting for nginx proxy to bind port ${PROXY_PORT}...`);
   await sandbox.waitForPortReady(PROXY_PORT, { timeoutMs: 30_000 });
   console.log("      port is accepting connections");
 
-  // Poll the ingress URL's /json/version until Chrome's CDP endpoint replies.
-  // Ingress routing may take a moment to propagate after waitForPortReady.
+  // 8. Poll the ingress URL's /json/version until Chrome's CDP endpoint replies.
+  //    Ingress routing may take a moment to propagate after waitForPortReady,
+  //    so this retries rather than asserting on the first request.
   console.log("[8/8] polling /json/version through the ingress URL...");
   const versionUrl = `${previewUrl}/json/version`;
   const deadline = Date.now() + 60_000;

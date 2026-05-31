@@ -34,7 +34,7 @@ Expected output (timings vary):
 
 ```
 [1/5] sandbox: sb-<id>
-      preview URL: https://<id>-3000.eu.bhautik.in
+      preview URL: https://<id>-3000.fc-spawn.example.com
 [2/5] cloning next.js hello-world example...
 [3/5] installing dependencies...
 [4/5] starting next dev on port 3000...
@@ -43,7 +43,7 @@ Expected output (timings vary):
       server ready — HTTP 200
       response preview: <!DOCTYPE html>...
 
-live preview: https://<id>-3000.eu.bhautik.in
+live preview: https://<id>-3000.fc-spawn.example.com
 destroyed: sb-<id>
 ```
 

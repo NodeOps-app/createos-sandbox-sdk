@@ -1,11 +1,18 @@
-// 17 — Analyze data with AI. Upload a CSV into an FC sandbox, let Claude
-// write the pandas/matplotlib analysis from the file's real schema, run it
-// inside the VM, then read the rendered chart PNG back out to the host.
-//
-// The point is the files API binary round-trip: a text CSV goes in, a binary
-// PNG comes back. That is the difference from example 02's stdout-only code
-// interpreter — here a real artifact crosses the sandbox boundary in both
-// directions, and the host verifies it by checking the PNG magic bytes.
+/**
+ * Analyze data with AI — CSV in, AI-written analysis, chart PNG out.
+ *
+ * Uploads a CSV into an FC sandbox, lets Claude write a pandas/matplotlib
+ * analysis from the file's real schema, runs it inside the VM, then reads the
+ * rendered chart PNG back out to the host. The point is the files-API binary
+ * round-trip: a text CSV goes in, a binary PNG comes back. That is the
+ * difference from example 02's stdout-only code interpreter — here a real
+ * artifact crosses the sandbox boundary in both directions, and the host
+ * verifies it by checking the PNG magic bytes.
+ *
+ * Run:   bun 17-analyze-data-with-ai/index.ts
+ * Needs: FC_API_KEY + ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN (Claude writes
+ *        the analysis; see .env.example). No other external services.
+ */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
@@ -36,6 +43,9 @@ const anthropic = new Anthropic({
 
 const fc = new FcClient();
 
+// Create a sandbox, retrying through the shared-capacity / transient-5xx
+// errors that surface when the account's concurrency cap is full. MPLBACKEND=Agg
+// makes matplotlib render headless inside the VM (no X server, no display).
 async function createWithRetry() {
   const name = `analyze-${Date.now().toString(36).slice(-6)}`;
   const opts = {
@@ -82,6 +92,10 @@ function extractPython(raw: string): string {
   return (fenced?.[1] ?? raw).trim();
 }
 
+// Ground Claude on the CSV's REAL schema — its header row plus a few sample
+// rows — so the generated code matches the actual columns instead of guessing.
+// The script's read path and chart output path are pinned to the same absolute
+// paths the host uses below, so upload → run → download line up exactly.
 async function generateAnalysis(header: string, sampleRows: string): Promise<string> {
   const prompt =
     "You are given a CSV file inside a Linux sandbox at the absolute path " +
@@ -115,6 +129,8 @@ try {
   console.log(`[1/6] uploading ${CSV_PATH} (binary round-trip: CSV in)…`);
   const csvBytes = await readFile(`${HERE}sample.csv`);
   await sandbox.files.upload(CSV_PATH, new Uint8Array(csvBytes));
+  // Decode the same bytes host-side to extract the header + first rows for the
+  // prompt; only this schema slice goes to Claude, not the whole file.
   const csvText = new TextDecoder().decode(csvBytes);
   const lines = csvText.trim().split("\n");
   const header = lines[0] ?? "";

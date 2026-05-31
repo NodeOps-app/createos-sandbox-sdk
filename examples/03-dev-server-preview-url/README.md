@@ -15,10 +15,10 @@ bun auto-loads `.env` from the example dir. `FC_BASE_URL` defaults to the
 production control plane and only needs to be set to override.
 
 > ℹ️ The example fetches the preview URL over `http://` (port 80). The
-> wildcard `*.eu.bhautik.in` does not yet have a real TLS cert — tracked
-> at [fc#41](https://github.com/NodeOps-app/fc/issues/41). `http://` is
-> forward-compatible: once the cert lands, ingress-nginx will redirect
-> to `https://` and `fetch` follows it transparently.
+> wildcard ingress domain may not yet have a real TLS cert — a known
+> deployment limitation. `http://` is forward-compatible: once the cert
+> lands, ingress-nginx will redirect to `https://` and `fetch` follows
+> it transparently.
 
 ## What it does
 
@@ -27,7 +27,7 @@ production control plane and only needs to be set to override.
 2. Launches `python3 -m http.server 8080 --bind 0.0.0.0` daemonised
    (devbox:1 has no systemd).
 3. Polls `waitForPortReady(8080)` until the server accepts connections.
-4. Derives the public URL: `http://<ulid>-8080.eu.bhautik.in/` (the
+4. Derives the public URL: `http://<ulid>-8080.fc-spawn.example.com/` (the
    `sb-` prefix is stripped from `sandbox.id`).
 5. `fetch`es the URL and prints the response body.
 6. Destroys the sandbox.

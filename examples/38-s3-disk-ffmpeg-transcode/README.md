@@ -1,4 +1,4 @@
-# 13 — S3-disk video→audio transcode (ffmpeg)
+# 38 — S3-disk video→audio transcode (ffmpeg)
 
 An event-style media pipeline on FC. A new video in an S3 bucket triggers a
 sandbox that mounts the **same bucket as a disk** (s3fs, read-write), runs

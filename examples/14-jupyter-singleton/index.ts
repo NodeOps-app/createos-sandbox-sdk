@@ -1,12 +1,20 @@
-// 14 — Jupyter Singleton. One long-lived IPython kernel inside a
-// sandbox, driven cell-by-cell over a Unix-domain socket. The kernel
-// keeps Python state (imports, variables, defined functions) across
-// calls, so this behaves like a Jupyter notebook with one persistent
-// session. Then we pause the parent and fork two branches that inherit
-// the kernel mid-session — each branch resumes from the same checkpoint
-// and diverges independently. Sandboxes are sequenced (parent → fork A →
-// destroy A → fork B → destroy B → parent) so we never exceed two
-// concurrent sandboxes.
+/**
+ * Jupyter singleton — one long-lived Python kernel, then pause + fork two
+ * branches from it.
+ *
+ * A daemon inside the sandbox keeps a single Python interpreter alive on a
+ * Unix-domain socket; the host drives it cell-by-cell, so imports, variables,
+ * and defined functions persist across commands (a Jupyter-style session).
+ * The parent is then paused — which snapshots the kernel mid-session — and two
+ * forks inherit that exact in-memory state and diverge independently. The fork
+ * timeouts are deliberately generous: forks occasionally stick in `pausing` on
+ * the control plane, and the run treats that as "branching unavailable" rather
+ * than failing (see runOnFork). Sandboxes are sequenced (parent → fork A →
+ * destroy A → fork B → destroy B) so we never exceed two concurrent VMs.
+ *
+ * Run:   bun 14-jupyter-singleton/index.ts
+ * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). No external services.
+ */
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -29,9 +37,9 @@ interface CellReply {
 
 const fc = new FcClient();
 
-// One-shot retry helper for the cap-exhausted / transient 5xx case the
-// brief calls out. We back off 30s and retry exactly once; further
-// failures propagate so the run fails loudly instead of hanging.
+// One-shot retry helper for the cap-exhausted / transient 5xx case. We back
+// off 30s and retry exactly once; further failures propagate so the run fails
+// loudly instead of hanging.
 async function withCapRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -102,8 +110,9 @@ async function runOnFork(parent: Sandbox, label: string, code: string): Promise<
   // Parent must already be paused. Fork inherits the full kernel state
   // (variables, imports, the active Unix-socket binding) at the
   // snapshot point. Returns null when the fork never reaches a usable
-  // state — currently blocked on fc#42 in some environments — so the
-  // example finishes cleanly even if branching is unavailable.
+  // state — currently a known control-plane limitation in some
+  // environments — so the example finishes cleanly even if branching
+  // is unavailable.
   console.log(`\n[fork:${label}] forking from paused parent ${parent.id}…`);
   const child = await withCapRetry(`fork:${label}`, () => parent.fork({ start_paused: true }));
   try {
@@ -114,7 +123,7 @@ async function runOnFork(parent: Sandbox, label: string, code: string): Promise<
         await child.refresh().catch(() => undefined);
         console.log(
           `[fork:${label}] fork stuck in '${child.status}' after ${FORK_TIMEOUT_MS}ms — ` +
-            "see https://github.com/NodeOps-app/fc/issues/42",
+            "a known control-plane limitation",
         );
         return null;
       }

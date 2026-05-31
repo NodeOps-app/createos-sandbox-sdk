@@ -1,9 +1,16 @@
-// 25 — Prometheus Pushgateway inside an FC sandbox.
-//
-// Downloads the Prometheus Pushgateway binary, daemonises it on 0.0.0.0:9091
-// so the FC HTTP ingress can reach it, pushes a custom metric via the
-// Pushgateway's /metrics/job/<job> endpoint, then scrapes /metrics through
-// the public ingress URL to verify the metric round-trips.
+/**
+ * Prometheus Pushgateway inside an FC sandbox.
+ *
+ * Downloads the Prometheus Pushgateway binary, daemonises it on 0.0.0.0:9091
+ * so the FC HTTP ingress can reach it, pushes a custom metric via the
+ * Pushgateway's /metrics/job/<job> endpoint, then scrapes /metrics through
+ * the public ingress URL to verify the metric round-trips.
+ *
+ * Run:   bun 25-prometheus-pushgateway/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY. Ingress must be granted
+ *        for previewUrl() to resolve. No external services — the binary is
+ *        fetched from GitHub releases at runtime.
+ */
 
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
@@ -35,6 +42,7 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// 1. Create the sandbox with ingress enabled so the scrape endpoint is public.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -52,6 +60,7 @@ console.log(`      metrics URL : ${metricsUrl}/metrics`);
 console.log(`      push URL    : ${pushUrl}`);
 
 try {
+  // 2. Fetch + install the Pushgateway binary into the VM.
   console.log(`[2/6] downloading prometheus/pushgateway v${PUSHGATEWAY_VERSION}...`);
   await sh(
     sandbox,
@@ -68,6 +77,7 @@ try {
   );
   console.log("      binary installed");
 
+  // 3. Start the Pushgateway as a daemon.
   // Daemonise with nohup setsid — no systemd in devbox:1.
   // `;` before nohup (not `&&`) so the chain does not hold the /exec stdout
   // pipe open and hang runCommand.
@@ -78,10 +88,13 @@ try {
     `nohup setsid pushgateway --web.listen-address=0.0.0.0:${PORT} >/var/log/pushgateway.log 2>&1 </dev/null &`,
   );
 
+  // 4. Wait for the port before pushing/scraping.
   console.log(`[4/6] waiting for pushgateway to bind port ${PORT}...`);
   await sandbox.waitForPortReady(PORT, { timeoutMs: 30_000 });
   console.log("      port accepting connections");
 
+  // 5. Push a metric from inside the VM (curl to 127.0.0.1), then scrape it
+  //    back from outside over ingress — proving both paths reach the same process.
   // Push a custom metric using the text-based Prometheus exposition format.
   // A single line is enough to prove the round-trip.
   const metricName = "fc_example_requests_total";
@@ -96,6 +109,7 @@ try {
   );
   console.log("      pushed successfully");
 
+  // 6. Verify the round-trip by scraping over the public ingress URL.
   // Scrape the public ingress endpoint.  Poll until the metric appears —
   // ingress propagation may take a moment.
   console.log("[6/6] scraping /metrics via ingress URL...");

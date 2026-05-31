@@ -1,3 +1,16 @@
+/**
+ * Host a remote MCP server in a sandbox and let Claude drive it. The sandbox
+ * runs the Browserbase MCP server (HTTP transport, bound 0.0.0.0) behind a
+ * public ingress URL; Claude reaches it via the Anthropic beta MCP-client
+ * feature, pointing `mcp_servers[].url` at the sandbox's `previewUrl(port)`.
+ * The sandbox is the MCP *host* — the browser automation itself runs on
+ * Browserbase's cloud, called out from inside the microVM.
+ *
+ * Run:   bun 10-mcp-browserbase/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, ANTHROPIC_API_KEY, and a Browserbase
+ *        account (BROWSERBASE_API_KEY + BROWSERBASE_PROJECT_ID). See
+ *        .env.example. Excluded from CI — it needs a paid Browserbase account.
+ */
 import Anthropic from "@anthropic-ai/sdk";
 import { Sandbox } from "fc-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";

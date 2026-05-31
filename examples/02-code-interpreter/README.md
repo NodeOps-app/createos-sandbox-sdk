@@ -2,17 +2,17 @@
 
 Upload a Python script into a sandbox, run it, and capture stdout/stderr.
 
-> ⚠️ **Streaming exec is currently broken on prod** — see
-> [fc#40](https://github.com/NodeOps-app/fc/issues/40). `sdk-streaming.ts`
-> exists so the broken path can be re-tested once the fix lands; the
-> default `index.ts` uses buffered exec.
+> ⚠️ **Streaming exec is currently broken** — a known control-plane
+> limitation. `sdk-streaming.ts` exists so the broken path can be
+> re-tested once the fix lands; the default `index.ts` uses buffered
+> exec.
 
 ## Run
 
 ```sh
 cp .env.example .env  # fill in FC_API_KEY
 bun index.ts                # buffered (default)
-bun sdk-streaming.ts        # broken on prod — fc#40
+bun sdk-streaming.ts        # broken — known control-plane limitation
 ```
 
 bun auto-loads `.env` from the example dir. `FC_BASE_URL` defaults to the
@@ -32,7 +32,7 @@ production control plane and only needs to be set to override.
 | ------------------------ | --------------------------------- |
 | File upload              | `sandbox.files.upload()`          |
 | Buffered exec            | `sandbox.runCommand()`            |
-| Streaming exec (blocked) | `sandbox.streamCommand()` — fc#40 |
+| Streaming exec (blocked) | `sandbox.streamCommand()` — known limitation |
 | Tear down                | `sandbox.destroy()`               |
 
 ## Versions captured at build time

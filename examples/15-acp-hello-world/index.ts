@@ -1,12 +1,19 @@
-// 15 — ACP (Agent Client Protocol) hello world.
-//
-// Spawns an ACP-compatible agent inside an FC sandbox and drives a single
-// prompt turn over JSON-RPC 2.0. The agent is a ~100-line Python echo
-// implementation of the three baseline ACP methods (initialize, session/new,
-// session/prompt). A Python driver, also injected into the sandbox, spawns
-// the agent as a subprocess, walks the protocol, prints every wire frame to
-// stderr, and emits a structured summary on stdout. The host (this file)
-// invokes the driver with `runCommand` and prints both streams.
+/**
+ * ACP (Agent Client Protocol) hello world — drive an in-sandbox agent over
+ * JSON-RPC.
+ *
+ * Spawns an ACP-compatible agent inside an FC sandbox and drives a single
+ * prompt turn over JSON-RPC 2.0. The agent is a ~100-line Python echo
+ * implementation of the three baseline ACP methods (initialize, session/new,
+ * session/prompt). A Python driver, also injected into the sandbox, spawns the
+ * agent as a subprocess, walks the protocol, prints every wire frame to stderr,
+ * and emits a structured summary on stdout. The host (this file) runs the
+ * driver with a single `runCommand` and reads both streams back — the whole
+ * JSON-RPC conversation happens inside the VM, so the host never speaks ACP.
+ *
+ * Run:   bun 15-acp-hello-world/index.ts
+ * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). No external services.
+ */
 
 import { readFile } from "node:fs/promises";
 import { Sandbox } from "fc-sandbox-sdk";
@@ -46,6 +53,10 @@ try {
   console.log(`      ${py.result.stdout.trim() || py.result.stderr.trim()}`);
 
   console.log(`[4/4] driving ACP turn — prompt: ${JSON.stringify(PROMPT)}\n`);
+  // Prompt is passed as a plain argv element — runCommand does not shell-split,
+  // so spaces/punctuation need no quoting. The driver splits its streams by
+  // purpose: raw JSON-RPC frames on stderr (the protocol trace), the final
+  // structured turn result on stdout (what we actually parse below).
   const { result } = await sandbox.runCommand("python3", [DRIVER_PATH, PROMPT], {
     timeoutMs: 60_000,
   });

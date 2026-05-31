@@ -1,13 +1,20 @@
-// 32 — LangGraph Sandbox Orchestrator
-//
-// A LangGraph agent running on the host drives an FC sandbox through its
-// lifecycle. Each graph node corresponds to an fc-sdk operation: create,
-// run a task, and destroy. OpenAI provides the LLM backing the agent;
-// the FC sandbox executes the code the agent produces.
-//
-// The agent is given a coding task, writes a Python solution inside the
-// sandbox, verifies it by running it, and returns the final output.
-
+/**
+ * Model FC sandbox operations as nodes in a LangGraph graph, an LLM driving it.
+ *
+ * A LangGraph state machine runs on the host and walks an FC sandbox through a
+ * lifecycle, one fc-sdk operation per node: create_sandbox → generate_code →
+ * run_in_sandbox → summarise. An OpenAI model decides the work (writes the
+ * Python, summarises the result); the sandbox executes and verifies it. The
+ * pattern: the graph's typed state threads sandbox id / code / output between
+ * nodes, and conditional edges short-circuit to END on error so a failed step
+ * never feeds a downstream one. The Sandbox handle is module-level because its
+ * lifetime spans the whole graph, and teardown happens in the outer finally.
+ *
+ * Run:   bun 32-langgraph-sandbox-orchestrator/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_KEY (+ optional OPENAI_MODEL,
+ *        OPENAI_BASE_URL/OPENAI_API_URL for an OpenAI-compatible endpoint). See
+ *        .env.example. Reads the parent ../.env as a fallback (loadParentEnvFallback).
+ */
 import { existsSync, readFileSync } from "node:fs";
 import OpenAI from "openai";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
@@ -49,7 +56,7 @@ type AgentStateType = typeof AgentState.State;
 
 let sandbox: Sandbox | undefined;
 
-// ── Node: create_sandbox ──────────────────────────────────────────────────────
+// ── 1. Node: create_sandbox ───────────────────────────────────────────────────
 
 async function createSandboxNode(_state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: create_sandbox]");
@@ -63,7 +70,7 @@ async function createSandboxNode(_state: AgentStateType): Promise<Partial<AgentS
   return { sandboxId: sandbox.id };
 }
 
-// ── Node: generate_code ───────────────────────────────────────────────────────
+// ── 2. Node: generate_code ────────────────────────────────────────────────────
 
 async function generateCodeNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: generate_code]");
@@ -101,7 +108,7 @@ async function generateCodeNode(state: AgentStateType): Promise<Partial<AgentSta
   return { code };
 }
 
-// ── Node: run_in_sandbox ──────────────────────────────────────────────────────
+// ── 3. Node: run_in_sandbox ───────────────────────────────────────────────────
 
 async function runInSandboxNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: run_in_sandbox]");
@@ -142,7 +149,7 @@ async function runInSandboxNode(state: AgentStateType): Promise<Partial<AgentSta
   return { runOutput };
 }
 
-// ── Node: summarise ───────────────────────────────────────────────────────────
+// ── 4. Node: summarise ────────────────────────────────────────────────────────
 
 async function summariseNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: summarise]");

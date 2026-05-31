@@ -1,3 +1,16 @@
+/**
+ * PostgreSQL as a filesystem — TigerFS mounts a Postgres database as a FUSE
+ * tree, so files written under the mount land as rows in the DB. This runs the
+ * whole stack inside one microVM: install + start Postgres without systemd
+ * (`pg_ctlcluster`), install TigerFS, `migrate` the schema, `mount` it over
+ * FUSE, write a markdown note through the filesystem, then prove via `psql`
+ * that the note is a row in `tigerfs.notes`. The SDK's role is the orchestrator
+ * — every step is a `runCommand` against the sandbox.
+ *
+ * Run:   bun 11-tigerfs-postgres-filesystem/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The sandbox needs
+ *        outbound network to fetch the TigerFS installer (install.tigerfs.io).
+ */
 import { FcClient } from "fc-sandbox-sdk";
 import { readFileSync } from "node:fs";
 
@@ -97,6 +110,8 @@ try {
     `nohup setsid tigerfs mount --insecure-no-ssl '${PG_URL}' ${MOUNT} >/var/log/tigerfs.log 2>&1 &`,
   ]);
 
+  // The mount ran detached (nohup setsid), so FUSE attaches asynchronously —
+  // poll `mountpoint` until the kernel reports the mount is live.
   let mounted = false;
   for (let i = 0; i < 30; i++) {
     const check = await sandbox.runCommand("bash", [
@@ -129,6 +144,8 @@ try {
     throw new Error(`build app failed:\n${buildApp.result.stderr}`);
   }
 
+  // Writing the app name into .build/notes is TigerFS's provision trigger; the
+  // backing notes/ directory materialises lazily once TigerFS processes it.
   let notesDir = false;
   for (let i = 0; i < 20; i++) {
     const probe = await sandbox.runCommand("bash", [

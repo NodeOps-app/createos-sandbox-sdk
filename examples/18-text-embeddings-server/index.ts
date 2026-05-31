@@ -1,9 +1,19 @@
-// 18 — Text-embeddings server inside an FC sandbox, called over ingress.
-// Runs a small CPU sentence-transformers model as a long-lived HTTP
-// service inside one sandbox, exposes it via the public ingress URL, and
-// embeds a batch of texts by POSTing to it from the host with plain
-// fetch. Showcases "model-as-an-HTTP-service inside a sandbox, exposed
-// via ingress" — the serving counterpart to example 13's in-sandbox RAG.
+/**
+ * Text-embeddings server inside an FC sandbox, reached over ingress.
+ *
+ * Runs a small CPU sentence-transformers model as a long-lived HTTP service
+ * inside one sandbox, exposes it on the public ingress URL, and embeds a batch
+ * of texts by POSTing to it from the host with plain fetch. Showcases
+ * "model-as-an-HTTP-service inside a sandbox, exposed via ingress" — the
+ * serving counterpart to example 13's in-sandbox RAG. The two-stage readiness
+ * check is the FC-specific bit: waitForPortReady proves the port is listening
+ * from inside the VM, then a /health poll over the public ingress URL proves
+ * the route has propagated and the model finished loading.
+ *
+ * Run:   bun 18-text-embeddings-server/index.ts
+ * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). Requires FC
+ *        ingress — the sandbox is created with ingress_enabled. No other services.
+ */
 
 import { readFile } from "node:fs/promises";
 import type { Sandbox } from "fc-sandbox-sdk";

@@ -1,15 +1,22 @@
-// 19 — Batch inference fan-out across multiple FC sandboxes.
-//
-// Sentiment classification over a bundled batch of labeled movie reviews,
-// sharded and processed in PARALLEL across N independent FC sandboxes. Each
-// sandbox installs a CPU-only HuggingFace model, runs its shard, and reports
-// its own inference timing. The host shards the batch, fans the work out
-// concurrently, then aggregates: overall accuracy against the bundled labels,
-// throughput, and the concurrency speedup of fan-out over a serial estimate.
-//
-// This maps a parallel-map workload onto FC: one shard per sandbox, run at the
-// same time, gather the results. The shared concurrency cap is a hard ceiling,
-// so shards run in waves of at most MAX_CONCURRENCY sandboxes.
+/**
+ * Batch inference fan-out — a parallel-map workload sharded across many FC
+ * sandboxes.
+ *
+ * Sentiment classification over a bundled batch of labeled movie reviews,
+ * sharded and processed in PARALLEL across N independent FC sandboxes. Each
+ * sandbox installs a CPU-only HuggingFace model, runs its shard, and reports
+ * its own inference timing. The host shards the batch, fans the work out
+ * concurrently, then aggregates: overall accuracy against the bundled labels,
+ * throughput, and the concurrency speedup of fan-out over a serial estimate.
+ * The shared concurrency cap is a hard ceiling, so the design keeps
+ * SHARD_COUNT <= MAX_CONCURRENCY (one wave); above the cap, shards must run in
+ * waves of at most MAX_CONCURRENCY. Cleanup destroys only the sandboxes this
+ * run created and leak-checks that none survive.
+ *
+ * Run:   bun 19-batch-inference-fanout/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY (both required; see .env.example). No other
+ *        external services — the model is pulled from HuggingFace inside each VM.
+ */
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -24,8 +31,12 @@ const MODEL = "distilbert-base-uncased-finetuned-sst-2-english";
 const SHARD_COUNT = 4; // <= MAX_CONCURRENCY so the whole batch runs in one wave
 const MAX_CONCURRENCY = 4; // hard ceiling: shared 5/5 cap, leave one slot of headroom
 
-// Base URL for the control plane; falls back to the SDK's production default.
-const FC_BASE_URL = process.env.FC_BASE_URL ?? "https://fc-spawn.bhautik.in";
+// Base URL for the control plane.
+const FC_BASE_URL = process.env.FC_BASE_URL;
+if (!FC_BASE_URL) {
+  console.error("FC_BASE_URL must be set (see .env.example).");
+  process.exit(1);
+}
 const FC_API_KEY = process.env.FC_API_KEY;
 if (!FC_API_KEY) {
   console.error("FC_API_KEY must be set (see .env.example).");

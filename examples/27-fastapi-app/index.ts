@@ -1,7 +1,14 @@
-// 27 — FastAPI App in an FC sandbox.
-// Installs FastAPI + uvicorn inside an FC microVM, uploads a small ASGI app,
-// daemonises uvicorn on 0.0.0.0:8000, exposes it through the public ingress
-// URL, and verifies JSON responses from two routes.
+/**
+ * FastAPI App in an FC sandbox.
+ *
+ * Installs FastAPI + uvicorn inside an FC microVM, uploads a small ASGI app,
+ * daemonises uvicorn on 0.0.0.0:8000, exposes it through the public ingress
+ * URL, and verifies JSON responses from two routes.
+ *
+ * Run:   bun 27-fastapi-app/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY. The control plane must
+ *        grant ingress for previewUrl() to resolve.
+ */
 
 import { readFile } from "node:fs/promises";
 import type { Sandbox } from "fc-sandbox-sdk";
@@ -33,8 +40,12 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// The ASGI app lives in ./app.py (committed beside this example); we read it
+// here and upload it into the sandbox below.
 const appSrc = await readFile(new URL("./app.py", import.meta.url), "utf8");
 
+// 1. Create the sandbox with ingress enabled so uvicorn gets a public URL.
+//    DEBIAN_FRONTEND=noninteractive keeps the apt-get install below from prompting.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -52,6 +63,7 @@ const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
+  // 2. Install python3-venv (devbox:1 ships Python but not the venv module).
   console.log("[2/6] installing python3-venv (apt-get)...");
   await sh(
     sandbox,
@@ -60,6 +72,7 @@ try {
     300_000,
   );
 
+  // 3. Create a venv and install the app's deps into it.
   console.log("[3/6] creating venv + installing fastapi + uvicorn...");
   await sh(
     sandbox,
@@ -77,10 +90,12 @@ try {
   ).trim();
   console.log(`      ${pythonVer}, fastapi ${fastapiVer}, uvicorn ${uvicornVer}`);
 
+  // 4. Upload the app as main.py so uvicorn's `main:app` import target resolves.
   console.log("[4/6] uploading app.py...");
   await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}`);
   await sandbox.files.upload(`${APP_DIR}/main.py`, appSrc);
 
+  // 5. Start uvicorn as a daemon.
   // devbox:1 has no systemd — daemonise with nohup/setsid and redirect stdio
   // so the buffered runCommand returns instead of hanging on the held pipe.
   // Bind 0.0.0.0 so the ingress proxy can reach the server (127.0.0.1 only
@@ -94,6 +109,7 @@ try {
       `>uvicorn.log 2>&1 </dev/null & sleep 1; echo launched`,
   );
 
+  // 6. Wait for the port, then verify both routes over the public ingress URL.
   console.log(`[6/6] waiting for uvicorn to bind port ${PORT}...`);
   await sandbox.waitForPortReady(PORT, { timeoutMs: 30_000 });
   console.log("      port is accepting connections");

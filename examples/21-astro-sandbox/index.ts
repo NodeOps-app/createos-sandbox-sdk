@@ -1,7 +1,14 @@
-// 21 — Astro in a Sandbox.
-// Scaffolds a minimal Astro site inside an FC microVM, installs its
-// dependencies, runs `astro dev` as a daemon, exposes the dev server through
-// the public ingress URL, and verifies the rendered HTML over that URL.
+/**
+ * Astro in a Sandbox.
+ *
+ * Scaffolds a minimal Astro site inside an FC microVM, installs its
+ * dependencies, runs `astro dev` as a daemon, exposes the dev server through
+ * the public ingress URL, and verifies the rendered HTML over that URL.
+ *
+ * Run:   bun 21-astro-sandbox/index.ts
+ * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY. The control plane must
+ *        grant ingress for previewUrl() to resolve.
+ */
 
 import { readFile } from "node:fs/promises";
 import type { Sandbox } from "fc-sandbox-sdk";
@@ -34,10 +41,13 @@ async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_00
   return result.stdout;
 }
 
+// The Astro project lives in ./site (committed alongside this example); we read
+// its three source files here and re-upload them into the sandbox below.
 const sitePkg = await readFile(new URL("./site/package.json", import.meta.url), "utf8");
 const siteConfig = await readFile(new URL("./site/astro.config.mjs", import.meta.url), "utf8");
 const sitePage = await readFile(new URL("./site/src/pages/index.astro", import.meta.url), "utf8");
 
+// 1. Create the sandbox with ingress enabled — required for a public preview URL.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
   shape: SHAPE,
@@ -55,12 +65,14 @@ const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
+  // 2. Upload the project files into the sandbox filesystem.
   console.log("[2/6] uploading the Astro project...");
   await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}/src/pages`);
   await sandbox.files.upload(`${APP_DIR}/package.json`, sitePkg);
   await sandbox.files.upload(`${APP_DIR}/astro.config.mjs`, siteConfig);
   await sandbox.files.upload(`${APP_DIR}/src/pages/index.astro`, sitePage);
 
+  // 3. Install deps inside the VM.
   console.log("[3/6] installing dependencies (npm install)...");
   await sh(sandbox, "npm-install", `cd ${APP_DIR} && npm install --no-audit --no-fund`, 300_000);
   const astroVersion = (
@@ -76,6 +88,7 @@ try {
   // so the buffered runCommand returns instead of hanging on the inherited
   // stdout pipe. --host 0.0.0.0 makes the dev server reachable via ingress
   // (127.0.0.1 would only reach through the agent tunnel).
+  // 4. Start the dev server as a daemon (see the nohup/host notes above).
   console.log(`[4/6] starting astro dev on port ${PORT} (daemonised)...`);
   await sh(
     sandbox,
@@ -87,10 +100,12 @@ try {
       `>astro.log 2>&1 </dev/null & sleep 1; echo launched`,
   );
 
+  // 5. Wait for the in-VM port to accept connections before reaching it.
   console.log(`[5/6] waiting for astro dev to bind port ${PORT}...`);
   await sandbox.waitForPortReady(PORT, { timeoutMs: 120_000 });
   console.log("      port is accepting connections");
 
+  // 6. Verify the render over the public ingress URL.
   // Cold first-compile happens on the first request through the dev server,
   // and ingress routing may take a moment to propagate — poll the preview URL
   // until a real render comes back rather than fetching once.
