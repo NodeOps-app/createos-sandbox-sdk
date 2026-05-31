@@ -7,13 +7,19 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: main
     hooks:
+      # The whitespace fixers skip the generated docs (llms.txt, llms-full.txt,
+      # examples/README.md): those are owned by `bun run docs:gen`, and letting
+      # both rewrite them makes the two fight over the same lines.
       - id: trailing-whitespace
+        exclude: '^(llms\.txt|llms-full\.txt|examples/README\.md)$'
       - id: end-of-file-fixer
+        exclude: '^(llms\.txt|llms-full\.txt|examples/README\.md)$'
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
       - id: check-merge-conflict
       - id: mixed-line-ending
+        exclude: '^(llms\.txt|llms-full\.txt|examples/README\.md)$'
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: master
