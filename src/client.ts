@@ -360,11 +360,23 @@ export class DisksApi {
   }
 }
 
+/**
+ * The SDK entry point. Owns transport configuration (auth, base URL,
+ * timeouts, retries) and exposes catalog and identity calls, the sandbox
+ * factory, and the `templates` / `networks` / `disks` sub-APIs.
+ *
+ * @example
+ * const fc = new FcClient({ apiKey: process.env.FC_API_KEY });
+ * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
+ */
 export class FcClient {
   /** Low-level transport. An escape hatch for requests the SDK does not model. */
   readonly http: FcHttp;
+  /** Template (custom rootfs) operations. */
   readonly templates: TemplatesApi;
+  /** Overlay network operations. */
   readonly networks: NetworksApi;
+  /** S3-disk catalog operations. */
   readonly disks: DisksApi;
 
   constructor(options: FcClientOptions = {}) {
@@ -381,7 +393,7 @@ export class FcClient {
   // ── health / identity ─────────────────────────────────────────────────
 
   /**
-   * Liveness probe. Unauthenticated; returns `{ ok: true }` once the
+   * Liveness probe. Unauthenticated; returns `{ up: true }` once the
    * control plane is up.
    *
    * @throws {FcServerError} on 5xx from the control plane.
@@ -437,7 +449,7 @@ export class FcClient {
    *
    * @example
    * const me = await fc.whoami();
-   * console.log(me.user_id, me.email);
+   * console.log(me.user_id, me.stats);
    */
   whoami(options: RequestOptions = {}): Promise<WhoAmIView> {
     return this.http.request<WhoAmIView>("GET", "/v1/whoami", options);

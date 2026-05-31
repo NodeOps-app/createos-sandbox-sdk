@@ -102,6 +102,19 @@ export class SandboxFiles {
   }
 }
 
+/**
+ * A stateful handle to one sandbox, returned by the `FcClient` factory
+ * methods. Owns a sandbox id and exposes lifecycle (pause / resume / fork /
+ * destroy), command execution, file transfer (`files`), egress / bandwidth,
+ * network and disk operations, and the `waitUntil*` pollers. Mutating calls
+ * refresh the cached projection in place; read it via `data` or the
+ * `id` / `status` / `ip` / `name` getters.
+ *
+ * @example
+ * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
+ * const out = await sandbox.runCommand("uname", ["-a"]);
+ * await sandbox.destroy();
+ */
 export class Sandbox {
   /** File transfer namespace. */
   readonly files: SandboxFiles;
@@ -388,6 +401,8 @@ export class Sandbox {
   /**
    * Grows the overlay disk to `diskMib`.
    *
+   * @param diskMib - New disk size in MiB. Must exceed the current size.
+   *
    * @throws {FcValidationError} when `diskMib` is invalid or below the current size.
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
@@ -429,7 +444,7 @@ export class Sandbox {
     if (!enabled) {
       // Disabling ingress invalidates the cached URL template. Re-enabling
       // cannot repopulate it — SandboxView omits ingress_url_template
-      // (tracked in NodeOps-app/fc#36).
+      // (a known control-plane limitation).
       this.#ingressUrlTemplate = undefined;
     }
     return this;
@@ -556,6 +571,8 @@ export class Sandbox {
   /**
    * Replaces the egress allowlist. `null` / empty = allow all.
    *
+   * @param rules - `host:port` allow rules, or `null` / `[]` to allow all egress.
+   *
    * @throws {FcValidationError} when a rule is malformed.
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
@@ -594,6 +611,8 @@ export class Sandbox {
 
   /**
    * Tops up the bandwidth quota by `addBytes`.
+   *
+   * @param addBytes - Bytes to add to the quota.
    *
    * @throws {FcValidationError} when `addBytes` is invalid.
    * @throws {FcNotFoundError} when the sandbox no longer exists.

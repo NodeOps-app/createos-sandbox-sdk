@@ -6,6 +6,7 @@
 
 // ── JSend envelope ──────────────────────────────────────────────────────
 
+/** Any JSON-serializable value. */
 export type JsonValue =
   | string
   | number
@@ -14,27 +15,32 @@ export type JsonValue =
   | JsonValue[]
   | { [key: string]: JsonValue };
 
+/** JSend `success` envelope: the request succeeded and `data` is the payload. */
 export interface SuccessEnvelope<T> {
   status: "success";
   data: T;
 }
 
+/** JSend `fail` envelope: the request was rejected for a client-side reason (validation). */
 export interface FailEnvelope {
   status: "fail";
   /** Usually a field-keyed object; the control plane sometimes sends a plain string. */
   data: Record<string, unknown> | string;
 }
 
+/** JSend `error` envelope: the server hit an internal error processing the request. */
 export interface ErrorEnvelope {
   status: "error";
   message: string;
   code: number;
 }
 
+/** The three JSend envelope shapes the control plane returns. */
 export type JSendEnvelope<T> = SuccessEnvelope<T> | FailEnvelope | ErrorEnvelope;
 
 // ── Client configuration ────────────────────────────────────────────────
 
+/** Exponential-backoff retry policy. Omit a field to keep its default. */
 export interface RetryOptions {
   /** Extra attempts after the first. Default 2 (3 attempts total). */
   maxRetries?: number;
@@ -98,6 +104,7 @@ export interface ClientHooks {
   onRetry?: (ctx: RetryHookContext) => void | Promise<void>;
 }
 
+/** Construction options for {@link FcClient}. All fields are optional. */
 export interface FcClientOptions {
   /** fc-spawn API key sent as X-Api-Key. Falls back to the FC_API_KEY env var. */
   apiKey?: string;
@@ -121,34 +128,49 @@ export interface FcClientOptions {
 
 /** Per-call overrides accepted by every SDK method. */
 export interface RequestOptions {
+  /** Abort signal to cancel the request (and any in-flight retry backoff). */
   signal?: AbortSignal;
+  /** Headers merged into this request, overriding the client defaults. */
   headers?: HeadersInit;
+  /** Per-request timeout in ms, overriding the client default. 0 disables it. */
   timeoutMs?: number;
+  /** Retry policy for this request, or false to disable retries. Overrides the client default. */
   retry?: RetryOptions | false;
 }
 
 // ── Shape / rootfs catalog ──────────────────────────────────────────────
 
+/** A sandbox sizing preset (vCPU / RAM / disk). Returned by `listShapes()`. */
 export interface Shape {
+  /** Shape id passed as `CreateSandboxRequest.shape`, e.g. `s-1vcpu-256mb`. */
   id: string;
+  /** Virtual CPU count. */
   vcpu: number;
+  /** Memory in MiB. */
   mem_mib: number;
+  /** Default overlay disk size in MiB when the create request omits `disk_mib`. */
   default_disk_mib: number;
 }
 
+/** Envelope for `listShapes()`. */
 export interface ShapesData {
   shapes: Shape[];
 }
 
+/** Metadata for one built-in rootfs image in the catalog. */
 export interface RootfsEntry {
   name: string;
   description?: string;
   deprecated?: boolean;
+  /** Recommended replacement when this image is deprecated. */
   successor?: string;
 }
 
+/** The built-in rootfs catalog. Returned by `listRootfs()`. */
 export interface RootfsData {
+  /** Available rootfs catalog names usable as `CreateSandboxRequest.rootfs`. */
   rootfs: string[];
+  /** Name used when a create request omits `rootfs`. */
   default: string;
   /** Rich per-rootfs metadata; absent when the catalog is empty. */
   entries?: RootfsEntry[];
@@ -156,22 +178,29 @@ export interface RootfsData {
 
 // ── Hosts ───────────────────────────────────────────────────────────────
 
+/** Scheduling state of a worker host: accepting work, winding down, or gone. */
 export type HostStatus = "active" | "draining" | "dead";
 
+/** A worker host visible to the caller. Returned by `listHosts()`. */
 export interface HostPublic {
   id: string;
   status: HostStatus;
+  /** Schedulable memory currently free on the host, in MiB. */
   free_mib: number;
+  /** Number of sandboxes currently placed on the host. */
   vm_count: number;
+  /** Rootfs images cached on the host. */
   rootfses: string[];
 }
 
 // ── Sandbox lifecycle ───────────────────────────────────────────────────
 
+/** References an overlay network by id in `CreateSandboxRequest.networks`. */
 export interface NetworkEntry {
   id: string;
 }
 
+/** Body of `POST /v1/sandboxes`. Only `shape` is required. */
 export interface CreateSandboxRequest {
   /** Required. A shape id from `listShapes()`. */
   shape: string;
@@ -202,25 +231,38 @@ export interface CreateSandboxRequest {
   disks?: DiskAttachment[];
 }
 
+/** How a sandbox booted: restored from a warm snapshot, or a cold start. */
 export type SandboxSpawnMode = "snapshot" | "cold";
 
+/**
+ * Result of `POST /v1/sandboxes`, returned before the SDK fetches the full
+ * {@link SandboxView}. Records the resolved placement and boot timing.
+ */
 export interface CreateSandboxResponse {
   id: string;
   name: string;
+  /** The VM's private IP. */
   ip: string;
   mode: SandboxSpawnMode;
   shape: string;
   rootfs: string;
   vcpu: number;
+  /** Memory in MiB. */
   mem_mib: number;
+  /** Overlay disk size in MiB. */
   disk_mib: number;
+  /** Wall-clock time to boot the VM, in milliseconds. */
   spawn_ms: number;
+  /** Resolved egress allowlist. */
   egress: string[];
+  /** Transferable byte quota. -1 = unmetered. */
   bandwidth_quota_bytes: number;
   /** Ingress URL template with a literal `<port>` placeholder. Set when ingress is on. */
   ingress_url_template?: string;
 }
 
+/** Lifecycle state of a sandbox. Transitional states (`pausing`, `resuming`,
+ *  `forking`, `creating`, `destroying`) settle into a steady or terminal one. */
 export type SandboxStatus =
   | "creating"
   | "running"
@@ -233,18 +275,30 @@ export type SandboxStatus =
   | "destroyed"
   | "failed";
 
+/**
+ * The full server-side projection of a sandbox. Backs the `Sandbox` handle
+ * and is returned by the get / list endpoints. Optional fields are omitted
+ * by the server (`omitempty`) rather than sent as null.
+ */
 export interface SandboxView {
   id: string;
   status: SandboxStatus;
+  /** The VM's private IP. */
   ip: string;
   vcpu: number;
+  /** Memory in MiB. */
   mem_mib: number;
+  /** Overlay disk size in MiB. */
   disk_mib: number;
+  /** RFC 3339 timestamp of when the row was created. */
   created_at: string;
   ingress_enabled: boolean;
   name?: string;
+  /** RFC 3339 timestamp of when the VM last reached `running`. */
   running_at?: string;
+  /** RFC 3339 timestamp of when the VM was destroyed. */
   destroyed_at?: string;
+  /** Wall-clock boot time, in milliseconds. */
   spawn_ms?: number;
   shape?: string;
   rootfs?: string;
@@ -253,19 +307,27 @@ export interface SandboxView {
   /** Names of env vars stored on the sandbox. Values are never returned. */
   envs?: string[];
   ssh_pubkeys?: string[];
+  /** Identity that created the sandbox. */
   created_by?: string;
+  /** Inbound bytes observed (never enforced). */
   bandwidth_ingress_bytes?: number;
+  /** RFC 3339 timestamp of the last pause. */
   paused_at?: string;
+  /** RFC 3339 timestamp of the last resume. */
   last_resumed_at?: string;
+  /** Source sandbox id when this sandbox was created via `fork`. */
   forked_from?: string;
 }
 
+/** Filters for `listSandboxes()`. */
 export interface ListSandboxesOptions extends RequestOptions {
   /** Default 50, max 500. */
   limit?: number;
+  /** Filter to one lifecycle state. Omit to list every status. */
   status?: Extract<SandboxStatus, "running" | "creating" | "destroyed" | "failed">;
 }
 
+/** Optional overrides applied to a fork. Omitted fields inherit from the source. */
 export interface ForkSandboxRequest {
   /** Keep the fork in `paused` instead of auto-resuming. */
   start_paused?: boolean;
@@ -276,10 +338,12 @@ export interface ForkSandboxRequest {
   bandwidth_quota_bytes?: number;
 }
 
+/** Body of the sandbox PATCH endpoint, used by `Sandbox.setIngress`. */
 export interface PatchSandboxRequest {
   ingress_enabled?: boolean;
 }
 
+/** Result of `Sandbox.destroy` — the row's status after the destroy call. */
 export interface DestroyedResponse {
   /** Id of the sandbox accepted for destruction. */
   id: string;
@@ -294,22 +358,33 @@ export interface DestroyedResponse {
 // No stdin or per-command env: Go's proto.ExecRequest has no stdin field, and
 // the control plane overwrites env with the sandbox's persistent `envs`. Both
 // were silently dropped server-side. Set env at createSandbox/fork time.
+/** Body of `POST /v1/sandboxes/:id/exec`, sent by `runCommand` / `streamCommand`. */
 export interface ExecRequest {
+  /** Executable to run inside the guest. Not passed through a shell — wrap in
+   *  `["bash", "-c", "…"]` for pipes, globbing or redirection. */
   cmd: string;
+  /** Arguments passed to `cmd`. */
   args?: string[];
+  /** Stream output as NDJSON frames instead of buffering. Set by `streamCommand`. */
   stream?: boolean;
 }
 
+/** Buffered output of a completed command. */
 export interface ExecResult {
+  /** Captured standard output. */
   stdout: string;
+  /** Captured standard error. */
   stderr: string;
+  /** Process exit code. 0 = success. */
   exit_code: number;
   /** Agent-level failure (the command could not be started). */
   error?: string;
 }
 
+/** Result of `Sandbox.runCommand`: the buffered output plus timing. */
 export interface ExecResponse {
   result: ExecResult;
+  /** Wall-clock time the command ran, in milliseconds. */
   exec_ms: number;
 }
 
@@ -356,80 +431,114 @@ export type ExecOptions = RequestOptions;
 
 // ── Egress / bandwidth / resize ─────────────────────────────────────────
 
+/** Body of `Sandbox.setEgress` — replaces the egress allowlist. */
 export interface SetEgressRequest {
+  /** `host:port` allow rules. `null`, omitted, or `[]` means allow all. */
   egress?: string[] | null;
 }
 
+/** The sandbox's current egress allowlist. Returned by `getEgress` / `setEgress`. */
 export interface EgressView {
   id: string;
+  /** Active `host:port` allow rules. Empty = allow all. */
   egress: string[];
 }
 
+/** Bandwidth quota and usage counters. Returned by `getBandwidth` / `rechargeBandwidth`. */
 export interface BandwidthView {
   id: string;
+  /** Total transferable byte quota. -1 = unmetered. */
   quota_bytes: number;
   /** Egress bytes — billed against the quota. */
   used_bytes: number;
   /** Inbound bytes — observed, never enforced. */
   ingress_bytes: number;
+  /** Bytes left before the VM is network-capped. */
   remaining_bytes: number;
+  /** True once the quota is exhausted and egress is blocked. */
   capped: boolean;
 }
 
+/** Body of `Sandbox.rechargeBandwidth`. */
 export interface RechargeBandwidthRequest {
+  /** Bytes to add to the quota. */
   add_bytes: number;
 }
 
+/** Body of `Sandbox.resize`. */
 export interface ResizeSandboxRequest {
+  /** New overlay disk size in MiB. Must be larger than the current size. */
   disk_mib: number;
 }
 
+/** Result of `Sandbox.resize` — the disk size after the grow. */
 export interface ResizeSandboxResponse {
   id: string;
+  /** New overlay disk size in MiB. */
   disk_mib: number;
 }
 
 // ── Identity ────────────────────────────────────────────────────────────
 
+/** Per-state sandbox counts for the calling identity. */
 export interface WhoAmIStatsView {
+  /** Sandboxes currently `running`. */
   running: number;
+  /** Sandboxes currently `paused`. */
   paused: number;
+  /** Sandboxes in any other state. */
   other: number;
+  /** Total non-destroyed sandboxes. */
   total: number;
 }
 
+/** Identity behind the configured API key. Returned by `whoami()`. */
 export interface WhoAmIView {
+  /** Stable id of the authenticated user. */
   user_id: string;
+  /** Sandbox counts grouped by lifecycle state. */
   stats: WhoAmIStatsView;
 }
 
 // ── Templates ───────────────────────────────────────────────────────────
 
+/** Body of `templates.create` — a Dockerfile to build into a sandbox rootfs. */
 export interface TemplateCreateRequest {
   name: string;
+  /** Dockerfile source built into the rootfs image. */
   dockerfile: string;
+  /** Base rootfs catalog name to build on top of. Empty = host default. */
   base?: string;
 }
 
+/** Build state of a template. `ready` once the rootfs image is usable. */
 export type TemplateStatus = "pending" | "building" | "ready" | "failed";
 
+/** A custom rootfs template. Returned by the templates endpoints. */
 export interface TemplateView {
   id: string;
   name: string;
+  /** Base rootfs the template was built on. */
   base: string;
   status: TemplateStatus;
+  /** Size of the built ext4 rootfs image, in bytes. */
   ext4_size_bytes: number;
+  /** RFC 3339 timestamp of when the template row was created. */
   created_at: string;
+  /** RFC 3339 timestamp of when the build finished. Absent until `ready`. */
   built_at?: string;
   /** Present only on detail GET with `include: "dockerfile"`. */
   dockerfile?: string;
 }
 
+/** Envelope for `templates.list`. */
 export interface TemplatesListResponse {
   templates: TemplateView[];
 }
 
+/** Options for `templates.get`. */
 export interface GetTemplateOptions extends RequestOptions {
+  /** Set to `"dockerfile"` to include the original build source in the response. */
   include?: "dockerfile";
 }
 
@@ -445,6 +554,7 @@ export interface TemplateLogEvent {
   [key: string]: unknown;
 }
 
+/** Options for `templates.logs` / `templates.followLogs`. */
 export interface TemplateLogsOptions extends RequestOptions {
   /** Filter to one build attempt. Default = all attempts. */
   attempt?: number;
@@ -510,28 +620,36 @@ export type DiskMountStatus = "pending" | "mounted" | "error" | "unmounting";
 /** Per-attachment projection returned from
  *  `GET /v1/sandboxes/:id/disks`. */
 export interface SandboxDiskView {
+  /** The `disk_<ulid>` id of the registered disk. */
   disk_id: string;
   name: string;
   kind: DiskKind;
   config: DiskConfig;
+  /** Absolute path inside the guest where the disk is mounted. */
   mount_path: string;
+  /** Bucket sub-folder exposed at `mount_path`, when set. */
   sub_path?: string;
   mount_status: DiskMountStatus;
+  /** Failure detail when `mount_status` is `error`. */
   mount_error?: string;
 }
 
+/** Envelope for `disks.list`. */
 export interface DisksListResponse {
   disks: DiskView[];
 }
 
+/** Envelope for `Sandbox.listDisks`. */
 export interface SandboxDisksListResponse {
   disks: SandboxDiskView[];
 }
 
+/** Result of `disks.delete`. */
 export interface DiskDeletedResponse {
   deleted: boolean;
 }
 
+/** Result of `Sandbox.detachDisk`. */
 export interface DiskDetachedResponse {
   detached: boolean;
 }
@@ -560,43 +678,57 @@ export interface DetachDiskOptions {
 
 // ── Networks ────────────────────────────────────────────────────────────
 
+/** Body of `networks.create`. */
 export interface NetworkCreateRequest {
   name: string;
 }
 
+/** A sandbox attached to an overlay network, with its address on that network. */
 export interface NetworkMember {
   sandbox_id: string;
   status: string;
+  /** The member's IP on this overlay network. */
   ip: string;
   name: string;
 }
 
+/** An overlay network. Returned by the networks endpoints. */
 export interface Network {
   id: string;
   name: string;
+  /** RFC 3339 timestamp of when the network was created. */
   created_at: string;
+  /** Number of attached sandboxes. Present on list responses. */
   member_count?: number;
+  /** Attached sandboxes with their per-network addresses. Present on detail GET. */
   members?: NetworkMember[];
 }
 
 // ── Misc ────────────────────────────────────────────────────────────────
 
+/** Generic acknowledgement returned by endpoints with no richer payload. */
 export interface OKResponse {
   ok: boolean;
 }
 
+/** Liveness probe result. Returned by `healthz()`. */
 export interface HealthzResponse {
+  /** True once the control plane process is up. */
   up: boolean;
 }
 
+/** Readiness probe result. Returned by `readyz()`. */
 export interface ReadyzResponse {
   ready: boolean;
+  /** Why the control plane is not ready, when `ready` is false. */
   reason?: string;
+  /** Milliseconds since the scheduler last completed a healthy pass. */
   scheduler_last_ok_ms_ago?: number;
 }
 
 // ── Handle option types ─────────────────────────────────────────────────
 
+/** Options for `createSandbox` / `Sandbox.create`: per-request overrides plus the wait policy. */
 export interface CreateSandboxOptions extends RequestOptions {
   /** Wait until the sandbox reaches `running` before resolving. Default true. */
   wait?: boolean;
@@ -604,9 +736,11 @@ export interface CreateSandboxOptions extends RequestOptions {
   waitTimeoutMs?: number;
 }
 
+/** Options for the `Sandbox.waitUntil*` pollers. */
 export interface WaitOptions {
   /** Wait budget in ms. Default 120000. */
   timeoutMs?: number;
+  /** Abort signal to cancel the wait. */
   signal?: AbortSignal;
   /** Per-request options (headers, retry, per-request timeout) applied to
    *  each poll refresh. `timeoutMs` above is the wait budget, not the

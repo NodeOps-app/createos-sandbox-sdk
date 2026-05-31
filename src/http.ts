@@ -44,6 +44,13 @@ function deleteAuthHeaders(headers: Headers): void {
   }
 }
 
+/**
+ * The HTTP transport underlying every SDK call. Handles URL building, auth
+ * header injection, JSend unwrapping, retries with exponential backoff +
+ * jitter (honoring `Retry-After`), per-request timeouts and `AbortSignal`
+ * composition. Reached via `client.http` as an escape hatch for endpoints
+ * the SDK does not model directly.
+ */
 export class FcHttp {
   readonly baseUrl: string;
   readonly #config: ResolvedConfig;
@@ -55,7 +62,17 @@ export class FcHttp {
     this.#baseOrigin = new URL(config.baseUrl).origin;
   }
 
-  /** Performs a request, unwraps the JSend success envelope, throws on non-2xx. */
+  /**
+   * Performs a request, unwraps the JSend success envelope, throws on non-2xx.
+   *
+   * @throws {FcApiError} (or a subclass: FcAuthError, FcPermissionError,
+   *   FcNotFoundError, FcValidationError, FcRateLimitError, FcServerError)
+   *   on a non-2xx response.
+   * @throws {FcConnectionError} when the request never reaches the server.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {FcError} when the success body is not valid JSON or not a
+   *   `success` envelope.
+   */
   async request<T>(method: string, path: string, options: HttpRequestOptions = {}): Promise<T> {
     const response = await this.requestRaw(method, path, options);
     if (!response.ok) {
@@ -68,6 +85,10 @@ export class FcHttp {
    * Performs a request with retries. Returns the raw Response without
    * throwing on HTTP error statuses — callers inspect `response.ok`.
    * Still throws FcConnectionError / FcTimeoutError for transport failures.
+   *
+   * @throws {FcConnectionError} when the request never reaches the server.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {FcError} when the resolved URL would target a non-base origin.
    */
   async requestRaw(
     method: string,
@@ -184,7 +205,14 @@ export class FcHttp {
     return { url, method: method.toUpperCase(), headers };
   }
 
-  /** Streams an NDJSON response as an async iterator. Not retried. */
+  /**
+   * Streams an NDJSON response as an async iterator. Not retried.
+   *
+   * @throws {FcApiError} (or a subclass) on a non-2xx response.
+   * @throws {FcConnectionError} when the request never reaches the server.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {FcError} when the control plane returns an empty stream body.
+   */
   async *stream<T>(
     method: string,
     path: string,
@@ -205,6 +233,10 @@ export class FcHttp {
    * method + request path are stamped onto the error so callers can
    * surface them in logs and bug reports; `requestPath` falls back to
    * `response.url`'s pathname when omitted.
+   *
+   * @throws {FcApiError} (or a subclass: FcAuthError, FcPermissionError,
+   *   FcNotFoundError, FcValidationError, FcRateLimitError, FcServerError)
+   *   matching the response status. Always throws — never returns.
    */
   async throwForResponse(response: Response, method: string, requestPath?: string): Promise<never> {
     let envelope: JSendEnvelope<unknown> | undefined;

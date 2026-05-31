@@ -13,6 +13,12 @@
 
 import type { ErrorEnvelope, FailEnvelope, JSendEnvelope } from "./types.js";
 
+/**
+ * Base class for every error the SDK throws. Catch this to handle all SDK
+ * failures uniformly; narrow with `instanceof` to a subclass for HTTP-status
+ * (`FcApiError` and friends) or transport (`FcConnectionError`,
+ * `FcTimeoutError`) handling.
+ */
 export class FcError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
