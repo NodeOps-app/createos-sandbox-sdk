@@ -11,6 +11,7 @@
     "sdk"
   ],
   "license": "MIT",
+  "author": "NodeOps Inc.",
   "files": [
     "dist",
     "README.md",
@@ -38,6 +39,8 @@
     "test": "bun test tests/*.test.ts",
     "test:watch": "bun test --watch tests/*.test.ts",
     "docs:api": "typedoc --entryPoints src/index.ts --out docs/reference --githubPages false --hideGenerator",
+    "docs:gen": "bun scripts/gen-docs.mjs",
+    "docs:check": "bun scripts/gen-docs.mjs --check",
     "pack:dry": "npm pack --dry-run",
     "publish:check": "npm whoami && bun run pack:dry",
     "prepublishOnly": "bun run test && bun run typecheck && bun run typecheck:tests",
