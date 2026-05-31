@@ -155,13 +155,12 @@ suite grows; never lower it to make a run pass.**
 
 ## Wire types are the contract
 
-Assertions on request/response shape mirror the Go control plane, not
-`../fc/openapi.yaml` (stale). When a test's expected path, body key, or
-status code is in question, verify against the handlers in
-`../fc/internal/control/*.go` — see the root `../CLAUDE.md`. When you
-fix a server-side mismatch, the bug is in `../fc`; when the SDK sends
-the wrong thing, fix `src/` and add the test that proves it
-(test-first — write the failing assertion, watch it fail, then fix).
+Assertions on request/response shape mirror the control plane's actual
+JSON, not its (stale) OpenAPI spec. When a test's expected path, body
+key, or status code is in question, verify against the live control-plane
+API — see the root `AGENTS.md`. A server-side mismatch is a control-plane
+bug; when the SDK sends the wrong thing, fix `src/` and add the test that
+proves it (write the failing assertion, watch it fail, then fix).
 
 ## Deliberately not covered
 
