@@ -70,7 +70,9 @@ function renderLlmsFull(llmsTxt) {
     read("docs/how-to/observability.md"),
     llmsTxt,
   ];
-  return `${sections.join("\n\n---\n\n")}\n`;
+  // Strip per-line trailing whitespace so the bundle is stable under the
+  // repo's trailing-whitespace pre-commit hook (source docs may carry it).
+  return `${sections.join("\n\n---\n\n")}\n`.replace(/[ \t]+$/gm, "");
 }
 
 // ---- plan the writes ------------------------------------------------------
