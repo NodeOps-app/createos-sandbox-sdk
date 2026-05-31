@@ -44,9 +44,8 @@ describe("resolveConfig — sources and precedence", () => {
     expect(cfg.baseUrl).toBe("https://env.test");
   });
 
-  test("falls back to the default base URL when nothing is configured", () => {
-    const cfg = resolveConfig({ fetch: fetchStub });
-    expect(cfg.baseUrl).toBe("https://fc-spawn.bhautik.in");
+  test("throws when no base URL is configured", () => {
+    expect(() => resolveConfig({ fetch: fetchStub })).toThrow(FcError);
   });
 
   test("trims trailing slashes from the base URL", () => {
@@ -55,7 +54,7 @@ describe("resolveConfig — sources and precedence", () => {
   });
 
   test("default user-agent embeds the package VERSION", () => {
-    const cfg = resolveConfig({ fetch: fetchStub });
+    const cfg = resolveConfig({ baseUrl: "https://api.test", fetch: fetchStub });
     expect(VERSION).toBe("0.3.0");
     expect(cfg.userAgent.startsWith(`fc-sandbox-sdk/${VERSION} `)).toBe(true);
   });
@@ -80,19 +79,28 @@ describe("resolveConfig — validation", () => {
 
   test("rejects passing both apiKey and authHeaders", () => {
     expect(() =>
-      resolveConfig({ apiKey: "sk", authHeaders: { Authorization: "Bearer x" }, fetch: fetchStub }),
+      resolveConfig({
+        apiKey: "sk",
+        authHeaders: { Authorization: "Bearer x" },
+        baseUrl: "https://api.test",
+        fetch: fetchStub,
+      }),
     ).toThrow(FcError);
   });
 });
 
 describe("resolveConfig — retry policy", () => {
   test("retry:false is preserved", () => {
-    const cfg = resolveConfig({ retry: false, fetch: fetchStub });
+    const cfg = resolveConfig({ retry: false, baseUrl: "https://api.test", fetch: fetchStub });
     expect(cfg.retry).toBe(false);
   });
 
   test("partial retry options merge with defaults", () => {
-    const cfg = resolveConfig({ retry: { maxRetries: 5 }, fetch: fetchStub });
+    const cfg = resolveConfig({
+      retry: { maxRetries: 5 },
+      baseUrl: "https://api.test",
+      fetch: fetchStub,
+    });
     expect(cfg.retry).toEqual({ maxRetries: 5, baseDelayMs: 500, maxDelayMs: 30_000 });
   });
 });

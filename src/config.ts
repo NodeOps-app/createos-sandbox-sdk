@@ -8,9 +8,6 @@ import type { ClientHooks, FcClientOptions, RetryOptions } from "./types.js";
 /** SDK version, stamped into the User-Agent header. Keep in sync with package.json. */
 export const VERSION = "0.3.0";
 
-/** Production control plane, used when no baseUrl is configured. */
-export const DEFAULT_BASE_URL = "https://fc-spawn.bhautik.in";
-
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export const DEFAULT_RETRY: Required<RetryOptions> = {
@@ -47,9 +44,11 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
     );
   }
 
-  const rawBaseUrl = options.baseUrl ?? readEnv("FC_BASE_URL") ?? DEFAULT_BASE_URL;
-  if (!rawBaseUrl.trim()) {
-    throw new FcError("baseUrl must be a non-empty URL.");
+  const rawBaseUrl = options.baseUrl ?? readEnv("FC_BASE_URL");
+  if (!rawBaseUrl || !rawBaseUrl.trim()) {
+    throw new FcError(
+      "No base URL configured. Pass `baseUrl` in FcClientOptions or set the FC_BASE_URL environment variable.",
+    );
   }
 
   let parsedBaseUrl: URL;
