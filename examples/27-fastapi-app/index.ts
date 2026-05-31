@@ -6,7 +6,7 @@
  * URL, and verifies JSON responses from two routes.
  *
  * Run:   bun 27-fastapi-app/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY. The control plane must
+ * Needs: FC_BASE_URL + FC_API_KEY. The control plane must
  *        grant ingress for previewUrl() to resolve.
  */
 

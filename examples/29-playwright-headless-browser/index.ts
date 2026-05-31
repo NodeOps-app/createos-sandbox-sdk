@@ -9,8 +9,7 @@
  *
  * Run:   bun 29-playwright-headless-browser/index.ts
  * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The scrape runs entirely
- *        inside the VM, so no ingress/gateway is involved (FCSPAWN_GATEWAY in
- *        .env.example is unused here).
+ *        inside the VM, so no ingress is involved.
  */
 import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";

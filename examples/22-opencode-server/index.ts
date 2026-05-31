@@ -6,7 +6,7 @@
  * verifies the server is live by hitting GET /global/health.
  *
  * Run:   bun 22-opencode-server/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY (ingress must be granted
+ * Needs: FC_BASE_URL + FC_API_KEY (ingress must be granted
  *        for previewUrl() to resolve), plus ANTHROPIC_AUTH_TOKEN /
  *        ANTHROPIC_BASE_URL / ANTHROPIC_MODEL — written into opencode's
  *        provider config so the in-VM server can reach an LLM.

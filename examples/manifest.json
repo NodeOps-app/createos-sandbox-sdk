@@ -345,7 +345,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -368,7 +368,6 @@
       "env": [
         "FC_API_KEY",
         "FC_BASE_URL",
-        "FCSPAWN_GATEWAY",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -385,7 +384,7 @@
       "summary": "Run a Prometheus Pushgateway, push a metric, scrape it via ingress.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -418,7 +417,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -431,7 +430,7 @@
       "summary": "Run code-server (VS Code in the browser) over ingress.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -444,7 +443,7 @@
       "summary": "Run Playwright + headless Chromium to scrape and extract the DOM.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -464,7 +463,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -477,7 +476,7 @@
       "summary": "Clone a TS repo and drive typescript-language-server over stdio.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY"],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -490,7 +489,7 @@
       "summary": "Model sandbox operations as LangGraph nodes with an OpenAI LLM.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": ["openai", "@langchain/langgraph"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY", "OPENAI_API_KEY", "OPENAI_MODEL"],
+      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_MODEL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -503,14 +502,7 @@
       "summary": "Run the OpenAI Codex CLI in a sandbox to execute a task.",
       "primitives": ["createSandbox", "files.upload", "files.download", "runCommand", "destroy"],
       "deps": [],
-      "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
-        "FCSPAWN_GATEWAY",
-        "OPENAI_API_KEY",
-        "OPENAI_API_URL",
-        "OPENAI_MODEL"
-      ],
+      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -530,7 +522,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "FCSPAWN_GATEWAY", "OPENCLAW_GATEWAY_TOKEN"],
+      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENCLAW_GATEWAY_TOKEN"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"

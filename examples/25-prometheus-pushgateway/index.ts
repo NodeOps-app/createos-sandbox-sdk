@@ -7,7 +7,7 @@
  * the public ingress URL to verify the metric round-trips.
  *
  * Run:   bun 25-prometheus-pushgateway/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY + FCSPAWN_GATEWAY. Ingress must be granted
+ * Needs: FC_BASE_URL + FC_API_KEY. Ingress must be granted
  *        for previewUrl() to resolve. No external services — the binary is
  *        fetched from GitHub releases at runtime.
  */
