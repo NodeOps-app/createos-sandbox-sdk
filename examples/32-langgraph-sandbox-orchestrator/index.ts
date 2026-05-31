@@ -75,8 +75,8 @@ async function createSandboxNode(_state: AgentStateType): Promise<Partial<AgentS
 async function generateCodeNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: generate_code]");
 
-  // Reasoning models consume tokens for internal reasoning before output.
-  // Use a generous limit so the model has enough budget for both phases.
+  // Use a generous token limit so the model has enough budget to emit
+  // the full generated program without truncation.
   const completion = await openai.chat.completions.create({
     model: MODEL,
     messages: [

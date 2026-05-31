@@ -19,7 +19,7 @@ import { Sandbox } from "fc-sandbox-sdk";
 const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
 if (!baseUrl) {
-  console.error("FC_BASE_URL (or FC_BASE_URL) must be set");
+  console.error("FC_BASE_URL must be set");
   process.exit(1);
 }
 
