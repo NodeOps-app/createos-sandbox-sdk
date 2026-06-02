@@ -193,6 +193,7 @@ describe("lifecycle", () => {
     const out = await sandbox.resize(20480);
     expect(body).toEqual({ disk_mib: 20480 });
     expect(out.disk_mib).toBe(20480);
+    expect(sandbox.data.disk_mib).toBe(20480);
   });
 });
 

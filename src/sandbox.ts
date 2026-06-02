@@ -468,10 +468,12 @@ export class Sandbox {
    * await sandbox.resize(4096);
    */
   async resize(diskMib: number, options: RequestOptions = {}): Promise<ResizeSandboxResponse> {
-    return this.#http.request<ResizeSandboxResponse>("POST", this.#path("/resize"), {
+    const result = await this.#http.request<ResizeSandboxResponse>("POST", this.#path("/resize"), {
       ...options,
       body: { disk_mib: diskMib },
     });
+    this.#data = { ...this.#data, disk_mib: result.disk_mib };
+    return result;
   }
 
   /**

@@ -200,7 +200,7 @@ export function errorFromResponse(
   }
 }
 
-const RESOURCE_PATH_RE = /\/v1\/(?:sandboxes|templates|networks)\/([^/?#]+)/;
+const RESOURCE_PATH_RE = /\/v1\/(?:sandboxes|templates|networks|disks)\/([^/?#]+)/;
 
 function extractResourceId(path: string | undefined): string | undefined {
   if (!path) return undefined;

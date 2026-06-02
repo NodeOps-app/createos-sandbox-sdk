@@ -65,6 +65,15 @@ describe("FcApiError metadata", () => {
     expect(err.resourceId).toBe("sb_abc123");
   });
 
+  test("parses the resource id from a disks path", async () => {
+    const client = makeClient(() => Promise.resolve(fail({ id: "missing" }, 404)), {
+      retry: false,
+    });
+    const err = await catchErr(() => client.disks.get("disk_abc123"));
+    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err.resourceId).toBe("disk_abc123");
+  });
+
   test("preserves URL-encoded path segments in resourceId", async () => {
     const client = makeClient(() => Promise.resolve(fail({ id: "missing" }, 404)), {
       retry: false,
