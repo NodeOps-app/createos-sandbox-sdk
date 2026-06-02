@@ -1,7 +1,7 @@
 // HTTP transport: URL building, auth, JSend unwrapping, retries with
 // exponential backoff, per-request timeouts and AbortSignal composition.
 
-import { DEFAULT_RETRY, type ResolvedConfig } from "./config.js";
+import { DEFAULT_RETRY, mergeRetry, type ResolvedConfig } from "./config.js";
 import {
   errorFromResponse,
   FcConnectionError,
@@ -12,7 +12,7 @@ import {
 import { readNdjson } from "./ndjson.js";
 import { sleep } from "./poll.js";
 import { redactHeaders, redactUrl, SENSITIVE_HEADER_NAMES } from "./redact.js";
-import type { JSendEnvelope, RetryOptions } from "./types.js";
+import type { JSendEnvelope, RetryOptions, RetryReason } from "./types.js";
 
 export type QueryValue = string | number | boolean | null | undefined;
 export type Query = Record<string, QueryValue>;
@@ -141,11 +141,7 @@ export class FcHttp {
         if (canRetry && retry) {
           const delay = backoffDelay(attempt, retry);
           if (hookMeta) {
-            await fireHook(this.#config.hooks?.onRetry, {
-              url: hookMeta.url,
-              method: hookMeta.method,
-              headers: hookMeta.headers,
-              attempt: attempt + 1,
+            await this.#fireRetryHook(hookMeta, attempt, {
               durationMs: performance.now() - startMs,
               reason: "network",
               delayMs: delay,
@@ -170,11 +166,7 @@ export class FcHttp {
       const retryAfter = parseRetryAfterSeconds(response.headers.get("retry-after"));
       const delay = retryAfter !== undefined ? retryAfter * 1000 : backoffDelay(attempt, retry);
       if (hookMeta) {
-        await fireHook(this.#config.hooks?.onRetry, {
-          url: hookMeta.url,
-          method: hookMeta.method,
-          headers: hookMeta.headers,
-          attempt: attempt + 1,
+        await this.#fireRetryHook(hookMeta, attempt, {
           status: response.status,
           durationMs: performance.now() - startMs,
           requestId: response.headers.get("x-request-id") ?? undefined,
@@ -203,6 +195,32 @@ export class FcHttp {
     const url = redactUrl(this.#buildUrl(path, options.query));
     const headers = redactHeaders(this.#buildHeaders(options));
     return { url, method: method.toUpperCase(), headers };
+  }
+
+  /**
+   * Fires the onRetry hook with the shared meta merged in. The two retry
+   * paths (network error vs retryable status) decide *whether* to retry on
+   * their own different conditions — this only constructs the payload they
+   * share once that decision is made.
+   */
+  #fireRetryHook(
+    hookMeta: { url: string; method: string; headers: Record<string, string> },
+    attempt: number,
+    detail: {
+      durationMs: number;
+      reason: RetryReason;
+      delayMs: number;
+      status?: number | undefined;
+      requestId?: string | undefined;
+    },
+  ): Promise<void> {
+    return fireHook(this.#config.hooks?.onRetry, {
+      url: hookMeta.url,
+      method: hookMeta.method,
+      headers: hookMeta.headers,
+      attempt: attempt + 1,
+      ...detail,
+    });
   }
 
   /**
@@ -320,25 +338,23 @@ export class FcHttp {
     if (!headers.has("x-fc-runtime")) {
       headers.set("X-Fc-Runtime", this.#config.runtimeTag);
     }
+    // Always strip any credentials the caller supplied via default/per-request
+    // headers: on auth:false the opt-out must be complete, and otherwise generic
+    // credential headers must not shadow the SDK's own (the control plane
+    // resolves X-Auth-Token/X-Access-Token/Authorization before X-Api-Key).
+    deleteAuthHeaders(headers);
     if (options.auth === false) {
-      // auth:false means "no auth on this request" (health probes). Drop any
-      // credentials the caller supplied via default/per-request headers
-      // too — otherwise the opt-out is incomplete.
-      deleteAuthHeaders(headers);
+      // auth:false means "no auth on this request" (health probes).
+      return headers;
+    }
+    if (this.#config.authHeaders) {
+      new Headers(this.#config.authHeaders).forEach((value, key) => headers.set(key, value));
+    } else if (this.#config.apiKey) {
+      headers.set("X-Api-Key", this.#config.apiKey);
     } else {
-      if (this.#config.authHeaders) {
-        deleteAuthHeaders(headers);
-        new Headers(this.#config.authHeaders).forEach((value, key) => headers.set(key, value));
-      } else if (this.#config.apiKey) {
-        // The control plane resolves X-Auth-Token/X-Access-Token/Authorization
-        // before X-Api-Key. Keep generic headers from shadowing the SDK key.
-        deleteAuthHeaders(headers);
-        headers.set("X-Api-Key", this.#config.apiKey);
-      } else {
-        throw new FcError(
-          "Authentication is required. Pass apiKey, set FC_API_KEY, or pass authHeaders.",
-        );
-      }
+      throw new FcError(
+        "Authentication is required. Pass apiKey, set FC_API_KEY, or pass authHeaders.",
+      );
     }
     return headers;
   }
@@ -370,12 +386,7 @@ export class FcHttp {
     if (!perRequest) {
       return base;
     }
-    const fallback = base || DEFAULT_RETRY;
-    return {
-      maxRetries: perRequest.maxRetries ?? fallback.maxRetries,
-      baseDelayMs: perRequest.baseDelayMs ?? fallback.baseDelayMs,
-      maxDelayMs: perRequest.maxDelayMs ?? fallback.maxDelayMs,
-    };
+    return mergeRetry(perRequest, base || DEFAULT_RETRY);
   }
 }
 

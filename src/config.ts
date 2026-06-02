@@ -16,6 +16,21 @@ export const DEFAULT_RETRY: Required<RetryOptions> = {
   maxDelayMs: 30_000,
 };
 
+/** Default wait budget in ms for `createSandbox` and the `waitUntil*` helpers. */
+export const DEFAULT_WAIT_MS = 120_000;
+
+/** Merges a partial retry policy over a fully-resolved fallback. */
+export function mergeRetry(
+  options: RetryOptions,
+  fallback: Required<RetryOptions>,
+): Required<RetryOptions> {
+  return {
+    maxRetries: options.maxRetries ?? fallback.maxRetries,
+    baseDelayMs: options.baseDelayMs ?? fallback.baseDelayMs,
+    maxDelayMs: options.maxDelayMs ?? fallback.maxDelayMs,
+  };
+}
+
 export interface ResolvedConfig {
   apiKey: string | undefined;
   authHeaders: HeadersInit | undefined;
@@ -70,11 +85,7 @@ export function resolveConfig(options: FcClientOptions): ResolvedConfig {
   if (options.retry === false) {
     retry = false;
   } else if (options.retry) {
-    retry = {
-      maxRetries: options.retry.maxRetries ?? DEFAULT_RETRY.maxRetries,
-      baseDelayMs: options.retry.baseDelayMs ?? DEFAULT_RETRY.baseDelayMs,
-      maxDelayMs: options.retry.maxDelayMs ?? DEFAULT_RETRY.maxDelayMs,
-    };
+    retry = mergeRetry(options.retry, DEFAULT_RETRY);
   } else {
     retry = { ...DEFAULT_RETRY };
   }

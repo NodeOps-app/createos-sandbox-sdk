@@ -2,6 +2,7 @@
 // sandbox id and exposes lifecycle, command, file and network operations.
 
 import { bootstrapClient } from "./client.js";
+import { DEFAULT_WAIT_MS } from "./config.js";
 import { FcError, FcTimeoutError } from "./errors.js";
 import { encodePath, type FcHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
@@ -30,7 +31,6 @@ import type {
   WaitOptions,
 } from "./types.js";
 
-const DEFAULT_WAIT_MS = 120_000;
 const DEFAULT_PORT_READY_TIMEOUT_MS = 30_000;
 const PORT_READY_BUFFER_MS = 5_000;
 const DEFAULT_PORT_READY_INTERVAL_MS = 200;
@@ -40,6 +40,12 @@ const DEFAULT_PORT_READY_INTERVAL_MS = 200;
 // Anything else is rejected — the value is interpolated into a bash command
 // inside the guest, so we must refuse shell metacharacters categorically.
 const PORT_READY_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.\-:]{0,253}[A-Za-z0-9])?$/;
+
+function assertValidPort(port: number): void {
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
+  }
+}
 
 /** File transfer scoped to one sandbox. Reached via `sandbox.files`. */
 export class SandboxFiles {
@@ -786,9 +792,7 @@ export class Sandbox {
     port: number,
     options: WaitOptions & { intervalMs?: number; host?: string } = {},
   ): Promise<this> {
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
-    }
+    assertValidPort(port);
     const host = options.host ?? "127.0.0.1";
     if (!PORT_READY_HOST_RE.test(host)) {
       throw new FcError(
@@ -830,9 +834,7 @@ export class Sandbox {
    * console.log(url);
    */
   previewUrl(port: number): string {
-    if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
-    }
+    assertValidPort(port);
     // Guard on current ingress state, not just the cached template — a
     // handle whose ingress was disabled must not hand back a dead URL.
     if (!this.#data.ingress_enabled || !this.#ingressUrlTemplate) {

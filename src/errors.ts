@@ -22,7 +22,12 @@ import type { ErrorEnvelope, FailEnvelope, JSendEnvelope } from "./types.js";
 export class FcError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
-    this.name = "FcError";
+    // Subclasses inherit this constructor; `new.target` resolves to the class
+    // actually being instantiated, so each error reports its own name with no
+    // per-subclass constructor. A consumer's minifier that mangles class names
+    // mangles this too — acceptable for display/stack strings, since callers
+    // branch on `instanceof`, not `name`.
+    this.name = new.target.name;
   }
 }
 
@@ -58,7 +63,6 @@ export class FcApiError extends FcError {
     context?: ErrorRequestContext,
   ) {
     super(message);
-    this.name = "FcApiError";
     this.statusCode = response.status;
     this.response = response;
     this.envelope = envelope;
@@ -84,52 +88,19 @@ function extractCode(envelope?: FailEnvelope | ErrorEnvelope): string | undefine
  * Thrown for `401 Unauthorized` responses — the API key is missing,
  * revoked, or otherwise rejected by the control plane.
  */
-export class FcAuthError extends FcApiError {
-  constructor(
-    message: string,
-    response: Response,
-    envelope?: FailEnvelope | ErrorEnvelope,
-    resourceId?: string,
-    context?: ErrorRequestContext,
-  ) {
-    super(message, response, envelope, resourceId, context);
-    this.name = "FcAuthError";
-  }
-}
+export class FcAuthError extends FcApiError {}
 
 /**
  * Thrown for `403 Forbidden` responses — the API key authenticated but is
  * not authorized to access the resource (quota, ACL, or tenant mismatch).
  */
-export class FcPermissionError extends FcApiError {
-  constructor(
-    message: string,
-    response: Response,
-    envelope?: FailEnvelope | ErrorEnvelope,
-    resourceId?: string,
-    context?: ErrorRequestContext,
-  ) {
-    super(message, response, envelope, resourceId, context);
-    this.name = "FcPermissionError";
-  }
-}
+export class FcPermissionError extends FcApiError {}
 
 /**
  * Thrown for `404 Not Found` responses — the sandbox, template, network,
  * or disk id does not resolve to an existing resource in this tenant.
  */
-export class FcNotFoundError extends FcApiError {
-  constructor(
-    message: string,
-    response: Response,
-    envelope?: FailEnvelope | ErrorEnvelope,
-    resourceId?: string,
-    context?: ErrorRequestContext,
-  ) {
-    super(message, response, envelope, resourceId, context);
-    this.name = "FcNotFoundError";
-  }
-}
+export class FcNotFoundError extends FcApiError {}
 
 /**
  * Thrown for `400 Bad Request`, `409 Conflict`, and `422 Unprocessable
@@ -137,18 +108,7 @@ export class FcNotFoundError extends FcApiError {
  * makes the operation invalid (unknown shape, invalid state transition,
  * field validation failure).
  */
-export class FcValidationError extends FcApiError {
-  constructor(
-    message: string,
-    response: Response,
-    envelope?: FailEnvelope | ErrorEnvelope,
-    resourceId?: string,
-    context?: ErrorRequestContext,
-  ) {
-    super(message, response, envelope, resourceId, context);
-    this.name = "FcValidationError";
-  }
-}
+export class FcValidationError extends FcApiError {}
 
 /**
  * Thrown for `429 Too Many Requests` responses — the caller exceeded the
@@ -167,7 +127,6 @@ export class FcRateLimitError extends FcApiError {
     context?: ErrorRequestContext,
   ) {
     super(message, response, envelope, resourceId, context);
-    this.name = "FcRateLimitError";
     this.retryAfterSeconds = parseRetryAfterSeconds(response.headers.get("retry-after"));
   }
 }
@@ -177,34 +136,13 @@ export class FcRateLimitError extends FcApiError {
  * but failed to fulfil it (host capacity exhausted, internal error, or
  * upstream component unavailable).
  */
-export class FcServerError extends FcApiError {
-  constructor(
-    message: string,
-    response: Response,
-    envelope?: FailEnvelope | ErrorEnvelope,
-    resourceId?: string,
-    context?: ErrorRequestContext,
-  ) {
-    super(message, response, envelope, resourceId, context);
-    this.name = "FcServerError";
-  }
-}
+export class FcServerError extends FcApiError {}
 
 /** The request never reached the server (DNS, connection refused, socket reset). */
-export class FcConnectionError extends FcError {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = "FcConnectionError";
-  }
-}
+export class FcConnectionError extends FcError {}
 
 /** A request or a `waitUntil*` poll exceeded its deadline. */
-export class FcTimeoutError extends FcError {
-  constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
-    this.name = "FcTimeoutError";
-  }
-}
+export class FcTimeoutError extends FcError {}
 
 /** Parses a Retry-After header value (delta-seconds or HTTP-date) to seconds. */
 export function parseRetryAfterSeconds(value: string | null): number | undefined {

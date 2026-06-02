@@ -1,7 +1,7 @@
 // FcClient: the entry point. Owns transport configuration, catalog and
 // identity calls, the sandbox factory, and the templates / networks APIs.
 
-import { resolveConfig } from "./config.js";
+import { DEFAULT_WAIT_MS, resolveConfig } from "./config.js";
 import { encodePath, FcHttp } from "./http.js";
 import { Sandbox } from "./sandbox.js";
 import type {
@@ -33,8 +33,6 @@ import type {
   TemplateView,
   WhoAmIView,
 } from "./types.js";
-
-const DEFAULT_WAIT_MS = 120_000;
 
 /** Template (custom rootfs) operations. Reached via `client.templates`. */
 export class TemplatesApi {
