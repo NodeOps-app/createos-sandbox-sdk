@@ -12,7 +12,7 @@
  * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). OPENCLAW_GATEWAY_TOKEN
  *        is optional — a built-in demo token is used when unset.
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, type Sandbox } from "fc-sandbox-sdk";
 
 const GATEWAY_PORT = 18789;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-token";
@@ -20,25 +20,9 @@ const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-to
 const baseUrl = process.env.FC_BASE_URL;
 const fc = new FcClient(baseUrl ? { baseUrl } : {});
 
-async function sh(
-  sandbox: Awaited<ReturnType<(typeof fc)["createSandbox"]>>,
-  label: string,
-  script: string,
-  timeoutMs = 120_000,
-): Promise<string> {
-  const { result } = await sandbox.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.error(`[${label}] exit=${result.exit_code}`);
-    if (result.stdout) console.error("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.error("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`Command "${label}" failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // Stream a long-running command and print live output.
 async function stream(
-  sandbox: Awaited<ReturnType<(typeof fc)["createSandbox"]>>,
+  sandbox: Sandbox,
   label: string,
   script: string,
   timeoutMs = 300_000,
@@ -63,16 +47,18 @@ const sandbox = await fc.createSandbox({
 });
 
 // Force http:// — ingress TLS cert is not yet provisioned; http is forward-compatible.
-const previewUrl = sandbox.previewUrl(GATEWAY_PORT).replace(/^https:\/\//, "http://");
+const previewUrl = sandbox.previewUrl(GATEWAY_PORT, { scheme: "http" });
 console.log(`  sandbox: ${sandbox.id}`);
 console.log(`  preview: ${previewUrl}`);
 
 try {
   // ── step 2: ensure Node 24 ──────────────────────────────────────────────
   console.log("\n[2/6] checking Node.js version…");
-  const nodeVer = await sh(sandbox, "node-ver", "node --version 2>/dev/null || echo 'missing'");
-  const nodeMajor = parseInt(nodeVer.trim().replace(/^v/, ""), 10);
-  console.log(`  found: ${nodeVer.trim()} (major=${nodeMajor})`);
+  const { result: nodeVer } = await sandbox.sh("node --version 2>/dev/null || echo 'missing'", {
+    label: "node-ver",
+  });
+  const nodeMajor = parseInt(nodeVer.stdout.trim().replace(/^v/, ""), 10);
+  console.log(`  found: ${nodeVer.stdout.trim()} (major=${nodeMajor})`);
 
   if (isNaN(nodeMajor) || nodeMajor < 22) {
     console.log("  Node < 22 — installing Node 24 via n…");
@@ -89,8 +75,8 @@ try {
       ].join("\n"),
       600_000,
     );
-    const newVer = await sh(sandbox, "node-ver2", "node --version");
-    console.log(`  upgraded to: ${newVer.trim()}`);
+    const { result: newVer } = await sandbox.sh("node --version", { label: "node-ver2" });
+    console.log(`  upgraded to: ${newVer.stdout.trim()}`);
   }
 
   // ── step 3: install openclaw globally ──────────────────────────────────
@@ -103,16 +89,16 @@ try {
     600_000,
   );
 
-  const ocVer = await sh(sandbox, "oc-ver", "openclaw --version 2>&1 || echo unknown");
-  console.log(`  openclaw version: ${ocVer.trim()}`);
+  const { result: ocVer } = await sandbox.sh("openclaw --version 2>&1 || echo unknown", {
+    label: "oc-ver",
+  });
+  console.log(`  openclaw version: ${ocVer.stdout.trim()}`);
 
   // ── step 4: write minimal openclaw config ──────────────────────────────
   // --allow-unconfigured boots the gateway without a model configured.
   // Config sets auth token and binds to LAN so ingress can reach port 18789.
   console.log("\n[4/6] writing openclaw config and starting gateway…");
-  await sh(
-    sandbox,
-    "write-config",
+  await sandbox.sh(
     [
       "mkdir -p ~/.openclaw",
       // Minimal JSON5 config: gateway token + LAN bind + no model required.
@@ -126,15 +112,15 @@ try {
       `}`,
       `EOF`,
     ].join("\n"),
+    { label: "write-config" },
   );
 
   // Daemonize with nohup setsid — no systemd in FC devbox:1.
   // Semicolon before nohup is mandatory: && would cause runCommand to hold
   // the stdout pipe and never return.
-  await sh(
-    sandbox,
-    "gateway-start",
+  await sandbox.sh(
     `nohup setsid openclaw gateway --port ${GATEWAY_PORT} --bind lan --allow-unconfigured --verbose </dev/null >/tmp/openclaw.log 2>&1 & echo "started PID $!"`,
+    { label: "gateway-start" },
   );
 
   // ── step 5: wait for port + verify from inside ─────────────────────────
@@ -143,20 +129,21 @@ try {
   console.log("  port 18789 accepting connections");
 
   // Inner probe: hit both unauthenticated root and auth-guarded /v1/models.
-  const innerProbe = await sh(
-    sandbox,
-    "inner-probe",
+  const { result: innerProbe } = await sandbox.sh(
     [
       `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:${GATEWAY_PORT}/ || true`,
       `echo ""`,
       `curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ${GATEWAY_TOKEN}' http://127.0.0.1:${GATEWAY_PORT}/v1/models || true`,
     ].join("\n"),
+    { label: "inner-probe" },
   );
-  console.log(`  inner probe (root / /v1/models): ${innerProbe.trim()}`);
+  console.log(`  inner probe (root / /v1/models): ${innerProbe.stdout.trim()}`);
 
   // Tail the gateway log so we can see startup state.
-  const gwLog = await sh(sandbox, "gw-log", "tail -n 30 /tmp/openclaw.log 2>/dev/null || true");
-  if (gwLog.trim()) console.log("  gateway log tail:\n" + gwLog.trim());
+  const { result: gwLog } = await sandbox.sh("tail -n 30 /tmp/openclaw.log 2>/dev/null || true", {
+    label: "gw-log",
+  });
+  if (gwLog.stdout.trim()) console.log("  gateway log tail:\n" + gwLog.stdout.trim());
 
   // ── step 6: probe public preview URL from host ─────────────────────────
   console.log(`\n[6/6] probing preview URL: ${previewUrl}`);
@@ -183,6 +170,8 @@ try {
   console.log(`\nlive gateway: ${previewUrl}`);
 } finally {
   console.log("\ncleanup…");
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`destroyed: ${sandbox.id}`);
 }

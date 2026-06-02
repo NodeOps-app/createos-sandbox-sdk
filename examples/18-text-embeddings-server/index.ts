@@ -16,7 +16,6 @@
  */
 
 import { readFile } from "node:fs/promises";
-import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient, FcValidationError } from "fc-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
@@ -72,42 +71,27 @@ async function createWithRetry() {
   throw new Error("unreachable");
 }
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 const sandbox = await createWithRetry();
 console.log(`sandbox: ${sandbox.id}  ip: ${sandbox.ip}  shape: ${SHAPE}`);
 
 // Build the ingress base URL from the control-plane template up front, so a
 // missing ingress config fails in seconds instead of after the multi-minute
 // setup. The template gives https://<ulid>-<port>.<region>.<domain>; the
-// wildcard TLS cert is not in place yet, so downgrade to http:// (port 80,
-// forward-compatible).
-const base = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
+// wildcard TLS cert is not in place yet, so request the http:// scheme
+// (port 80, forward-compatible).
+const base = sandbox.previewUrl(PORT, { scheme: "http" });
 console.log(`ingress base: ${base}`);
 
 try {
   console.log("[1/5] installing python3-pip + torch (CPU) + sentence-transformers…");
-  await sh(
-    sandbox,
-    "apt",
+  await sandbox.sh(
     "apt-get update -qq && " +
       "apt-get install -y --no-install-recommends python3 python3-pip ca-certificates >/dev/null",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
   // pip install is multi-minute; run it detached and poll a marker file so
   // no single /exec call stays open long enough to trip a gateway timeout.
-  await sh(
-    sandbox,
-    "pip-launch",
+  await sandbox.sh(
     "cat >/root/install.sh <<'SH'\n" +
       "#!/bin/bash\n" +
       "set -e\n" +
@@ -120,35 +104,38 @@ try {
       "chmod +x /root/install.sh\n" +
       "nohup setsid bash /root/install.sh >/root/install.log 2>&1 </dev/null &\n" +
       "sleep 1; echo launched",
+    { label: "pip-launch" },
   );
   const deadline = Date.now() + 900_000;
   let installed = false;
   while (Date.now() < deadline) {
-    const probe = await sh(
-      sandbox,
-      "pip-poll",
+    const { result: probe } = await sandbox.sh(
       "if [ -f /root/install.done ]; then echo done; " +
         "elif pgrep -f install.sh >/dev/null; then echo running; " +
         "else echo dead; fi; " +
         "tail -1 /root/install.log 2>/dev/null || true",
-      30_000,
+      { label: "pip-poll", timeoutMs: 30_000 },
     );
-    const state = probe.split("\n")[0]?.trim();
-    const tail = probe.split("\n").slice(1).join(" ").slice(-120);
+    const state = probe.stdout.split("\n")[0]?.trim();
+    const tail = probe.stdout.split("\n").slice(1).join(" ").slice(-120);
     if (state === "done") {
       installed = true;
       break;
     }
     if (state === "dead") {
-      const log = await sh(sandbox, "install-log", "tail -60 /root/install.log");
-      throw new Error(`pip install died:\n${log}`);
+      const { result: log } = await sandbox.sh("tail -60 /root/install.log", {
+        label: "install-log",
+      });
+      throw new Error(`pip install died:\n${log.stdout}`);
     }
     console.log(`      pip: ${state}  ${tail}`);
     await new Promise((r) => setTimeout(r, 15_000));
   }
   if (!installed) {
-    const log = await sh(sandbox, "install-log", "tail -80 /root/install.log");
-    throw new Error(`pip install did not finish within 15 min:\n${log}`);
+    const { result: log } = await sandbox.sh("tail -80 /root/install.log", {
+      label: "install-log",
+    });
+    throw new Error(`pip install did not finish within 15 min:\n${log.stdout}`);
   }
   console.log("      pip install done");
 
@@ -157,12 +144,11 @@ try {
   // devbox:1 has no systemd — daemonise with nohup/setsid. The server
   // downloads the model on first start, so the boot is not instant; the
   // model download happens while the process is detached.
-  await sh(
-    sandbox,
-    "boot-server",
+  await sandbox.sh(
     "rm -f /root/server.log; " +
       "nohup setsid python3 /root/server.py >/root/server.log 2>&1 </dev/null & " +
       "sleep 1; echo launched",
+    { label: "boot-server" },
   );
 
   console.log(`[3/5] waiting for the model to load + port ${PORT} to listen…`);
@@ -191,8 +177,8 @@ try {
     await new Promise((r) => setTimeout(r, 3_000));
   }
   if (!healthy) {
-    const log = await sh(sandbox, "server-log", "tail -40 /root/server.log");
-    throw new Error(`server never became healthy over ingress:\n${log}`);
+    const { result: log } = await sandbox.sh("tail -40 /root/server.log", { label: "server-log" });
+    throw new Error(`server never became healthy over ingress:\n${log.stdout}`);
   }
 
   console.log(`[5/5] embedding ${SAMPLE_TEXTS.length} texts over ingress…`);

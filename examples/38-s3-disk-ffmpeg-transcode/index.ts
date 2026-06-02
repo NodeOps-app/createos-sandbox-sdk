@@ -41,7 +41,7 @@ if (CLEANUP_MODE !== "destroy" && CLEANUP_MODE !== "pause") {
 const MOUNT = "/mnt/bucket";
 const SHAPE = "s-2vcpu-2gb";
 const rand = () => crypto.randomUUID().slice(0, 8);
-const DISK_NAME = `ex13-${rand()}`;
+const DISK_NAME = `ex38-${rand()}`;
 const VIDEO_RE = /\.(mp4|mov|mkv|webm|avi|m4v)$/i;
 
 // Local S3 client (Bun built-in) — seeds, lists, and verifies the bucket

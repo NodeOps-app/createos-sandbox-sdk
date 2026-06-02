@@ -93,7 +93,9 @@ try {
   process.stdout.write(result.stdout);
   console.log("\n[done]");
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("sandbox destroyed");
 }
 

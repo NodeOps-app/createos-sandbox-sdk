@@ -12,8 +12,7 @@
  *        fetched from GitHub releases at runtime.
  */
 
-import type { Sandbox } from "fc-sandbox-sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
@@ -31,17 +30,6 @@ if (!baseUrl || !apiKey) {
 
 const fc = new FcClient({ baseUrl, apiKey });
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // 1. Create the sandbox with ingress enabled so the scrape endpoint is public.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
 const sandbox = await fc.createSandbox({
@@ -53,8 +41,8 @@ console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 // Build ingress URL up-front; fails fast if ingress was not granted.
 // previewUrl returns https:// but TLS wildcard cert may not be provisioned —
-// use http:// which is forward-compatible once TLS lands.
-const metricsUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
+// request http:// which is forward-compatible once TLS lands.
+const metricsUrl = sandbox.previewUrl(PORT, { scheme: "http" });
 const pushUrl = `${metricsUrl}/metrics/job/fc_example_job`;
 console.log(`      metrics URL : ${metricsUrl}/metrics`);
 console.log(`      push URL    : ${pushUrl}`);
@@ -62,9 +50,7 @@ console.log(`      push URL    : ${pushUrl}`);
 try {
   // 2. Fetch + install the Pushgateway binary into the VM.
   console.log(`[2/6] downloading prometheus/pushgateway v${PUSHGATEWAY_VERSION}...`);
-  await sh(
-    sandbox,
-    "download",
+  await sandbox.sh(
     [
       "set -e",
       `curl -fsSL https://github.com/prometheus/pushgateway/releases/download/v${PUSHGATEWAY_VERSION}/pushgateway-${PUSHGATEWAY_VERSION}.linux-amd64.tar.gz -o /tmp/pgw.tar.gz`,
@@ -73,7 +59,7 @@ try {
       "chmod +x /usr/local/bin/pushgateway",
       "pushgateway --version",
     ].join(" && "),
-    120_000,
+    { label: "download", timeoutMs: 120_000 },
   );
   console.log("      binary installed");
 
@@ -82,10 +68,9 @@ try {
   // `;` before nohup (not `&&`) so the chain does not hold the /exec stdout
   // pipe open and hang runCommand.
   console.log(`[3/6] starting pushgateway on 0.0.0.0:${PORT} (daemonised)...`);
-  await sh(
-    sandbox,
-    "boot",
+  await sandbox.sh(
     `nohup setsid pushgateway --web.listen-address=0.0.0.0:${PORT} >/var/log/pushgateway.log 2>&1 </dev/null &`,
+    { label: "boot" },
   );
 
   // 4. Wait for the port before pushing/scraping.
@@ -102,10 +87,9 @@ try {
   const payload = `# TYPE ${metricName} counter\n${metricName}{env="sandbox"} ${metricValue}\n`;
 
   console.log(`[5/6] pushing metric "${metricName}" = ${metricValue}...`);
-  await sh(
-    sandbox,
-    "push",
+  await sandbox.sh(
     `printf '${payload.replace(/'/g, "'\\''")}' | curl -fsS --data-binary @- http://127.0.0.1:${PORT}/metrics/job/fc_example_job`,
+    { label: "push" },
   );
   console.log("      pushed successfully");
 
@@ -114,29 +98,35 @@ try {
   // ingress propagation may take a moment.
   console.log("[6/6] scraping /metrics via ingress URL...");
   const scrapeEndpoint = `${metricsUrl}/metrics`;
-  const deadline = Date.now() + 60_000;
   let scrapeBody = "";
   let lastStatus = 0;
 
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(scrapeEndpoint, { signal: AbortSignal.timeout(10_000) });
-      lastStatus = res.status;
-      if (res.ok) {
-        scrapeBody = await res.text();
-        if (scrapeBody.includes(metricName)) break;
-      }
-    } catch {
-      // ingress propagating — keep polling
-    }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
-
-  if (!scrapeBody.includes(metricName)) {
-    const log = await sh(sandbox, "pgw-log", "tail -20 /var/log/pushgateway.log");
+  try {
+    await pollUntil({
+      poll: async () => {
+        try {
+          const res = await fetch(scrapeEndpoint, { signal: AbortSignal.timeout(10_000) });
+          lastStatus = res.status;
+          if (res.ok) {
+            scrapeBody = await res.text();
+            return scrapeBody.includes(metricName);
+          }
+        } catch {
+          // ingress propagating — keep polling
+        }
+        return false;
+      },
+      done: (found) => found,
+      timeoutMs: 60_000,
+    });
+  } catch (err) {
+    if (!(err instanceof FcTimeoutError)) throw err;
+    const log = (await sandbox.sh("tail -20 /var/log/pushgateway.log", { label: "pgw-log" })).result
+      .stdout;
     throw new Error(
       `Metric "${metricName}" not found in /metrics (last HTTP ${lastStatus}).\n` +
         `Pushgateway log:\n${log}`,
+      { cause: err },
     );
   }
 

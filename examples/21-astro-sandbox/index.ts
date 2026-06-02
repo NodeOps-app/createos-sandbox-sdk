@@ -11,8 +11,7 @@
  */
 
 import { readFile } from "node:fs/promises";
-import type { Sandbox } from "fc-sandbox-sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb"; // astro/vite install + dev compile want real RAM
 const ROOTFS = "devbox:1"; // ships Node 24 + npm — above Astro's engine floor
@@ -29,17 +28,6 @@ if (!baseUrl || !apiKey) {
 }
 
 const fc = new FcClient({ baseUrl, apiKey });
-
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
 
 // The Astro project lives in ./site (committed alongside this example); we read
 // its three source files here and re-upload them into the sandbox below.
@@ -59,29 +47,30 @@ console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 // Build the ingress base URL up front so a missing ingress config fails fast.
 // The template yields https://<ulid>-<port>.<region>.<domain>; the wildcard
-// TLS cert is not provisioned yet, so downgrade to http:// (port 80,
+// TLS cert is not provisioned yet, so request http:// (port 80,
 // forward-compatible once TLS lands).
-const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
+const previewUrl = sandbox.previewUrl(PORT, { scheme: "http" });
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
   // 2. Upload the project files into the sandbox filesystem.
   console.log("[2/6] uploading the Astro project...");
-  await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}/src/pages`);
+  await sandbox.sh(`mkdir -p ${APP_DIR}/src/pages`, { label: "mkdir" });
   await sandbox.files.upload(`${APP_DIR}/package.json`, sitePkg);
   await sandbox.files.upload(`${APP_DIR}/astro.config.mjs`, siteConfig);
   await sandbox.files.upload(`${APP_DIR}/src/pages/index.astro`, sitePage);
 
   // 3. Install deps inside the VM.
   console.log("[3/6] installing dependencies (npm install)...");
-  await sh(sandbox, "npm-install", `cd ${APP_DIR} && npm install --no-audit --no-fund`, 300_000);
+  await sandbox.sh(`cd ${APP_DIR} && npm install --no-audit --no-fund`, {
+    label: "npm-install",
+    timeoutMs: 300_000,
+  });
   const astroVersion = (
-    await sh(
-      sandbox,
-      "astro-version",
-      `cd ${APP_DIR} && node -p "require('astro/package.json').version"`,
-    )
-  ).trim();
+    await sandbox.sh(`cd ${APP_DIR} && node -p "require('astro/package.json').version"`, {
+      label: "astro-version",
+    })
+  ).result.stdout.trim();
   console.log(`      astro ${astroVersion}`);
 
   // devbox:1 has no systemd — daemonise with nohup/setsid and redirect stdio
@@ -90,14 +79,13 @@ try {
   // (127.0.0.1 would only reach through the agent tunnel).
   // 4. Start the dev server as a daemon (see the nohup/host notes above).
   console.log(`[4/6] starting astro dev on port ${PORT} (daemonised)...`);
-  await sh(
-    sandbox,
-    "boot",
+  await sandbox.sh(
     // `&` must background only the nohup command, not the whole `&&` chain,
     // or the subshell holds the /exec stdout pipe open and runCommand hangs.
     `cd ${APP_DIR} && rm -f astro.log; ` +
       `nohup setsid npx astro dev --host 0.0.0.0 --port ${PORT} ` +
       `>astro.log 2>&1 </dev/null & sleep 1; echo launched`,
+    { label: "boot" },
   );
 
   // 5. Wait for the in-VM port to accept connections before reaching it.
@@ -110,28 +98,34 @@ try {
   // and ingress routing may take a moment to propagate — poll the preview URL
   // until a real render comes back rather than fetching once.
   console.log("[6/6] fetching the preview URL until Astro renders...");
-  const deadline = Date.now() + 120_000;
   let body = "";
   let status = 0;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(previewUrl, { signal: AbortSignal.timeout(15_000) });
-      status = res.status;
-      body = await res.text();
-      // Vite blocks non-local hosts with a "Blocked request" body; astro.config
-      // sets allowedHosts: true, so a healthy render contains our marker.
-      if (res.ok && body.includes(MARKER)) break;
-    } catch {
-      // ingress propagation / cold compile still in flight — keep polling
-    }
-    await new Promise((r) => setTimeout(r, 3_000));
-  }
-
-  if (!body.includes(MARKER)) {
-    const log = await sh(sandbox, "astro-log", `tail -40 ${APP_DIR}/astro.log`);
+  try {
+    await pollUntil({
+      poll: async () => {
+        try {
+          const res = await fetch(previewUrl, { signal: AbortSignal.timeout(15_000) });
+          status = res.status;
+          body = await res.text();
+          // Vite blocks non-local hosts with a "Blocked request" body; astro.config
+          // sets allowedHosts: true, so a healthy render contains our marker.
+          return res.ok && body.includes(MARKER);
+        } catch {
+          // ingress propagation / cold compile still in flight — keep polling
+          return false;
+        }
+      },
+      done: (ready) => ready,
+      timeoutMs: 120_000,
+    });
+  } catch (err) {
+    if (!(err instanceof FcTimeoutError)) throw err;
+    const log = (await sandbox.sh(`tail -40 ${APP_DIR}/astro.log`, { label: "astro-log" })).result
+      .stdout;
     throw new Error(
       `preview URL never rendered (last HTTP ${status}). Body head:\n` +
         `${body.slice(0, 300)}\nastro dev log:\n${log}`,
+      { cause: err },
     );
   }
 

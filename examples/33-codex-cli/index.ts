@@ -40,24 +40,6 @@ const CODEX_TASK =
 
 const fc = new FcClient({ baseUrl: FC_BASE_URL, apiKey: FC_API_KEY });
 
-const tail = (s: string) => s.slice(-1200);
-
-async function sh(
-  sandbox: Awaited<ReturnType<typeof fc.createSandbox>>,
-  label: string,
-  script: string,
-  timeoutMs = 120_000,
-) {
-  const { result } = await sandbox.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.error(`[${label}] exit=${result.exit_code}`);
-    if (result.stdout) console.error("  stdout:", tail(result.stdout));
-    if (result.stderr) console.error("  stderr:", tail(result.stderr));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // 1. Create the sandbox. envs are injected into the VM's environment so the
 //    Codex CLI (which reads OPENAI_API_KEY for auth) sees the key without us
 //    having to write it into a file.
@@ -77,9 +59,7 @@ try {
   // 2. Install Node 22 (NodeSource) then the Codex CLI (the Rust binary ships
   //    as the @openai/codex npm package).
   console.log("[2/6] installing Node.js 22 + Codex CLI...");
-  await sh(
-    sandbox,
-    "node-install",
+  await sandbox.sh(
     [
       "apt-get update -qq",
       "apt-get install -y -qq curl ca-certificates",
@@ -88,13 +68,16 @@ try {
       "apt-get install -y -qq nodejs",
       "node --version",
     ].join(" && "),
-    300_000,
+    { label: "node-install", timeoutMs: 300_000 },
   );
 
   // Install Codex CLI globally — the Rust binary ships as an npm package
-  await sh(sandbox, "codex-install", "npm install -g @openai/codex 2>&1 | tail -5", 300_000);
-  const codexVer = await sh(sandbox, "codex-version", "codex --version");
-  console.log(`      codex: ${codexVer.trim()}`);
+  await sandbox.sh("npm install -g @openai/codex 2>&1 | tail -5", {
+    label: "codex-install",
+    timeoutMs: 300_000,
+  });
+  const { result: ver } = await sandbox.sh("codex --version", { label: "codex-version" });
+  console.log(`      codex: ${ver.stdout.trim()}`);
 
   // 3. Write Codex's config. The settings below are what wire it to the custom
   //    gateway and let it run unattended inside the disposable VM.
@@ -125,7 +108,7 @@ supports_websockets = false
   //    bash quoting/expansion.
   console.log("[4/6] running codex exec (non-interactive)...");
   // Create a dedicated workspace directory so Codex has a clear write target.
-  await sh(sandbox, "mkdir-work", "mkdir -p /root/work");
+  await sandbox.sh("mkdir -p /root/work", { label: "mkdir-work" });
   // Write the task to a file and pipe via stdin to avoid shell quoting issues.
   await sandbox.files.upload("/root/work/task.txt", CODEX_TASK);
 
@@ -133,14 +116,12 @@ supports_websockets = false
   // --ephemeral: no session rollout files persisted to disk.
   // --skip-git-repo-check: /root/work is not a git repo; skip that guard.
   // cd into the workspace so relative paths in the task resolve there.
-  const codexOut = await sh(
-    sandbox,
-    "codex-exec",
+  const { result: codex } = await sandbox.sh(
     "cd /root/work && codex exec --ephemeral --skip-git-repo-check < /root/work/task.txt",
-    300_000,
+    { label: "codex-exec", timeoutMs: 300_000 },
   );
   console.log("\n── codex output ─────────────────────────────────────────────────");
-  console.log(codexOut.trim());
+  console.log(codex.stdout.trim());
 
   // 5. Pull the file the agent wrote back to the host to inspect it.
   console.log("\n[5/6] downloading generated file...");
@@ -152,9 +133,11 @@ supports_websockets = false
 
   // 6. Re-run the generated script in the VM as end-to-end proof it works.
   console.log("\n[6/6] running generated code as proof...");
-  const pyOut = await sh(sandbox, "python-run", "python3 /root/work/fizzbuzz.py");
+  const { result: py } = await sandbox.sh("python3 /root/work/fizzbuzz.py", {
+    label: "python-run",
+  });
   console.log("\n── python3 /root/work/fizzbuzz.py ───────────────────────────────");
-  console.log(pyOut.trim());
+  console.log(py.stdout.trim());
 
   console.log("\nverified end-to-end: codex generated and ran Python code inside FC sandbox");
 } finally {

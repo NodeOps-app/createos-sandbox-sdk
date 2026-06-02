@@ -12,12 +12,9 @@
  */
 import { Sandbox } from "fc-sandbox-sdk";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 // 1. Read the local script (next to this file) and create the sandbox.
-const here = dirname(fileURLToPath(import.meta.url));
-const script = await readFile(join(here, "script.py"));
+const script = await readFile(new URL("./script.py", import.meta.url));
 
 const sandbox = await Sandbox.create({
   shape: "s-1vcpu-1gb",
@@ -53,6 +50,8 @@ try {
   }
 } finally {
   // 4. Always destroy.
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("destroyed");
 }

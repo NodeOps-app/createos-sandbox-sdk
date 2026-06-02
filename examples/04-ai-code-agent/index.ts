@@ -35,7 +35,7 @@ const TOOLS: Anthropic.Tool[] = [
 const anthropic = new Anthropic();
 
 const sandbox = await Sandbox.create({
-  shape: "s-1vcpu-256mb",
+  shape: "s-2vcpu-2gb", // agent workloads need real RAM
   rootfs: "devbox:1",
 });
 console.log("sandbox:", sandbox.id);
@@ -92,6 +92,8 @@ try {
     messages.push({ role: "user", content: toolResults });
   }
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("destroyed");
 }

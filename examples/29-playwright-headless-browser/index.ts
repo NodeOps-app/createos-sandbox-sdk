@@ -11,7 +11,6 @@
  * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The scrape runs entirely
  *        inside the VM, so no ingress is involved.
  */
-import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient } from "fc-sandbox-sdk";
 
 // Chromium needs >=1GB RAM; 2GB gives comfortable headroom for the
@@ -28,17 +27,6 @@ if (!baseUrl || !apiKey) {
 
 const fc = new FcClient({ baseUrl, apiKey });
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // 1. Create the sandbox. DEBIAN_FRONTEND=noninteractive keeps apt from
 //    blocking on tzdata/debconf prompts when --with-deps pulls packages.
 console.log(`[1/5] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
@@ -53,35 +41,30 @@ try {
   // 2. Install Playwright into a local npm project (devbox:1 ships node/npm),
   //    so Playwright resolves from ${APP_DIR} rather than a global install.
   console.log("[2/5] creating project dir + installing Playwright...");
-  await sh(
-    sandbox,
-    "init",
+  await sandbox.sh(
     `set -e
 mkdir -p ${APP_DIR} && cd ${APP_DIR}
 npm init -y >/dev/null`,
-    60_000,
+    { label: "init", timeoutMs: 60_000 },
   );
 
   // playwright install --with-deps handles both the npm package and all
   // OS-level deps (fonts, libglib, libnss, etc.) via apt.
   // Generous timeout: pulls ~130 MB browser + many apt packages.
-  await sh(
-    sandbox,
-    "playwright-install",
+  await sandbox.sh(
     `set -e
 cd ${APP_DIR}
 npm install playwright >/dev/null 2>&1
 npx playwright install --with-deps chromium 2>&1 | tail -20`,
-    600_000,
+    { label: "playwright-install", timeoutMs: 600_000 },
   );
 
   const pwVer = (
-    await sh(
-      sandbox,
-      "playwright-ver",
+    await sandbox.sh(
       `cd ${APP_DIR} && node -e "const p=require('./node_modules/playwright/package.json'); console.log(p.version)"`,
+      { label: "playwright-ver" },
     )
-  ).trim();
+  ).result.stdout.trim();
   console.log(`      playwright: ${pwVer}`);
 
   // 3. Build the scrape script that Playwright will run inside the VM.
@@ -118,7 +101,9 @@ const { chromium } = require('playwright');
   // 4. Run the scrape. The script prints a JSON blob on stdout; we parse it
   //    back on the host below to verify the DOM was actually extracted.
   console.log("[4/5] running Playwright scrape of example.com...");
-  const scrapeOut = await sh(sandbox, "scrape", `cd ${APP_DIR} && node scrape.js`, 120_000);
+  const scrapeOut = (
+    await sandbox.sh(`cd ${APP_DIR} && node scrape.js`, { label: "scrape", timeoutMs: 120_000 })
+  ).result.stdout;
   console.log("── scrape output ────────────────────────────────────────────────");
   console.log(scrapeOut.trim());
 
@@ -148,12 +133,11 @@ const { chromium } = require('playwright');
   // 5. Report the Chromium build Playwright installed (for the run summary).
   console.log("[5/5] checking Chromium version...");
   const chromiumVer = (
-    await sh(
-      sandbox,
-      "chromium-ver",
+    await sandbox.sh(
       "chromium --version 2>/dev/null || chromium-browser --version 2>/dev/null || echo unknown",
+      { label: "chromium-ver" },
     )
-  ).trim();
+  ).result.stdout.trim();
   console.log(`      ${chromiumVer}`);
 
   console.log(

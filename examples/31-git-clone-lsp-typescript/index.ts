@@ -18,9 +18,8 @@ import { Sandbox } from "fc-sandbox-sdk";
 
 const baseUrl = process.env.FC_BASE_URL;
 const apiKey = process.env.FC_API_KEY;
-if (!baseUrl) {
-  console.error("FC_BASE_URL must be set");
-  process.exit(1);
+if (!baseUrl || !apiKey) {
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
 }
 
 // Small public TS library used as the LSP target corpus.
@@ -33,15 +32,10 @@ const SHAPE = "s-2vcpu-2gb"; // tsserver is memory-hungry; 1 GB can OOM
 const ROOTFS = "devbox:1";
 
 // ── 1. create ──────────────────────────────────────────────────────────────
-// Sandbox.create is the client-less factory; baseUrl/apiKey are spread only
-// when set so exactOptionalPropertyTypes does not see `undefined` scalars.
+// Sandbox.create is the client-less factory: the create request is arg 1 and
+// client options (baseUrl/apiKey) go in arg 2.
 console.log("[1/6] creating sandbox...");
-const sandbox = await Sandbox.create({
-  shape: SHAPE,
-  rootfs: ROOTFS,
-  ...(baseUrl ? { baseUrl } : {}),
-  ...(apiKey ? { apiKey } : {}),
-});
+const sandbox = await Sandbox.create({ shape: SHAPE, rootfs: ROOTFS }, { baseUrl, apiKey });
 console.log(`      sandbox: ${sandbox.id}`);
 
 try {
@@ -168,6 +162,8 @@ try {
   console.log("\nFull LSP output:");
   console.log(JSON.stringify(lspResults, null, 2));
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`\ndestroyed: ${sandbox.id}`);
 }

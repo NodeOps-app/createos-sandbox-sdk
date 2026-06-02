@@ -35,17 +35,10 @@ console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
   console.log("[2/9] installing postgresql + python3 (apt-get)...");
-  const apt = await sandbox.runCommand(
-    "bash",
-    [
-      "-lc",
-      "apt-get update -qq && apt-get install -y --no-install-recommends postgresql python3 ca-certificates curl",
-    ],
-    { timeoutMs: 300_000 },
+  const apt = await sandbox.sh(
+    "apt-get update -qq && apt-get install -y --no-install-recommends postgresql python3 ca-certificates curl",
+    { label: "apt-get install", timeoutMs: 300_000 },
   );
-  if (apt.result.exit_code !== 0) {
-    throw new Error(`apt-get install failed:\n${apt.result.stderr}`);
-  }
   console.log(`      apt-get done (${apt.exec_ms} ms)`);
 
   console.log("[3/9] starting postgres cluster (no systemd, use pg_ctlcluster)...");
@@ -64,30 +57,20 @@ try {
   }
 
   console.log(`[4/9] provisioning ${PG_DB} / ${PG_USER}...`);
-  const provision = await sandbox.runCommand("bash", [
-    "-lc",
+  await sandbox.sh(
     [
       `su - postgres -c "psql -v ON_ERROR_STOP=1 -c \\"CREATE USER ${PG_USER} WITH PASSWORD '${PG_PASSWORD}' SUPERUSER;\\""`,
       `su - postgres -c "psql -v ON_ERROR_STOP=1 -c \\"CREATE DATABASE ${PG_DB} OWNER ${PG_USER};\\""`,
     ].join(" && "),
-  ]);
-  if (provision.result.exit_code !== 0) {
-    throw new Error(`provisioning failed:\n${provision.result.stderr}`);
-  }
+    { label: "provision" },
+  );
   console.log("      role + database created");
 
   console.log("[5/9] installing TigerFS (curl -fsSL https://install.tigerfs.io | sh)...");
-  const tigerInstall = await sandbox.runCommand(
-    "bash",
-    [
-      "-lc",
-      "curl -fsSL https://install.tigerfs.io | sh && ln -sf /root/bin/tigerfs /usr/local/bin/tigerfs && tigerfs version",
-    ],
-    { timeoutMs: 180_000 },
+  const tigerInstall = await sandbox.sh(
+    "curl -fsSL https://install.tigerfs.io | sh && ln -sf /root/bin/tigerfs /usr/local/bin/tigerfs && tigerfs version",
+    { label: "tigerfs install", timeoutMs: 180_000 },
   );
-  if (tigerInstall.result.exit_code !== 0) {
-    throw new Error(`tigerfs install failed:\n${tigerInstall.result.stderr}`);
-  }
   console.log(tigerInstall.result.stdout.trim());
 
   const TIGER_VERSION = (tigerInstall.result.stdout.match(/tigerfs\s+v?[\d.]+/i) ?? ["unknown"])[0];
@@ -134,15 +117,9 @@ try {
   console.log(info.result.stdout.trim());
 
   console.log("[8/9] creating file-first markdown app + seed note...");
-  const buildApp = await sandbox.runCommand("bash", [
-    "-lc",
-    // plain `markdown` app — `markdown,history` would require the TimescaleDB
-    // extension, which the stock Debian `postgresql` package does not ship.
-    `echo "markdown" > ${MOUNT}/.build/notes`,
-  ]);
-  if (buildApp.result.exit_code !== 0) {
-    throw new Error(`build app failed:\n${buildApp.result.stderr}`);
-  }
+  // plain `markdown` app — `markdown,history` would require the TimescaleDB
+  // extension, which the stock Debian `postgresql` package does not ship.
+  await sandbox.sh(`echo "markdown" > ${MOUNT}/.build/notes`, { label: "build app" });
 
   // Writing the app name into .build/notes is TigerFS's provision trigger; the
   // backing notes/ directory materialises lazily once TigerFS processes it.
@@ -176,13 +153,9 @@ try {
     "\n" +
     "This markdown file is stored as a row in Postgres.\n";
   await sandbox.files.upload("/tmp/hello.md", helloMd);
-  const seed = await sandbox.runCommand("bash", [
-    "-lc",
-    `cp /tmp/hello.md ${MOUNT}/notes/hello.md && ls ${MOUNT}/notes/`,
-  ]);
-  if (seed.result.exit_code !== 0) {
-    throw new Error(`seed copy failed:\n${seed.result.stderr}`);
-  }
+  const seed = await sandbox.sh(`cp /tmp/hello.md ${MOUNT}/notes/hello.md && ls ${MOUNT}/notes/`, {
+    label: "seed",
+  });
   console.log(`      notes/: ${seed.result.stdout.trim()}`);
 
   console.log("[9/9] uploading hello.py and running it inside the sandbox...");

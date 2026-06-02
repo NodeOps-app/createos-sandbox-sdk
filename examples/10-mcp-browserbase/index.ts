@@ -32,7 +32,7 @@ const anthropic = new Anthropic();
 
 console.log("Creating FC sandbox with ingress enabled...");
 const sandbox = await Sandbox.create({
-  shape: "s-1vcpu-512mb",
+  shape: "s-1vcpu-512mb", // small shape is fine: this workload is network-bound, not compute-bound
   rootfs: "devbox:1",
   ingress_enabled: true,
   envs: {
@@ -108,7 +108,9 @@ try {
   }
   console.log(`\nStop reason: ${response.stop_reason}`);
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`\nDestroyed sandbox: ${sandbox.id}`);
 }
 

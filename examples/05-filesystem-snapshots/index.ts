@@ -25,10 +25,11 @@ async function readFile(sb: Sandbox, path: string) {
 
 // Sandbox.create is the client-less factory — it builds the FcClient from
 // FC_BASE_URL / FC_API_KEY and blocks until the VM is `running`.
+// tiny shape on purpose — this smoke test only reads/writes small files
 const base = await Sandbox.create({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
 console.log(`base created: ${base.id}`);
 
-let fork: Awaited<ReturnType<typeof base.fork>> | undefined;
+let fork: Sandbox | undefined;
 try {
   // 1. Seed a file on the base — this is the state we expect the fork to inherit.
   await base.files.upload(BASE_PATH, `seed written at ${STAMP}\n`);

@@ -14,7 +14,6 @@
  *        See .env.example.
  */
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import type { Sandbox } from "fc-sandbox-sdk";
 import { FcClient, FcValidationError } from "fc-sandbox-sdk";
 
 const SHAPE = "s-4vcpu-4gb";
@@ -41,8 +40,8 @@ async function createWithRetry() {
     name,
     envs: {
       DEBIAN_FRONTEND: "noninteractive",
-      OPENAI_API_URL,
-      OPENAI_API_KEY,
+      OPENAI_API_URL: OPENAI_API_URL!,
+      OPENAI_API_KEY: OPENAI_API_KEY!,
       OPENAI_MODEL,
       // Keep HF cache off the rootfs overlay's hot path.
       HF_HOME: "/root/.cache/huggingface",
@@ -69,17 +68,6 @@ async function createWithRetry() {
   throw new Error("unreachable");
 }
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 const sandbox = await createWithRetry();
 console.log(`sandbox: ${sandbox.id}  ip: ${sandbox.ip}  shape: ${SHAPE}`);
 
@@ -88,16 +76,12 @@ try {
   // pip install is multi-minute; run it detached and poll a completion
   // marker file so we never hold a single /exec call open long enough to
   // trip an upstream gateway timeout (502).
-  await sh(
-    sandbox,
-    "apt",
+  await sandbox.sh(
     "apt-get update -qq && " +
       "apt-get install -y --no-install-recommends python3 python3-pip ca-certificates >/dev/null",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
-  await sh(
-    sandbox,
-    "pip-launch",
+  await sandbox.sh(
     "cat >/root/install.sh <<'SH'\n" +
       "#!/bin/bash\n" +
       "set -e\n" +
@@ -114,20 +98,21 @@ try {
       "chmod +x /root/install.sh\n" +
       "nohup setsid bash /root/install.sh >/root/install.log 2>&1 </dev/null &\n" +
       "sleep 1; echo launched",
+    { label: "pip-launch" },
   );
   // Poll the marker. Each poll is a short /exec call.
   const deadline = Date.now() + 900_000;
   let installed = false;
   while (Date.now() < deadline) {
-    const probe = await sh(
-      sandbox,
-      "pip-poll",
-      "if [ -f /root/install.done ]; then echo done; " +
-        "elif pgrep -f install.sh >/dev/null; then echo running; " +
-        "else echo dead; fi; " +
-        "tail -1 /root/install.log 2>/dev/null || true",
-      30_000,
-    );
+    const probe = (
+      await sandbox.sh(
+        "if [ -f /root/install.done ]; then echo done; " +
+          "elif pgrep -f install.sh >/dev/null; then echo running; " +
+          "else echo dead; fi; " +
+          "tail -1 /root/install.log 2>/dev/null || true",
+        { label: "pip-poll", timeoutMs: 30_000 },
+      )
+    ).result.stdout;
     const state = probe.split("\n")[0]?.trim();
     const tail = probe.split("\n").slice(1).join(" ").slice(-120);
     if (state === "done") {
@@ -135,29 +120,29 @@ try {
       break;
     }
     if (state === "dead") {
-      const log = await sh(sandbox, "install-log", "tail -60 /root/install.log");
+      const log = (await sandbox.sh("tail -60 /root/install.log", { label: "install-log" })).result
+        .stdout;
       throw new Error(`pip install died:\n${log}`);
     }
     console.log(`      pip: ${state}  ${tail}`);
     await new Promise((r) => setTimeout(r, 15_000));
   }
   if (!installed) {
-    const log = await sh(sandbox, "install-log", "tail -80 /root/install.log");
+    const log = (await sandbox.sh("tail -80 /root/install.log", { label: "install-log" })).result
+      .stdout;
     throw new Error(`pip install did not finish within 15 min:\n${log}`);
   }
   console.log("      pip install done");
 
   console.log("[2/7] pre-pulling the embedding model into the HF cache…");
-  await sh(
-    sandbox,
-    "embed-warm",
+  await sandbox.sh(
     'python3 -c "from sentence_transformers import SentenceTransformer; ' +
       "SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')\"",
-    300_000,
+    { label: "embed-warm", timeoutMs: 300_000 },
   );
 
   console.log(`[3/7] uploading corpus from ${CORPUS_DIR}…`);
-  await sh(sandbox, "mkdir-corpus", "mkdir -p /root/corpus /root/storage");
+  await sandbox.sh("mkdir -p /root/corpus /root/storage", { label: "mkdir-corpus" });
   const corpusFiles = await readdir(CORPUS_DIR);
   for (const f of corpusFiles) {
     const body = await readFile(`${CORPUS_DIR}${f}`, "utf8");
@@ -171,7 +156,9 @@ try {
   await sandbox.files.upload("/root/query.py", querySrc);
 
   console.log("[4/7] building VectorStoreIndex (local MiniLM embeddings)…");
-  const idxOut = await sh(sandbox, "build-index", "cd /root && python3 indexer.py", 600_000);
+  const idxOut = (
+    await sandbox.sh("cd /root && python3 indexer.py", { label: "build-index", timeoutMs: 600_000 })
+  ).result.stdout;
   console.log(
     idxOut
       .trim()
@@ -180,11 +167,11 @@ try {
       .join("\n"),
   );
 
-  const sizeOut = await sh(
-    sandbox,
-    "index-size",
-    "du -sb /root/storage | awk '{print $1}'; ls /root/storage",
-  );
+  const sizeOut = (
+    await sandbox.sh("du -sb /root/storage | awk '{print $1}'; ls /root/storage", {
+      label: "index-size",
+    })
+  ).result.stdout;
   const indexBytes = Number(sizeOut.split("\n")[0]?.trim() ?? 0);
   console.log(`      persisted index: ${indexBytes} bytes`);
 
@@ -198,12 +185,12 @@ try {
 
   console.log(`[6/7] querying against the persisted index…`);
   console.log(`      question: ${QUESTION}`);
-  const qOut = await sh(
-    sandbox,
-    "query",
-    `cd /root && python3 query.py ${JSON.stringify(QUESTION)}`,
-    300_000,
-  );
+  const qOut = (
+    await sandbox.sh(`cd /root && python3 query.py ${JSON.stringify(QUESTION)}`, {
+      label: "query",
+      timeoutMs: 300_000,
+    })
+  ).result.stdout;
 
   await mkdir(OUTPUT_DIR, { recursive: true });
   // query.py prints exactly one JSON object as its final stdout — find the

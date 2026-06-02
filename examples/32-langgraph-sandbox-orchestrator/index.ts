@@ -22,6 +22,13 @@ import { FcClient, type Sandbox } from "fc-sandbox-sdk";
 
 loadParentEnvFallback();
 
+if (!process.env.FC_BASE_URL || !process.env.FC_API_KEY) {
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+}
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("set OPENAI_API_KEY (see .env.example)");
+}
+
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
 const WORKDIR = "/root/agent-workspace";
@@ -222,7 +229,9 @@ try {
   console.log(`Answer: ${finalState.finalAnswer}`);
 } finally {
   if (sandbox) {
-    await sandbox.destroy();
+    await sandbox.destroy().catch((err) => {
+      console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
     console.log(`\ndestroyed sandbox: ${sandbox.id}`);
   }
 }

@@ -21,6 +21,10 @@ import { readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { Sandbox } from "fc-sandbox-sdk";
 
+// Keep in sync with examples/3{6,7}/index.ts — paired teaching example.
+// The credential loader, create-retry wrapper, constants, and PROMPT below are
+// byte-identical between the two; only the dispatch logic differs.
+
 // ── Managed Agents credentials ────────────────────────────────────────────
 // Managed Agents talks to the real Anthropic API. The shared examples `.env`
 // (symlinked from ../.env) points ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN at
@@ -77,30 +81,27 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
     } catch (err) {
       lastErr = err;
       console.log(
-        `    create attempt ${attempt} failed (${(err as Error).message.slice(0, 60)}); retrying…`,
+        `      create attempt ${attempt} failed (${(err as Error).message.slice(0, 60)}); retrying…`,
       );
       await new Promise((r) => setTimeout(r, 4000));
     }
   }
   throw lastErr;
 }
-// GOTCHA (same as example 36): the Managed Agents worker 400s on an empty
-// tool-result text. `tee` writes the file (proof the tool ran inside the
-// per-session microVM) AND echoes to stdout, keeping the tool result non-empty.
+
+// The agent only has its sandbox tools — no python preinstalled in devbox, so
+// the task is pure shell. GOTCHA: the Managed Agents worker rejects an empty
+// tool-result text with a 400 when it posts the result back. `tee` defends
+// against that — it both writes the file (proof the tool ran inside the FC
+// microVM, since `uname` reports the guest kernel) AND echoes to stdout, so the
+// tool result is guaranteed non-empty. Any bash tool call here must print
+// something; a silent command would 400 the session.
 const PROMPT =
   "Use your bash tool to run exactly this command: `uname -a | tee /workspace/report.txt`. " +
   "Then reply with the exact output it printed.";
 
 const { apiKey, environmentId, environmentKey } = loadAnt();
 const anthropic = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL });
-
-async function sh(sandbox: Sandbox, cmd: string, timeoutMs = 120_000): Promise<string> {
-  const r = await sandbox.runCommand("bash", ["-lc", cmd], { timeoutMs });
-  if (r.result.exit_code !== 0) {
-    throw new Error(`command failed (exit ${r.result.exit_code}): ${cmd}\n${r.result.stderr}`);
-  }
-  return r.result.stdout;
-}
 
 // One claimed session → one fresh FC microVM. The host poller is control-plane
 // only (it holds the environment key and claims work); the agent's tool calls
@@ -124,13 +125,12 @@ async function handleSession(sessionId: string, workId: string): Promise<void> {
   });
   console.log(`    sandbox ${sandbox.id} @ ${sandbox.ip}`);
   try {
-    await sh(
-      sandbox,
+    await sandbox.sh(
       `set -e
 mkdir -p ${WORKDIR}
 arch=$(uname -m); case "$arch" in x86_64) a=amd64;; aarch64) a=arm64;; *) a=$arch;; esac
 curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_$a.tar.gz" | tar -xz -C /usr/local/bin ant`,
-      180_000,
+      { timeoutMs: 180_000 },
     );
     console.log(
       "    running ant beta:worker run (attaches to the claimed session, executes tool calls in-VM)…",
@@ -139,8 +139,7 @@ curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT
     // ANTHROPIC_WORK_ID) and blocks until idle. Run it in the background and
     // wait for the agent's file to appear, rather than holding one long exec
     // connection open for the whole session.
-    await sh(
-      sandbox,
+    await sandbox.sh(
       `nohup setsid ant beta:worker run --workdir ${WORKDIR} --max-idle 5s --log-format text ` +
         `> /tmp/worker.log 2>&1 < /dev/null & echo "worker pid $!"`,
     );
@@ -155,13 +154,15 @@ curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT
     }
     if (!report) {
       throw new Error(
-        `report.txt never appeared. worker log:\n${await sh(sandbox, "tail -8 /tmp/worker.log")}`,
+        `report.txt never appeared. worker log:\n${(await sandbox.sh("tail -8 /tmp/worker.log")).result.stdout}`,
       );
     }
     console.log("    ── /workspace/report.txt (written inside this per-session VM) ──");
     for (const line of report.trimEnd().split("\n")) console.log(`      ${line}`);
   } finally {
-    await sandbox.destroy();
+    await sandbox.destroy().catch((err) => {
+      console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+    });
     console.log(`    sandbox ${sandbox.id} destroyed`);
   }
 }

@@ -75,7 +75,7 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 // Force http:// — TLS cert not provisioned on ingress today; http is
 // forward-compatible with the infrastructure roadmap.
-const previewUrl = sandbox.previewUrl(PORT).replace(/^https:\/\//, "http://");
+const previewUrl = sandbox.previewUrl(PORT, { scheme: "http" });
 console.log(`      preview URL: ${previewUrl}`);
 
 try {

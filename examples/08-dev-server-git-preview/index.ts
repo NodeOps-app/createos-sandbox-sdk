@@ -19,7 +19,7 @@ const sandbox = await Sandbox.create({
 
 console.log(`[1/5] sandbox: ${sandbox.id}`);
 // Force http:// — ingress TLS cert is not yet provisioned; http is forward-compatible
-const previewUrl = sandbox.previewUrl(3000).replace(/^https:\/\//, "http://");
+const previewUrl = sandbox.previewUrl(3000, { scheme: "http" });
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
@@ -55,6 +55,8 @@ try {
 
   console.log(`\nlive preview: ${previewUrl}`);
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`destroyed: ${sandbox.id}`);
 }

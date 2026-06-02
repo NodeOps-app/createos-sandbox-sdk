@@ -24,7 +24,7 @@ import { FcClient } from "fc-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const SHAPE = "s-1vcpu-256mb";
+const SHAPE = "s-2vcpu-2gb"; // agent workloads need real RAM
 const ROOTFS = "devbox:1";
 
 // Base URL for the control plane, also handed to the Python child.

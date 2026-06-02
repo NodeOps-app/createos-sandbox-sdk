@@ -19,8 +19,7 @@
  * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). Ingress is provisioned
  *        per-sandbox by the control plane — no gateway/tunnel host required.
  */
-import type { Sandbox } from "fc-sandbox-sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-2gb";
 const ROOTFS = "devbox:1";
@@ -36,17 +35,6 @@ if (!baseUrl || !apiKey) {
 
 const fc = new FcClient({ baseUrl, apiKey });
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // 1. Create with ingress_enabled so previewUrl(8080) resolves to a public URL.
 //    DEBIAN_FRONTEND=noninteractive stops apt blocking on debconf prompts.
 console.log(`[1/8] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
@@ -59,8 +47,8 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 // Ingress URL template: http://<ulid>-<port>.<region>.<domain>
-// Use http:// — https cert is not provisioned; http is forward-compatible.
-const previewUrl = sandbox.previewUrl(PROXY_PORT).replace(/^https:/, "http:");
+// Request http:// — https cert is not provisioned; http is forward-compatible.
+const previewUrl = sandbox.previewUrl(PROXY_PORT, { scheme: "http" });
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
@@ -68,9 +56,7 @@ try {
   //    ships chromium as a snap-only wrapper — unusable in a microVM — so we
   //    pull Google Chrome stable from the official .deb in step 3 instead.
   console.log("[2/8] installing Chrome deps + nginx (apt-get)...");
-  await sh(
-    sandbox,
-    "apt",
+  await sandbox.sh(
     "apt-get update -qq && " +
       "apt-get install -y --no-install-recommends wget curl nginx " +
       "fonts-liberation libasound2t64 libatk-bridge2.0-0t64 libatk1.0-0t64 " +
@@ -78,24 +64,24 @@ try {
       "libglib2.0-0t64 libgtk-3-0t64 libnspr4 libnss3 libpango-1.0-0 " +
       "libx11-6 libxcb1 libxcomposite1 libxdamage1 libxext6 libxfixes3 " +
       "libxkbcommon0 libxrandr2 xdg-utils",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
 
   // 3. Download + install Chrome stable from the official .deb.
   console.log("[3/8] downloading + installing Google Chrome stable...");
-  await sh(
-    sandbox,
-    "chrome-install",
+  await sandbox.sh(
     // dpkg may exit 1 on optional dependency warnings but Chrome binary is installed
     "wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" +
       " && (dpkg -i /tmp/google-chrome.deb || true)" +
       " && google-chrome-stable --version",
-    300_000,
+    { label: "chrome-install", timeoutMs: 300_000 },
   );
 
   const chromeVer = (
-    await sh(sandbox, "chrome-version", "google-chrome-stable --version 2>/dev/null | head -1")
-  ).trim();
+    await sandbox.sh("google-chrome-stable --version 2>/dev/null | head -1", {
+      label: "chrome-version",
+    })
+  ).result.stdout.trim();
   console.log(`      ${chromeVer}`);
 
   // 4. Write the nginx config. Chrome's /json/* endpoints reject DNS-name Host
@@ -120,14 +106,13 @@ try {
   ].join("\n");
 
   await sandbox.files.upload("/etc/nginx/sites-available/cdp-proxy", nginxConf);
-  await sh(
-    sandbox,
-    "nginx-enable",
+  await sandbox.sh(
     [
       "rm -f /etc/nginx/sites-enabled/default",
       "ln -sf /etc/nginx/sites-available/cdp-proxy /etc/nginx/sites-enabled/cdp-proxy",
       "nginx -t",
     ].join(" && "),
+    { label: "nginx-enable" },
   );
 
   // 5. Launch Chrome headless. Flags required in a microVM running as root:
@@ -137,9 +122,7 @@ try {
   //   --remote-allow-origins=* — allow WebSocket CDP connections from any Origin
   // Daemonize with (; nohup setsid) — && would keep the pipe open and block runCommand.
   console.log(`[5/8] launching Google Chrome headless on CDP port ${CDP_PORT}...`);
-  await sh(
-    sandbox,
-    "chrome-start",
+  await sandbox.sh(
     `rm -f /tmp/chrome.log; ` +
       `nohup setsid google-chrome-stable ` +
       `--headless=new ` +
@@ -151,14 +134,14 @@ try {
       `--remote-allow-origins='*' ` +
       `>/tmp/chrome.log 2>&1 </dev/null & ` +
       `sleep 3; echo launched`,
+    { label: "chrome-start" },
   );
 
   // 6. Start nginx after Chrome is up (so it has a backend to proxy to).
   console.log("[6/8] starting nginx proxy...");
-  await sh(
-    sandbox,
-    "nginx-start",
+  await sandbox.sh(
     `nohup setsid nginx -g 'daemon off;' >/tmp/nginx.log 2>&1 </dev/null & sleep 1; echo launched`,
+    { label: "nginx-start" },
   );
 
   // 7. Confirm nginx is listening (probed from inside the VM) before we start
@@ -172,34 +155,41 @@ try {
   //    so this retries rather than asserting on the first request.
   console.log("[8/8] polling /json/version through the ingress URL...");
   const versionUrl = `${previewUrl}/json/version`;
-  const deadline = Date.now() + 60_000;
   let versionBody = "";
   let lastStatus = 0;
 
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(versionUrl, { signal: AbortSignal.timeout(10_000) });
-      lastStatus = res.status;
-      versionBody = await res.text();
-      if (res.ok && versionBody.includes("Browser")) break;
-    } catch {
-      // ingress propagation still in flight — keep polling
-    }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
-
-  if (!versionBody.includes("Browser")) {
-    const chromeLog = await sh(sandbox, "log-chrome", "tail -40 /tmp/chrome.log").catch(
-      () => "(unavailable)",
-    );
-    const nginxLog = await sh(sandbox, "log-nginx", "tail -20 /tmp/nginx.log").catch(
-      () => "(unavailable)",
-    );
+  try {
+    await pollUntil({
+      poll: async () => {
+        try {
+          const res = await fetch(versionUrl, { signal: AbortSignal.timeout(10_000) });
+          lastStatus = res.status;
+          versionBody = await res.text();
+          return res.ok && versionBody.includes("Browser");
+        } catch {
+          // ingress propagation still in flight — keep polling
+          return false;
+        }
+      },
+      done: (ready) => ready,
+      timeoutMs: 60_000,
+    });
+  } catch (err) {
+    if (!(err instanceof FcTimeoutError)) throw err;
+    const chromeLog = await sandbox
+      .sh("tail -40 /tmp/chrome.log", { label: "log-chrome" })
+      .then((r) => r.result.stdout)
+      .catch(() => "(unavailable)");
+    const nginxLog = await sandbox
+      .sh("tail -20 /tmp/nginx.log", { label: "log-nginx" })
+      .then((r) => r.result.stdout)
+      .catch(() => "(unavailable)");
     throw new Error(
       `GET /json/version never returned a Browser field (last HTTP ${lastStatus}).\n` +
         `Body: ${versionBody.slice(0, 400)}\n` +
         `chrome log:\n${chromeLog}\n` +
         `nginx log:\n${nginxLog}`,
+      { cause: err },
     );
   }
 

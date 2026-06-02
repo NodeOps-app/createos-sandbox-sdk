@@ -68,40 +68,26 @@ const ROLES: Omit<Peer, "sandbox" | "overlayIp">[] = [
 
 const fc = new FcClient();
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${sb.id} ${label}] exit=${result.exit_code}`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-1200));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-1200));
-    throw new Error(`${label} failed on ${sb.id} (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 async function bootRadicleNode(sb: Sandbox, alias: string) {
-  await sh(
-    sb,
-    "install",
+  await sb.sh(
     "set -e; export DEBIAN_FRONTEND=noninteractive; " +
       "apt-get update -qq && apt-get install -y -qq curl ca-certificates git iproute2 >/dev/null; " +
       "curl -LsSf https://radicle.xyz/install | sh >/tmp/install.log 2>&1; " +
       "test -x /root/.radicle/bin/rad",
-    600_000,
+    { label: "install", timeoutMs: 600_000 },
   );
-  await sh(
-    sb,
-    "auth",
+  await sb.sh(
     `export PATH=${RAD_BIN}:$PATH; RAD_PASSPHRASE=${RAD_PASS} rad auth --alias ${alias}`,
+    { label: "auth" },
   );
-  await sh(
-    sb,
-    "node-start",
+  await sb.sh(
     `export PATH=${RAD_BIN}:$PATH; ` +
       `nohup setsid rad node start -- --listen 0.0.0.0:8776 </dev/null >/tmp/radnode.log 2>&1 & ` +
       "sleep 6; rad node status >/dev/null",
+    { label: "node-start" },
   );
-  const status = await sh(sb, "nid", `${RAD_BIN}/rad node status | head -3`);
+  const status = (await sb.sh(`${RAD_BIN}/rad node status | head -3`, { label: "nid" })).result
+    .stdout;
   const nid = status.match(/z6Mk[A-HJ-NP-Za-km-z1-9]+/)?.[0];
   if (!nid) throw new Error(`Could not parse NID from: ${status}`);
   return nid;
@@ -116,7 +102,7 @@ async function connectPeers(peers: Peer[]) {
     const cmd = others
       .map((o) => `${RAD_BIN}/rad node connect ${o.nid}@${o.overlayIp}:8776`)
       .join(" && ");
-    await sh(me.sandbox, `connect`, cmd);
+    await me.sandbox.sh(cmd, { label: "connect" });
   }
 }
 
@@ -156,7 +142,7 @@ git -c user.email=${peer.role}@fc.local -c user.name=${peer.role}-agent commit -
 RAD_PASSPHRASE=${RAD_PASS} git push -u rad ${peer.branch}
 RAD_PASSPHRASE=${RAD_PASS} rad sync --announce || true
 `;
-  return sh(peer.sandbox, "push", script, 120_000);
+  return peer.sandbox.sh(script, { label: "push", timeoutMs: 120_000 });
 }
 
 const network = await fc.networks.create({ name: `radicle-mesh-${Date.now()}` });
@@ -164,7 +150,7 @@ console.log("overlay network:", network.id);
 
 let peers: Peer[] = [];
 try {
-  console.log("\n[1/7] creating 3 sandboxes on overlay network…");
+  console.log("\n[1/8] creating 3 sandboxes on overlay network…");
   const suffix = Date.now().toString(36).slice(-6);
   const sandboxes = await Promise.all(
     ROLES.map((r) =>
@@ -188,7 +174,7 @@ try {
   });
   for (const p of peers) console.log(`  ${p.role}: ${p.sandbox.id} overlay=${p.overlayIp}`);
 
-  console.log("\n[2/7] installing Radicle + booting nodes (parallel)…");
+  console.log("\n[2/8] installing Radicle + booting nodes (parallel)…");
   await Promise.all(
     peers.map(async (p) => {
       p.nid = await bootRadicleNode(p.sandbox, p.role);
@@ -196,17 +182,16 @@ try {
     }),
   );
 
-  console.log("\n[3/7] dialling the mesh…");
+  console.log("\n[3/8] dialling the mesh…");
   await connectPeers(peers);
 
   const nodeA = peers[0]!;
   const nodeBC = peers.slice(1);
 
-  console.log("\n[4/7] node-A inits Radicle repo…");
-  const initOut = await sh(
-    nodeA.sandbox,
-    "init",
-    `set -e
+  console.log("\n[4/8] node-A inits Radicle repo…");
+  const initOut = (
+    await nodeA.sandbox.sh(
+      `set -e
 export PATH=${RAD_BIN}:$PATH
 mkdir -p ${REPO_DIR} && cd ${REPO_DIR}
 git init -q -b main
@@ -215,20 +200,19 @@ git add . && git -c user.email=bootstrap@fc.local -c user.name=bootstrap commit 
 RAD_PASSPHRASE=${RAD_PASS} rad init --name fc-radicle-demo --description "FC + Radicle multi-agent demo" --default-branch main --public --no-confirm
 rad inspect
 `,
-    180_000,
-  );
+      { label: "init", timeoutMs: 180_000 },
+    )
+  ).result.stdout;
   const rid = initOut.match(/rad:[a-zA-Z0-9]+/)?.[0];
   if (!rid) throw new Error(`Could not parse RID from: ${initOut}`);
   console.log("  RID:", rid);
 
-  console.log("\n[5/7] nodes B+C clone via gossip…");
+  console.log("\n[5/8] nodes B+C clone via gossip…");
   await Promise.all(
     nodeBC.map(async (p) => {
       // Seed first so the node tracks the repo, then poll until storage
       // shows it locally — gossip can take a few seconds.
-      await sh(
-        p.sandbox,
-        "seed",
+      await p.sandbox.sh(
         `set -e
 export PATH=${RAD_BIN}:$PATH
 rad seed ${rid} --scope all
@@ -238,23 +222,23 @@ for i in $(seq 1 30); do
 done
 rad clone ${rid} ${REPO_DIR}
 `,
-        180_000,
+        { label: "seed", timeoutMs: 180_000 },
       );
     }),
   );
 
-  console.log("\n[5.5/7] each peer follows the other two…");
+  console.log("\n[6/8] each peer follows the other two…");
   await Promise.all(
     peers.map((p) => {
       const cmd = peers
         .filter((q) => q !== p)
         .map((q) => `${RAD_BIN}/rad follow ${q.nid} --alias ${q.role}`)
         .join(" && ");
-      return sh(p.sandbox, "follow", `export PATH=${RAD_BIN}:$PATH; ${cmd}`);
+      return p.sandbox.sh(`export PATH=${RAD_BIN}:$PATH; ${cmd}`, { label: "follow" });
     }),
   );
 
-  console.log("\n[6/7] each agent generates + pushes contribution…");
+  console.log("\n[7/8] each agent generates + pushes contribution…");
   const bodies = await Promise.all(peers.map((p) => generateContribution(p)));
   // Sequential push to avoid Radicle SQLite lock contention.
   for (const [i, p] of peers.entries()) {
@@ -262,7 +246,7 @@ rad clone ${rid} ${REPO_DIR}
     await pushContribution(p, bodies[i]!);
   }
 
-  console.log("\n[7/7] gossip + per-peer bundles…");
+  console.log("\n[8/8] gossip + per-peer bundles…");
   // Every peer mutually follows the others so each Radicle node tracks
   // all NIDs, then `rad sync --fetch` pulls the latest gossiped state.
   // We bundle from EACH peer's working repo so we have evidence from
@@ -280,9 +264,7 @@ rad clone ${rid} ${REPO_DIR}
       // gossip has delivered. The working repo's `rad` remote only
       // exposes the delegate's canonical refs, so its `git bundle --all`
       // omits sibling peers' branches.
-      await sh(
-        p.sandbox,
-        "sync",
+      await p.sandbox.sh(
         `set -e
 export PATH=${RAD_BIN}:$PATH
 cd ${REPO_DIR}
@@ -297,7 +279,7 @@ git --git-dir="$STORAGE" log --all --graph --oneline --decorate > /tmp/log.txt
 rad inspect --refs > /tmp/refs.json 2>/dev/null || rad inspect > /tmp/refs.json
 git --git-dir="$STORAGE" for-each-ref --format='%(refname) %(objectname:short)' > /tmp/ls-remote.txt
 `,
-        180_000,
+        { label: "sync", timeoutMs: 180_000 },
       );
     }),
   );

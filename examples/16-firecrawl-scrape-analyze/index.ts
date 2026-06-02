@@ -17,7 +17,7 @@
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
+import { FcClient, FcValidationError } from "fc-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
@@ -200,17 +200,6 @@ async function createWithRetry() {
   throw new Error("unreachable");
 }
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // ── main ───────────────────────────────────────────────────────────────
 
 console.log("[1/6] acquiring listings…");
@@ -234,16 +223,12 @@ try {
   console.log("[3/6] installing pandas + matplotlib (background)…");
   // pip on devbox:1 is multi-minute; run detached and poll a marker so no
   // single /exec call stays open long enough to trip a gateway timeout.
-  await sh(
-    sandbox,
-    "apt",
+  await sandbox.sh(
     "apt-get update -qq && " +
       "apt-get install -y --no-install-recommends python3 python3-pip ca-certificates >/dev/null",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
-  await sh(
-    sandbox,
-    "pip-launch",
+  await sandbox.sh(
     "cat >/root/install.sh <<'SH'\n" +
       "#!/bin/bash\n" +
       "set -e\n" +
@@ -254,19 +239,20 @@ try {
       "chmod +x /root/install.sh\n" +
       "nohup setsid bash /root/install.sh >/root/install.log 2>&1 </dev/null &\n" +
       "sleep 1; echo launched",
+    { label: "pip-launch" },
   );
   const deadline = Date.now() + 600_000;
   let installed = false;
   while (Date.now() < deadline) {
-    const probe = await sh(
-      sandbox,
-      "pip-poll",
-      "if [ -f /root/install.done ]; then echo done; " +
-        "elif pgrep -f install.sh >/dev/null; then echo running; " +
-        "else echo dead; fi; " +
-        "tail -1 /root/install.log 2>/dev/null || true",
-      30_000,
-    );
+    const probe = (
+      await sandbox.sh(
+        "if [ -f /root/install.done ]; then echo done; " +
+          "elif pgrep -f install.sh >/dev/null; then echo running; " +
+          "else echo dead; fi; " +
+          "tail -1 /root/install.log 2>/dev/null || true",
+        { label: "pip-poll", timeoutMs: 30_000 },
+      )
+    ).result.stdout;
     const state = probe.split("\n")[0]?.trim();
     const tail = probe.split("\n").slice(1).join(" ").slice(-120);
     if (state === "done") {
@@ -274,14 +260,16 @@ try {
       break;
     }
     if (state === "dead") {
-      const log = await sh(sandbox, "install-log", "tail -60 /root/install.log");
+      const log = (await sandbox.sh("tail -60 /root/install.log", { label: "install-log" })).result
+        .stdout;
       throw new Error(`pip install died:\n${log}`);
     }
     console.log(`      pip: ${state}  ${tail}`);
     await new Promise((r) => setTimeout(r, 15_000));
   }
   if (!installed) {
-    const log = await sh(sandbox, "install-log", "tail -80 /root/install.log");
+    const log = (await sandbox.sh("tail -80 /root/install.log", { label: "install-log" })).result
+      .stdout;
     throw new Error(`pip install did not finish within 10 min:\n${log}`);
   }
   console.log("      pip install done");
@@ -291,7 +279,9 @@ try {
   await sandbox.files.upload("/root/analysis.py", analysisCode);
 
   console.log("[5/6] running the analysis…");
-  const analysisOut = await sh(sandbox, "analyze", "cd /root && python3 analysis.py", 180_000);
+  const analysisOut = (
+    await sandbox.sh("cd /root && python3 analysis.py", { label: "analyze", timeoutMs: 180_000 })
+  ).result.stdout;
   console.log("\n── analysis summary ──────────────────────────────────────────");
   console.log(
     analysisOut

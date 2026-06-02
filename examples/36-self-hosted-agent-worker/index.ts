@@ -20,6 +20,10 @@ import { readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { Sandbox } from "fc-sandbox-sdk";
 
+// Keep in sync with examples/3{6,7}/index.ts — paired teaching example.
+// The credential loader, create-retry wrapper, constants, and PROMPT below are
+// byte-identical between the two; only the dispatch logic differs.
+
 // ── Managed Agents credentials ────────────────────────────────────────────
 // Managed Agents talks to the real Anthropic API. The shared examples `.env`
 // (symlinked from ../.env) points ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN at
@@ -98,14 +102,6 @@ const PROMPT =
 const { apiKey, environmentId, environmentKey } = loadAnt();
 const anthropic = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL });
 
-async function sh(sandbox: Sandbox, cmd: string, timeoutMs = 120_000): Promise<string> {
-  const r = await sandbox.runCommand("bash", ["-lc", cmd], { timeoutMs });
-  if (r.result.exit_code !== 0) {
-    throw new Error(`command failed (exit ${r.result.exit_code}): ${cmd}\n${r.result.stderr}`);
-  }
-  return r.result.stdout;
-}
-
 // One long-lived FC microVM is the self-hosted execution boundary. The worker
 // inside it claims every session assigned to the environment and runs the
 // agent's tool calls locally — agent code, files and egress never leave FC.
@@ -126,26 +122,25 @@ console.log(`      sandbox ${sandbox.id} @ ${sandbox.ip}`);
 
 try {
   console.log(`[2/6] installing ant CLI v${ANT_VERSION} inside the sandbox…`);
-  const ver = await sh(
-    sandbox,
+  const { result: ver } = await sandbox.sh(
     `set -e
 mkdir -p ${WORKDIR}
 arch=$(uname -m); case "$arch" in x86_64) a=amd64;; aarch64) a=arm64;; *) a=$arch;; esac
 curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT_VERSION}/ant_${ANT_VERSION}_linux_$a.tar.gz" | tar -xz -C /usr/local/bin ant
 ant --version`,
-    180_000,
+    { timeoutMs: 180_000 },
   );
-  console.log(`      ${ver.trim()}`);
+  console.log(`      ${ver.stdout.trim()}`);
 
   console.log("[3/6] starting always-on worker (ant beta:worker poll) in background…");
   // devbox has no systemd: daemonize with nohup setsid and detach stdio.
-  await sh(
-    sandbox,
+  await sandbox.sh(
     `nohup setsid ant beta:worker poll --workdir ${WORKDIR} --log-format text ` +
       `> /tmp/worker.log 2>&1 < /dev/null & sleep 3; echo "worker pid $!"`,
   );
-  const log = await sh(sandbox, "cat /tmp/worker.log 2>/dev/null || true");
-  if (log.trim()) console.log(`      worker log: ${log.trim().split("\n").slice(-3).join(" | ")}`);
+  const { result: log } = await sandbox.sh("cat /tmp/worker.log 2>/dev/null || true");
+  if (log.stdout.trim())
+    console.log(`      worker log: ${log.stdout.trim().split("\n").slice(-3).join(" | ")}`);
 
   console.log("[4/6] creating agent + session bound to the self-hosted environment…");
   const agent = await anthropic.beta.agents.create({
@@ -200,5 +195,7 @@ ant --version`,
   for (const line of report.trimEnd().split("\n")) console.log(`      ${line}`);
 } finally {
   console.log("\ncleanup: destroying sandbox…");
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
 }

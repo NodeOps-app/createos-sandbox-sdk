@@ -72,17 +72,6 @@ function splitEvenly<T>(items: T[], parts: number): T[][] {
   return shards;
 }
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${sb.id} ${label}] exit=${result.exit_code}`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-1500));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-1500));
-    throw new Error(`${label} failed on ${sb.id} (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
-
 // One-shot back-off retry for the shared cap / transient 5xx case. Backs off
 // and retries a few times; never destroys sandboxes it did not create.
 async function createWithRetry(name: string): Promise<Sandbox> {
@@ -122,16 +111,12 @@ async function createWithRetry(name: string): Promise<Sandbox> {
 // poll a marker file so we never hold one /exec open long enough to trip an
 // upstream gateway timeout.
 async function installDeps(sb: Sandbox) {
-  await sh(
-    sb,
-    "apt",
+  await sb.sh(
     "apt-get update -qq && " +
       "apt-get install -y --no-install-recommends python3 python3-pip ca-certificates >/dev/null",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
-  await sh(
-    sb,
-    "pip-launch",
+  await sb.sh(
     "cat >/root/install.sh <<'SH'\n" +
       "#!/bin/bash\n" +
       "set -e\n" +
@@ -145,28 +130,27 @@ async function installDeps(sb: Sandbox) {
       "chmod +x /root/install.sh\n" +
       "nohup setsid bash /root/install.sh >/root/install.log 2>&1 </dev/null &\n" +
       "sleep 1; echo launched",
+    { label: "pip-launch" },
   );
   const deadline = Date.now() + 900_000;
   while (Date.now() < deadline) {
-    const probe = await sh(
-      sb,
-      "pip-poll",
+    const { result: probe } = await sb.sh(
       "if [ -f /root/install.done ]; then echo done; " +
         "elif pgrep -f install.sh >/dev/null; then echo running; " +
         "else echo dead; fi; " +
         "tail -1 /root/install.log 2>/dev/null || true",
-      30_000,
+      { label: "pip-poll", timeoutMs: 30_000 },
     );
-    const state = probe.split("\n")[0]?.trim();
+    const state = probe.stdout.split("\n")[0]?.trim();
     if (state === "done") return;
     if (state === "dead") {
-      const log = await sh(sb, "install-log", "tail -60 /root/install.log");
-      throw new Error(`pip install died on ${sb.id}:\n${log}`);
+      const { result: log } = await sb.sh("tail -60 /root/install.log", { label: "install-log" });
+      throw new Error(`pip install died on ${sb.id}:\n${log.stdout}`);
     }
     await new Promise((r) => setTimeout(r, 15_000));
   }
-  const log = await sh(sb, "install-log", "tail -80 /root/install.log");
-  throw new Error(`pip install did not finish within 15 min on ${sb.id}:\n${log}`);
+  const { result: log } = await sb.sh("tail -80 /root/install.log", { label: "install-log" });
+  throw new Error(`pip install did not finish within 15 min on ${sb.id}:\n${log.stdout}`);
 }
 
 // Prepare a sandbox: install deps, upload infer.py + this shard's reviews, and
@@ -177,24 +161,21 @@ async function prepareSandbox(sb: Sandbox, shardIndex: number, shard: Review[], 
   await sb.files.upload("/root/infer.py", inferSrc);
   await sb.files.upload("/root/shard.json", JSON.stringify(shard));
   console.log(`  [shard ${shardIndex}] ${sb.id}: pre-pulling model ${MODEL}…`);
-  await sh(
-    sb,
-    "warm",
+  await sb.sh(
     'python3 -c "from transformers import pipeline; ' +
       `pipeline('sentiment-analysis', model='${MODEL}', device=-1)('warmup')"`,
-    600_000,
+    { label: "warm", timeoutMs: 600_000 },
   );
 }
 
 // Run one shard and parse the single JSON object infer.py prints. Tolerate any
 // incidental leading output by parsing from the first '{'.
 async function runShard(sb: Sandbox, shardIndex: number): Promise<ShardResult> {
-  const out = await sh(
-    sb,
-    "infer",
-    `cd /root && python3 infer.py shard.json ${shardIndex}`,
-    300_000,
-  );
+  const { result } = await sb.sh(`cd /root && python3 infer.py shard.json ${shardIndex}`, {
+    label: "infer",
+    timeoutMs: 300_000,
+  });
+  const out = result.stdout;
   const start = out.indexOf("{");
   if (start < 0) throw new Error(`no JSON in infer.py output on ${sb.id}: ${out.slice(0, 200)}`);
   return JSON.parse(out.slice(start)) as ShardResult;

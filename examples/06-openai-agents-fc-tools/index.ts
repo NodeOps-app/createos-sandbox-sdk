@@ -11,7 +11,7 @@
  * Needs: FC_BASE_URL + FC_API_KEY. OPENAI_API_KEY is optional (external service:
  *        OpenAI / any OpenAI-compatible endpoint); without it the local model runs.
  */
-import type { Model, ModelRequest, ModelResponse } from "@openai/agents";
+import type { Model } from "@openai/agents";
 import { Sandbox } from "fc-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
@@ -19,89 +19,17 @@ import { z } from "zod";
 // Hydrate env from the shared examples/.env (../.env from this dir) before
 // anything reads process.env. See loadParentEnvFallback at the bottom.
 loadParentEnvFallback();
+if (!process.env.FC_BASE_URL || !process.env.FC_API_KEY) {
+  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+}
 process.env.OPENAI_AGENTS_DISABLE_TRACING ??= "true";
 
 // Dynamic import: the env (incl. tracing flag) must be set before the SDK loads.
-const { Agent, OpenAIProvider, Runner, Usage, tool } = await import("@openai/agents");
+const { Agent, OpenAIProvider, Runner, tool } = await import("@openai/agents");
 
 const WORKDIR = "/root/openai-agents-fc";
 const SCRIPT_PATH = `${WORKDIR}/agent_task.py`;
 const MODEL = process.env.OPENAI_MODEL ?? process.env.LLM_MODEL ?? "gpt-4.1-mini";
-
-// Deterministic offline stand-in for an LLM: implements the Model interface and
-// returns a fixed tool-call script, so the example runs (and the FC tool path is
-// exercised) without an OpenAI key. Each getResponse call advances one step.
-class ScriptedWorkspaceModel implements Model {
-  #step = 0;
-
-  async getResponse(_request: ModelRequest): Promise<ModelResponse> {
-    this.#step += 1;
-
-    // Step 1: ask to list the workspace.
-    if (this.#step === 1) {
-      return functionCall("call_list_workspace", "list_workspace", {});
-    }
-
-    // Step 2: emit the Python that computes the prime-Fibonacci answer.
-    if (this.#step === 2) {
-      return functionCall("call_run_python", "run_python", {
-        code: [
-          "import json",
-          "from pathlib import Path",
-          "numbers = [int(line) for line in Path('numbers.txt').read_text().splitlines() if line.strip()]",
-          "def is_prime(n):",
-          "    if n < 2:",
-          "        return False",
-          "    d = 2",
-          "    while d * d <= n:",
-          "        if n % d == 0:",
-          "            return False",
-          "        d += 1",
-          "    return True",
-          "def is_fibonacci(n):",
-          "    a, b = 0, 1",
-          "    while b < n:",
-          "        a, b = b, a + b",
-          "    return n in (0, b)",
-          "answer = {",
-          "    'prime_fibonacci_numbers': [n for n in numbers if is_prime(n) and is_fibonacci(n)],",
-          "}",
-          "answer['count'] = len(answer['prime_fibonacci_numbers'])",
-          "Path('answer.json').write_text(json.dumps(answer, indent=2) + '\\n')",
-          "print(json.dumps(answer))",
-        ].join("\n"),
-      });
-    }
-
-    // Step 3: read the answer file back.
-    if (this.#step === 3) {
-      return functionCall("call_read_answer", "read_workspace_file", {
-        relativePath: "answer.json",
-      });
-    }
-
-    // Step 4+: no more tool calls — return the final text answer to end the run.
-    return message(
-      "answer.json confirms 7 prime Fibonacci numbers: 2, 3, 5, 13, 89, 233, and 1597.",
-    );
-  }
-
-  // The Runner used here is non-streaming; this stub satisfies the interface and
-  // throws if anything ever asks the local model to stream.
-  getStreamedResponse(_request: ModelRequest): AsyncIterable<never> {
-    const error = new Error("Streaming is not implemented for the deterministic local model.");
-
-    return {
-      [Symbol.asyncIterator](): AsyncIterator<never> {
-        return {
-          async next(): Promise<IteratorResult<never>> {
-            throw error;
-          },
-        };
-      },
-    };
-  }
-}
 
 // Pick the model: real OpenAI provider when a key is present, else the offline
 // scripted model. With a custom base URL we default to the Chat Completions API
@@ -117,11 +45,13 @@ const model: Model = process.env.OPENAI_API_KEY
         process.env.OPENAI_API_URL
       ),
     }).getModel(MODEL)
-  : new ScriptedWorkspaceModel();
+  : // Dynamic import: scripted-model.ts statically imports @openai/agents, so
+    // loading it here (after the tracing flag is set above) keeps the load order.
+    new (await import("./scripted-model.ts")).ScriptedWorkspaceModel();
 
 // 1. Create the workspace sandbox — this VM is the agent's filesystem.
 const sandbox = await Sandbox.create({
-  shape: "s-1vcpu-256mb",
+  shape: "s-2vcpu-2gb", // agent workloads need real RAM
   rootfs: "devbox:1",
 });
 
@@ -288,44 +218,12 @@ function loadParentEnvFallback(): void {
   if (!existsSync(parentEnv)) return;
 
   for (const line of readFileSync(parentEnv, "utf8").split(/\r?\n/)) {
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
+    const match = line.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
     if (!match) continue;
     const [, key, rawValue] = match;
     if (process.env[key] !== undefined) continue;
     process.env[key] = rawValue.replace(/^(["'])(.*)\1$/, "$2");
   }
-}
-
-// Builds an Agents-SDK ModelResponse that requests a tool call — the shape the
-// scripted model returns to invoke a tool.
-function functionCall(callId: string, name: string, args: Record<string, unknown>): ModelResponse {
-  return {
-    usage: new Usage({ requests: 1 }),
-    output: [
-      {
-        type: "function_call",
-        callId,
-        name,
-        arguments: JSON.stringify(args),
-        status: "completed",
-      },
-    ],
-  };
-}
-
-// Builds a ModelResponse carrying a final assistant message — ends the run.
-function message(text: string): ModelResponse {
-  return {
-    usage: new Usage({ requests: 1 }),
-    output: [
-      {
-        type: "message",
-        role: "assistant",
-        status: "completed",
-        content: [{ type: "output_text", text }],
-      },
-    ],
-  };
 }
 
 type CommandResult = {

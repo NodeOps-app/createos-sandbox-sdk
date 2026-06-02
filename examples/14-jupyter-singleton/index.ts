@@ -19,7 +19,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FcClient, FcTimeoutError, type Sandbox } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const daemonSrc = await readFile(join(here, "kernel_daemon.py"));
@@ -51,15 +51,30 @@ async function withCapRetry<T>(label: string, fn: () => Promise<T>): Promise<T> 
   }
 }
 
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 180_000) {
-  const { result } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${sb.id} ${label}] exit=${result.exit_code}`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-1200));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-1200));
-    throw new Error(`${label} failed on ${sb.id} (exit ${result.exit_code})`);
+// Create the parent sandbox, retrying through the shared-capacity /
+// transient-5xx errors that surface when the account's concurrency cap is
+// full (mirrors the sibling examples' 6-attempt policy).
+async function createWithRetry() {
+  const suffix = (Date.now() % 1_000_000).toString();
+  const opts = { shape: SHAPE, rootfs: ROOTFS, name: `jup-${suffix}` };
+  const maxAttempts = 6;
+  for (let i = 1; i <= maxAttempts; i++) {
+    try {
+      return await fc.createSandbox(opts);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const retriable =
+        err instanceof FcValidationError ||
+        /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
+      if (!retriable || i === maxAttempts) throw err;
+      const wait = 30_000 * i;
+      console.warn(
+        `create attempt ${i}/${maxAttempts} failed (${msg.slice(0, 80)}); waiting ${wait / 1000}s…`,
+      );
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
-  return result.stdout;
+  throw new Error("unreachable");
 }
 
 async function installAndBoot(sb: Sandbox) {
@@ -67,9 +82,7 @@ async function installAndBoot(sb: Sandbox) {
   // enough — no apt-get, no pip, no extra packages.
   await sb.files.upload("/tmp/kernel_daemon.py", daemonSrc);
   await sb.files.upload("/tmp/cell_client.py", clientSrc);
-  await sh(
-    sb,
-    "boot-daemon",
+  await sb.sh(
     "set -e; rm -f /tmp/kernel.ready /tmp/kernel.sock; " +
       "nohup setsid python3 /tmp/kernel_daemon.py </dev/null >/tmp/kernel.log 2>&1 & " +
       // Spin until the daemon writes its ready marker.
@@ -78,6 +91,7 @@ async function installAndBoot(sb: Sandbox) {
       "  sleep 0.2; " +
       "done; " +
       "echo 'kernel never became ready'; tail -100 /tmp/kernel.log; exit 1",
+    { label: "boot-daemon" },
   );
 }
 
@@ -85,11 +99,11 @@ async function cell(sb: Sandbox, code: string): Promise<CellReply> {
   // Pipe the cell source through the client shim, which talks to the
   // long-lived daemon on /tmp/kernel.sock. The daemon's reply is JSON.
   const b64 = Buffer.from(code, "utf8").toString("base64");
-  const out = await sh(
-    sb,
-    "cell",
-    `set -e; echo '${b64}' | base64 -d | python3 /tmp/cell_client.py`,
-  );
+  const out = (
+    await sb.sh(`set -e; echo '${b64}' | base64 -d | python3 /tmp/cell_client.py`, {
+      label: "cell",
+    })
+  ).result.stdout;
   const trimmed = out.trim();
   if (!trimmed) throw new Error("empty reply from kernel daemon");
   return JSON.parse(trimmed) as CellReply;
@@ -142,10 +156,7 @@ async function runOnFork(parent: Sandbox, label: string, code: string): Promise<
   }
 }
 
-const suffix = (Date.now() % 1_000_000).toString();
-const parent = await withCapRetry("createSandbox", () =>
-  fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS, name: `jup-${suffix}` }),
-);
+const parent = await createWithRetry();
 console.log(`parent created: ${parent.id}`);
 
 try {

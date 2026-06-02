@@ -11,8 +11,7 @@
  */
 
 import { readFile } from "node:fs/promises";
-import type { Sandbox } from "fc-sandbox-sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
@@ -28,17 +27,6 @@ if (!baseUrl || !apiKey) {
 }
 
 const fc = new FcClient({ baseUrl, apiKey });
-
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
 
 // The ASGI app lives in ./app.py (committed beside this example); we read it
 // here and upload it into the sandbox below.
@@ -57,42 +45,44 @@ console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 // Build the ingress URL before entering try so we can log it even if setup fails.
 // The template yields https://<ulid>-<port>.<region>.<domain>.
-// Downgrade to http:// — the wildcard TLS cert is not yet provisioned;
+// Request http:// — the wildcard TLS cert is not yet provisioned;
 // http:// is forward-compatible once TLS lands.
-const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
+const previewUrl = sandbox.previewUrl(PORT, { scheme: "http" });
 console.log(`      preview URL: ${previewUrl}`);
 
 try {
   // 2. Install python3-venv (devbox:1 ships Python but not the venv module).
   console.log("[2/6] installing python3-venv (apt-get)...");
-  await sh(
-    sandbox,
-    "apt",
+  await sandbox.sh(
     "apt-get update -qq && apt-get install -y --no-install-recommends python3-venv",
-    300_000,
+    { label: "apt", timeoutMs: 300_000 },
   );
 
   // 3. Create a venv and install the app's deps into it.
   console.log("[3/6] creating venv + installing fastapi + uvicorn...");
-  await sh(
-    sandbox,
-    "pip",
+  await sandbox.sh(
     "python3 -m venv /opt/venv && /opt/venv/bin/pip install --quiet fastapi uvicorn",
-    300_000,
+    { label: "pip", timeoutMs: 300_000 },
   );
 
-  const pythonVer = (await sh(sandbox, "python-ver", "/opt/venv/bin/python --version")).trim();
+  const pythonVer = (
+    await sandbox.sh("/opt/venv/bin/python --version", { label: "python-ver" })
+  ).result.stdout.trim();
   const fastapiVer = (
-    await sh(sandbox, "fastapi-ver", "/opt/venv/bin/pip show fastapi | awk '/^Version/{print $2}'")
-  ).trim();
+    await sandbox.sh("/opt/venv/bin/pip show fastapi | awk '/^Version/{print $2}'", {
+      label: "fastapi-ver",
+    })
+  ).result.stdout.trim();
   const uvicornVer = (
-    await sh(sandbox, "uvicorn-ver", "/opt/venv/bin/pip show uvicorn | awk '/^Version/{print $2}'")
-  ).trim();
+    await sandbox.sh("/opt/venv/bin/pip show uvicorn | awk '/^Version/{print $2}'", {
+      label: "uvicorn-ver",
+    })
+  ).result.stdout.trim();
   console.log(`      ${pythonVer}, fastapi ${fastapiVer}, uvicorn ${uvicornVer}`);
 
   // 4. Upload the app as main.py so uvicorn's `main:app` import target resolves.
   console.log("[4/6] uploading app.py...");
-  await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}`);
+  await sandbox.sh(`mkdir -p ${APP_DIR}`, { label: "mkdir" });
   await sandbox.files.upload(`${APP_DIR}/main.py`, appSrc);
 
   // 5. Start uvicorn as a daemon.
@@ -101,12 +91,11 @@ try {
   // Bind 0.0.0.0 so the ingress proxy can reach the server (127.0.0.1 only
   // reaches through the agent tunnel).
   console.log(`[5/6] starting uvicorn on port ${PORT} (daemonised)...`);
-  await sh(
-    sandbox,
-    "boot",
+  await sandbox.sh(
     `cd ${APP_DIR} && rm -f uvicorn.log; ` +
       `nohup setsid /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port ${PORT} ` +
       `>uvicorn.log 2>&1 </dev/null & sleep 1; echo launched`,
+    { label: "boot" },
   );
 
   // 6. Wait for the port, then verify both routes over the public ingress URL.
@@ -116,26 +105,32 @@ try {
 
   // Poll the ingress URL until uvicorn serves real responses.
   // Ingress routing may take a moment to propagate after waitForPortReady.
-  const deadline = Date.now() + 60_000;
   let rootBody = "";
   let rootStatus = 0;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${previewUrl}/`, { signal: AbortSignal.timeout(10_000) });
-      rootStatus = res.status;
-      rootBody = await res.text();
-      if (res.ok && rootBody.includes("status")) break;
-    } catch {
-      // ingress propagation still in flight — keep polling
-    }
-    await new Promise((r) => setTimeout(r, 2_000));
-  }
-
-  if (!rootBody.includes("status")) {
-    const log = await sh(sandbox, "log", `tail -40 ${APP_DIR}/uvicorn.log`);
+  try {
+    await pollUntil({
+      poll: async () => {
+        try {
+          const res = await fetch(`${previewUrl}/`, { signal: AbortSignal.timeout(10_000) });
+          rootStatus = res.status;
+          rootBody = await res.text();
+          return res.ok && rootBody.includes("status");
+        } catch {
+          // ingress propagation still in flight — keep polling
+          return false;
+        }
+      },
+      done: (ready) => ready,
+      timeoutMs: 60_000,
+    });
+  } catch (err) {
+    if (!(err instanceof FcTimeoutError)) throw err;
+    const log = (await sandbox.sh(`tail -40 ${APP_DIR}/uvicorn.log`, { label: "log" })).result
+      .stdout;
     throw new Error(
       `GET / never returned a JSON body (last HTTP ${rootStatus}).\n` +
         `Body: ${rootBody.slice(0, 300)}\nuvicorn log:\n${log}`,
+      { cause: err },
     );
   }
 

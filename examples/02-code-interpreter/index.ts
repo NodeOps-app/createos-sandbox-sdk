@@ -9,12 +9,9 @@
  */
 import { Sandbox } from "fc-sandbox-sdk";
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 // 1. Read the script off the local disk, next to this file (not from cwd).
-const here = dirname(fileURLToPath(import.meta.url));
-const script = await readFile(join(here, "script.py"));
+const script = await readFile(new URL("./script.py", import.meta.url));
 
 // 2. Create the sandbox. 1 GB shape — Python's interpreter wants more than the
 //    256 MB used by the trivial examples.
@@ -34,6 +31,8 @@ try {
   console.log(`(exited ${result.exit_code})`);
 } finally {
   // 4. Always destroy.
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("destroyed");
 }

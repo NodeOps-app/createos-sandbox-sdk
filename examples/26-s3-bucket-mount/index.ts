@@ -28,23 +28,11 @@ const DUCKDB_VERSION = "v1.5.3";
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 
+if (!process.env.FC_API_KEY) throw new Error("set FC_API_KEY (see .env.example)");
+
 const baseUrl = process.env.FC_BASE_URL;
 const fcOptions = baseUrl ? { baseUrl } : {};
 const fc = new FcClient(fcOptions);
-
-async function sh(
-  sandbox: Awaited<ReturnType<typeof fc.createSandbox>>,
-  label: string,
-  script: string,
-  timeoutMs = 120_000,
-) {
-  const { result } = await sandbox.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    const detail = [result.stdout, result.stderr].filter(Boolean).join("\n").slice(0, 1500);
-    throw new Error(`[${label}] exit=${result.exit_code}\n${detail}`);
-  }
-  return result.stdout.trim();
-}
 
 // 1. Create the sandbox. No ingress needed — this example only reaches outward.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
@@ -54,9 +42,7 @@ console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 try {
   // 2. Install the DuckDB CLI inside the VM.
   console.log(`[2/6] installing DuckDB ${DUCKDB_VERSION} + httpfs extension...`);
-  await sh(
-    sandbox,
-    "install-duckdb",
+  await sandbox.sh(
     [
       "apt-get update -qq",
       "apt-get install -y -qq curl ca-certificates",
@@ -64,9 +50,10 @@ try {
       "chmod +x /usr/local/bin/duckdb",
       "duckdb --version",
     ].join(" && "),
-    300_000,
+    { label: "install-duckdb", timeoutMs: 300_000 },
   );
-  const version = await sh(sandbox, "version", "duckdb --version");
+  const { result: versionResult } = await sandbox.sh("duckdb --version", { label: "version" });
+  const version = versionResult.stdout.trim();
   console.log(`      installed: ${version}`);
 
   // 3. Upload the SQL transformation models.
@@ -152,9 +139,12 @@ SET s3_secret_access_key='';
   );
   console.log(`      (downloading ~${YEARS.length * 8} MB of parquet from S3 — allow ~60 s)`);
 
-  const pipelineOutput = await sh(sandbox, "pipeline", "duckdb < /tmp/driver.sql", 180_000);
+  const { result: pipelineResult } = await sandbox.sh("duckdb < /tmp/driver.sql", {
+    label: "pipeline",
+    timeoutMs: 180_000,
+  });
   console.log("\n── temperature trend report ────────────────────────────────────────");
-  console.log(pipelineOutput);
+  console.log(pipelineResult.stdout.trim());
 
   // 5. Export the result to parquet in the VM, then download it to the host.
   // Write a separate export script so we don't need complex shell quoting.
@@ -162,7 +152,7 @@ SET s3_secret_access_key='';
   const exportSql =
     duckdbPreamble + "COPY (SELECT * FROM rpt_trend) TO '/tmp/trend.parquet' (FORMAT PARQUET);\n";
   await sandbox.files.upload("/tmp/export.sql", exportSql);
-  await sh(sandbox, "export-parquet", "duckdb < /tmp/export.sql", 180_000);
+  await sandbox.sh("duckdb < /tmp/export.sql", { label: "export-parquet", timeoutMs: 180_000 });
 
   const parquetBuf = await sandbox.files.download("/tmp/trend.parquet");
   const localOut = new URL("./trend.parquet", import.meta.url).pathname;
@@ -176,6 +166,8 @@ SET s3_secret_access_key='';
   console.log(`  DuckDB    : ${version}`);
   console.log(`  Output    : trend.parquet (${parquetBuf.byteLength} bytes)`);
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`\ndestroyed: ${sandbox.id}`);
 }

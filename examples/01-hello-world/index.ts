@@ -11,6 +11,7 @@ import { Sandbox } from "fc-sandbox-sdk";
 // 1. Create. Sandbox.create is the client-less factory — it builds the FcClient
 //    from FC_BASE_URL / FC_API_KEY and does not resolve until the VM is `running`.
 const sandbox = await Sandbox.create({
+  // smallest shape — this smoke test runs a single command
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
 });
@@ -27,6 +28,8 @@ try {
 } finally {
   // 3. Tear down. try/finally guarantees the VM is destroyed even if a command
   //    throws — otherwise the sandbox would keep billing.
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("destroyed");
 }

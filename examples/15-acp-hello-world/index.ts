@@ -86,6 +86,8 @@ try {
     console.log(`stop reason: ${parsed.stopReason}`);
   }
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log(`\nsandbox destroyed: ${sandbox.id}`);
 }

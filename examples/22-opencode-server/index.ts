@@ -12,8 +12,7 @@
  *        provider config so the in-VM server can reach an LLM.
  */
 
-import type { Sandbox } from "fc-sandbox-sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb"; // opencode + npm install need real RAM
 const ROOTFS = "devbox:1"; // ships Node 24 + npm
@@ -35,17 +34,6 @@ const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropi
 const anthropicModel = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
 
 const fc = new FcClient({ baseUrl, apiKey });
-
-async function sh(sb: Sandbox, label: string, script: string, timeoutMs = 120_000) {
-  const { result, exec_ms } = await sb.runCommand("bash", ["-lc", script], { timeoutMs });
-  if (result.exit_code !== 0) {
-    console.log(`[${label}] exit=${result.exit_code} (${exec_ms} ms)`);
-    if (result.stdout) console.log("  stdout:", result.stdout.slice(-2000));
-    if (result.stderr) console.log("  stderr:", result.stderr.slice(-2000));
-    throw new Error(`${label} failed (exit ${result.exit_code})`);
-  }
-  return result.stdout;
-}
 
 // opencode.json configures the Anthropic provider with API key + base URL.
 // The {env:...} interpolation is resolved by opencode at startup from the
@@ -78,21 +66,26 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 // Build the ingress base URL. The template yields https://<ulid>-<port>.<region>.<domain>;
-// downgrade to http:// — TLS cert is not yet provisioned, http:// is forward-compatible.
-const previewUrl = sandbox.previewUrl(PORT).replace(/^https:/, "http:");
+// request http:// — TLS cert is not yet provisioned, http:// is forward-compatible.
+const previewUrl = sandbox.previewUrl(PORT, { scheme: "http" });
 console.log(`      preview URL (port ${PORT}): ${previewUrl}`);
 
 try {
   // 2. Write opencode's provider config into the working dir.
   console.log("[2/6] creating workspace and writing opencode config...");
-  await sh(sandbox, "mkdir", `mkdir -p ${APP_DIR}`);
+  await sandbox.sh(`mkdir -p ${APP_DIR}`, { label: "mkdir" });
   await sandbox.files.upload(`${APP_DIR}/opencode.json`, opencodeConfig);
 
   // 3. Install the opencode CLI inside the VM.
   console.log("[3/6] installing opencode-ai (npm install -g)...");
   // devbox:1 ships Node 24 + npm; npm i -g is the most reliable install path.
-  await sh(sandbox, "npm-install", "npm install -g opencode-ai --no-audit --no-fund 2>&1", 600_000);
-  const version = (await sh(sandbox, "opencode-version", "opencode --version 2>&1 || true")).trim();
+  await sandbox.sh("npm install -g opencode-ai --no-audit --no-fund 2>&1", {
+    label: "npm-install",
+    timeoutMs: 600_000,
+  });
+  const version = (
+    await sandbox.sh("opencode --version 2>&1 || true", { label: "opencode-version" })
+  ).result.stdout.trim();
   console.log(`      opencode ${version}`);
 
   // devbox:1 has no systemd — daemonise with nohup/setsid and redirect stdio
@@ -102,12 +95,11 @@ try {
   // on the forked process's stdout pipe.
   // 4. Start the server as a daemon (see the nohup/hostname notes above).
   console.log(`[4/6] starting opencode serve on port ${PORT} (daemonised)...`);
-  await sh(
-    sandbox,
-    "serve",
+  await sandbox.sh(
     `cd ${APP_DIR} && rm -f opencode.log; ` +
       `nohup setsid opencode serve --hostname 0.0.0.0 --port ${PORT} ` +
       `>opencode.log 2>&1 </dev/null & sleep 1; echo launched`,
+    { label: "serve" },
   );
 
   // 5. Wait for the in-VM port before reaching it over ingress.
@@ -120,42 +112,43 @@ try {
   // with valid JSON containing { healthy: true }. Ingress routing propagation
   // and opencode startup can take a moment, so poll with a deadline.
   console.log("[6/6] polling GET /global/health through ingress until healthy...");
-  const deadline = Date.now() + 120_000;
-  let healthy = false;
   let lastBody = "";
   let lastStatus = 0;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${previewUrl}/global/health`, {
-        signal: AbortSignal.timeout(10_000),
-      });
-      lastStatus = res.status;
-      lastBody = await res.text();
-      if (res.ok) {
-        const json = JSON.parse(lastBody) as { healthy?: boolean; version?: string };
-        if (json.healthy === true) {
-          healthy = true;
-          console.log(`\n── /global/health (HTTP ${lastStatus}) ─────────────────────────`);
-          console.log(`  healthy: ${json.healthy}`);
-          console.log(`  version: ${json.version ?? "(not reported)"}`);
-          console.log(`  body:    ${lastBody.trim()}`);
-          break;
+  try {
+    const health = await pollUntil<{ healthy?: boolean; version?: string } | undefined>({
+      poll: async () => {
+        try {
+          const res = await fetch(`${previewUrl}/global/health`, {
+            signal: AbortSignal.timeout(10_000),
+          });
+          lastStatus = res.status;
+          lastBody = await res.text();
+          if (res.ok) {
+            return JSON.parse(lastBody) as { healthy?: boolean; version?: string };
+          }
+        } catch {
+          // ingress propagation or server still starting — keep polling
         }
-      }
-    } catch {
-      // ingress propagation or server still starting — keep polling
-    }
-    await new Promise((r) => setTimeout(r, 3_000));
-  }
-
-  if (!healthy) {
-    const log = await sh(sandbox, "opencode-log", `tail -60 ${APP_DIR}/opencode.log`).catch(
-      () => "(log unavailable)",
-    );
+        return undefined;
+      },
+      done: (json) => json?.healthy === true,
+      timeoutMs: 120_000,
+    });
+    console.log(`\n── /global/health (HTTP ${lastStatus}) ─────────────────────────`);
+    console.log(`  healthy: ${health?.healthy}`);
+    console.log(`  version: ${health?.version ?? "(not reported)"}`);
+    console.log(`  body:    ${lastBody.trim()}`);
+  } catch (err) {
+    if (!(err instanceof FcTimeoutError)) throw err;
+    const log = await sandbox
+      .sh(`tail -60 ${APP_DIR}/opencode.log`, { label: "opencode-log" })
+      .then((r) => r.result.stdout)
+      .catch(() => "(log unavailable)");
     throw new Error(
       `opencode health endpoint never returned { healthy: true } ` +
         `(last HTTP ${lastStatus}). Body: ${lastBody.slice(0, 300)}\n` +
         `Server log:\n${log}`,
+      { cause: err },
     );
   }
 

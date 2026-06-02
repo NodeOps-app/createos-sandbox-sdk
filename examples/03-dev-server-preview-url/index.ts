@@ -11,6 +11,7 @@ import { Sandbox } from "fc-sandbox-sdk";
 // 1. Create with ingress on. ingress_enabled provisions a public hostname that
 //    proxies to a port inside the VM; without it previewUrl has nothing to route.
 const sandbox = await Sandbox.create({
+  // tiny shape on purpose — this smoke test only serves a static page
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
   ingress_enabled: true,
@@ -43,6 +44,8 @@ try {
   process.stdout.write(await res.text());
 } finally {
   // 5. Always destroy.
-  await sandbox.destroy();
+  await sandbox.destroy().catch((err) => {
+    console.error(`cleanup: destroy failed: ${err instanceof Error ? err.message : String(err)}`);
+  });
   console.log("destroyed");
 }

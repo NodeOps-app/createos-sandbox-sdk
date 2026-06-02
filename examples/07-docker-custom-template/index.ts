@@ -9,7 +9,7 @@
  *        below to a real fc-spawn base image — the default is a placeholder. The
  *        in-VM `docker run` steps also need network egress to pull images.
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { FcClient, pollUntil } from "fc-sandbox-sdk";
 
 // Unique name per run so repeated runs don't collide on an existing template.
 const TEMPLATE_NAME = `docker-ce-${Date.now()}`;
@@ -51,18 +51,17 @@ try {
     // stream may close before a final event; confirm status via poll below
   }
 
-  // Poll to a terminal status: the log stream can close before the `final`
-  // event arrives, so the build result is confirmed here rather than trusted
-  // from the stream alone.
-  // Confirm status via direct API call — the stream may not deliver a final event.
-  let { status } = await fc.templates.get(tmpl.id);
-  while (status === "pending" || status === "building") {
-    await new Promise<void>((r) => setTimeout(r, 3_000));
-    ({ status } = await fc.templates.get(tmpl.id));
-  }
-  if (status !== "ready") {
-    throw new Error(`template build failed (${status}): see build logs above`);
-  }
+  // Poll for terminal status — the log stream may close before the final event arrives.
+  // The build has no inherent upper bound, so cap the wait at a generous 10 minutes.
+  await pollUntil({
+    poll: () => fc.templates.get(tmpl.id).then((t) => t.status),
+    done: (status) => status === "ready",
+    failed: (status) =>
+      status === "pending" || status === "building"
+        ? undefined
+        : `template build failed (${status}): see build logs above`,
+    timeoutMs: 600_000,
+  });
   console.log(`      template ready: ${tmpl.id}`);
 
   // 3. Boot a sandbox on the freshly built template (rootfs = the template id).
