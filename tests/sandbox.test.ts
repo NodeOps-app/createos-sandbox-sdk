@@ -63,6 +63,46 @@ describe("commands", () => {
     expect(result.result.exit_code).toBe(1);
   });
 
+  test("sh wraps the script in bash -lc and returns the response on success", async () => {
+    let body: { cmd: string; args: string[] } | undefined;
+    const sandbox = await connect((_u, init) => {
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(
+        success({ result: { stdout: "ok\n", stderr: "", exit_code: 0 }, exec_ms: 7 }),
+      );
+    });
+    const out = await sandbox.sh("echo ok");
+    expect(body).toEqual({ cmd: "bash", args: ["-lc", "echo ok"] });
+    expect(out.result.stdout).toBe("ok\n");
+    expect(out.exec_ms).toBe(7);
+  });
+
+  test("sh throws on a non-zero exit, tagging the error with the label", async () => {
+    const sandbox = await connect(() =>
+      Promise.resolve(
+        success({ result: { stdout: "", stderr: "boom", exit_code: 2 }, exec_ms: 4 }),
+      ),
+    );
+    const err = await catchErr(() => sandbox.sh("false", { label: "apt" }));
+    expect(err).toBeInstanceOf(FcError);
+    expect(err.message).toContain("apt: command exited 2");
+    expect(err.message).toContain("boom");
+  });
+
+  test("sh throws when the agent reports a start error despite exit 0", async () => {
+    const sandbox = await connect(() =>
+      Promise.resolve(
+        success({
+          result: { stdout: "", stderr: "", exit_code: 0, error: "exec format error" },
+          exec_ms: 1,
+        }),
+      ),
+    );
+    const err = await catchErr(() => sandbox.sh("./broken"));
+    expect(err).toBeInstanceOf(FcError);
+    expect(err.message).toContain("exec format error");
+  });
+
   test("streamCommand projects NDJSON frames to a typed event union", async () => {
     let url = "";
     const sandbox = await connect((u, init) => {
@@ -180,6 +220,8 @@ describe("ingress", () => {
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
     expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.fc.test");
+    expect(sandbox.previewUrl(8080, { scheme: "https" })).toBe("https://8080-sb_1.fc.test");
+    expect(sandbox.previewUrl(8080, { scheme: "http" })).toBe("http://8080-sb_1.fc.test");
   });
 
   test("previewUrl throws when ingress is not enabled", async () => {

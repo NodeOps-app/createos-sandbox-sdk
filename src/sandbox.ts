@@ -315,6 +315,53 @@ export class Sandbox {
     }
   }
 
+  /**
+   * Runs a shell script inside the sandbox via `bash -lc` and returns its
+   * buffered output, throwing if it exits non-zero. The throw-on-failure
+   * counterpart to {@link Sandbox.runCommand}: use it when a non-zero exit
+   * should abort the caller instead of being inspected by hand. The thrown
+   * `FcError` carries the optional `label`, the exit code, the run duration
+   * and the tail of stdout/stderr.
+   *
+   * @param script - Shell script passed to `bash -lc`; pipes, redirection,
+   *   globbing and `&&` chains all work.
+   * @param options - `label` tags the thrown error; any other
+   *   {@link ExecOptions} (`timeoutMs`, `signal`, `headers`, `retry`) pass
+   *   through to the underlying exec.
+   *
+   * @throws {FcError} when the command exits non-zero or the agent reports a
+   *   start failure.
+   * @throws {FcValidationError} when the command shape is rejected.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.sh("apt-get update -qq && apt-get install -y curl", {
+   *   label: "apt",
+   *   timeoutMs: 300_000,
+   * });
+   * const { result } = await sandbox.sh("cat /etc/os-release");
+   * console.log(result.stdout);
+   */
+  async sh(script: string, options: ExecOptions & { label?: string } = {}): Promise<ExecResponse> {
+    const { label, ...execOptions } = options;
+    const response = await this.runCommand("bash", ["-lc", script], execOptions);
+    const { result, exec_ms } = response;
+    if (result.exit_code !== 0 || result.error) {
+      const tag = label ? `${label}: ` : "";
+      const parts = [`${tag}command exited ${result.exit_code} after ${exec_ms}ms`];
+      if (result.error) parts.push(`error: ${result.error}`);
+      if (result.stdout) parts.push(`stdout: ${result.stdout.slice(-2000)}`);
+      if (result.stderr) parts.push(`stderr: ${result.stderr.slice(-2000)}`);
+      throw new FcError(parts.join("\n"));
+    }
+    return response;
+  }
+
   // ── lifecycle ─────────────────────────────────────────────────────────
 
   /**
@@ -826,14 +873,21 @@ export class Sandbox {
    * Builds the public ingress URL for a port. Only available when the
    * sandbox was created with `ingress_enabled: true`.
    *
+   * @param port - The in-guest port to route to.
+   * @param options - `scheme` overrides the URL scheme; defaults to `https`.
+   *   Pass `"http"` when the ingress TLS certificate is not yet provisioned
+   *   for the sandbox's hostname.
+   *
    * @throws {FcError} when `port` is invalid or ingress is not enabled
    *   for this sandbox.
    *
    * @example
    * const url = sandbox.previewUrl(8080);
    * console.log(url);
+   * // TLS cert may lag on a fresh ingress hostname — force http:
+   * const plain = sandbox.previewUrl(8080, { scheme: "http" });
    */
-  previewUrl(port: number): string {
+  previewUrl(port: number, options: { scheme?: "http" | "https" } = {}): string {
     assertValidPort(port);
     // Guard on current ingress state, not just the cached template — a
     // handle whose ingress was disabled must not hand back a dead URL.
@@ -842,7 +896,8 @@ export class Sandbox {
         "No ingress URL is available. Create the sandbox with ingress_enabled: true.",
       );
     }
-    return this.#ingressUrlTemplate.replace("<port>", String(port));
+    const url = this.#ingressUrlTemplate.replace("<port>", String(port));
+    return options.scheme === "http" ? url.replace(/^https:/, "http:") : url;
   }
 }
 
