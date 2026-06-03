@@ -89,6 +89,11 @@ separate service — contributors with access reconcile these types against
 its handlers; its published OpenAPI spec is **stale** and must not be
 trusted over the live server behavior.
 
+`COMPATIBILITY.md` records the exact control-plane commit the SDK was last
+reconciled against, plus the known wire drift and coverage gaps at that
+commit. Update it whenever you re-reconcile against a newer `fc-spawn`
+`main`.
+
 Known drift to watch for: the spec has omitted `node_selector`,
 `ingress_enabled`, `ingress_url_template`, and `ingress_bytes`, and has
 described `getTemplateLogs` incorrectly. Verify every type against the

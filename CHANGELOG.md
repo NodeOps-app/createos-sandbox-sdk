@@ -18,6 +18,39 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-03
+
+Reconciled against the `fc-spawn` control plane at `main` `52ea6c9` —
+see `COMPATIBILITY.md`.
+
+### Added
+
+- `Sandbox.addSSHPubkeys(keys, options?)` — adds OpenSSH public keys to a
+  live sandbox (`POST /v1/sandboxes/:id/ssh-pubkeys`) and returns the
+  total `ssh_pubkeys` count. Previously keys could only be set at
+  `createSandbox` / `fork` time. Adds the `AddSSHPubkeysRequest` /
+  `AddSSHPubkeysResponse` wire types.
+- `DisksApi.rotateCredentials(idOrName, credentials, options?)` — rotates
+  a registered S3 disk's access/secret key (`PATCH /v1/disks/:id`) and
+  returns the updated `DiskView`.
+- `CreateSandboxRequest.region` — optional region pin at create time.
+  Must equal the control plane's own region (no cross-region routing);
+  omit to use the server default.
+- `Shape.cpu_quota_pct` — the catalog now surfaces a shape's cgroup v2
+  CPU-cap percent when set (`omitempty`; absent = unlimited).
+
+### Changed
+
+- **BREAKING:** `SandboxView.ip` is now optional (`ip?: string`). The
+  control plane omits `ip` (`omitempty`) while a sandbox is still
+  `creating`, so the previous required type could surface `undefined` at
+  runtime. Read it as `sandbox.ip ?? …`, or wait for `running` before
+  relying on it.
+- **BREAKING (types):** response fields that the server sends `omitempty`
+  are now optional to match the wire contract — `HostPublic.rootfses?`,
+  `NetworkMember.ip?`, and `NetworkMember.name?`. Reading them may yield
+  `undefined`.
+
 ## [0.4.0] — 2026-06-03
 
 ### Added

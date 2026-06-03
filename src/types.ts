@@ -150,6 +150,9 @@ export interface Shape {
   mem_mib: number;
   /** Default overlay disk size in MiB when the create request omits `disk_mib`. */
   default_disk_mib: number;
+  /** cgroup v2 cpu.max quota as a percent of one CPU (`omitempty`; absent =
+   *  unlimited). 25 = 0.25 vCPU, 50 = 0.5 vCPU. */
+  cpu_quota_pct?: number;
 }
 
 /** Envelope for `listShapes()`. */
@@ -189,8 +192,8 @@ export interface HostPublic {
   free_mib: number;
   /** Number of sandboxes currently placed on the host. */
   vm_count: number;
-  /** Rootfs images cached on the host. */
-  rootfses: string[];
+  /** Rootfs images cached on the host. Absent (`omitempty`) when none. */
+  rootfses?: string[];
 }
 
 // ── Sandbox lifecycle ───────────────────────────────────────────────────
@@ -229,6 +232,10 @@ export interface CreateSandboxRequest {
   /** Disks to mount into the VM at boot. Each entry references a disk by
    *  id or name and an absolute mount path inside the guest. */
   disks?: DiskAttachment[];
+  /** Pin the sandbox to a region. Omit to use the control plane's own
+   *  configured region. When set it must equal the server's region —
+   *  there is no cross-region routing today, and a mismatch is rejected. */
+  region?: string;
 }
 
 /** How a sandbox booted: restored from a warm snapshot, or a cold start. */
@@ -283,8 +290,9 @@ export type SandboxStatus =
 export interface SandboxView {
   id: string;
   status: SandboxStatus;
-  /** The VM's private IP. */
-  ip: string;
+  /** The VM's private IP. Absent (`omitempty`) until the VM is assigned
+   *  an address — omitted while the sandbox is still `creating`. */
+  ip?: string;
   vcpu: number;
   /** Memory in MiB. */
   mem_mib: number;
@@ -341,6 +349,18 @@ export interface ForkSandboxRequest {
 /** Body of the sandbox PATCH endpoint, used by `Sandbox.setIngress`. */
 export interface PatchSandboxRequest {
   ingress_enabled?: boolean;
+}
+
+/** Body of `Sandbox.addSSHPubkeys` — keys to add to a live sandbox. */
+export interface AddSSHPubkeysRequest {
+  /** OpenSSH-formatted public keys. Keys already present are de-duplicated. */
+  keys: string[];
+}
+
+/** Result of `Sandbox.addSSHPubkeys`. */
+export interface AddSSHPubkeysResponse {
+  /** Total `ssh_pubkeys` on the sandbox after the add. */
+  count: number;
 }
 
 /** Result of `Sandbox.destroy` — the row's status after the destroy call. */
@@ -687,9 +707,11 @@ export interface NetworkCreateRequest {
 export interface NetworkMember {
   sandbox_id: string;
   status: string;
-  /** The member's IP on this overlay network. */
-  ip: string;
-  name: string;
+  /** The member's IP on this overlay network. Absent (`omitempty`) until
+   *  the membership is programmed. */
+  ip?: string;
+  /** The member sandbox's user-facing name, when set (`omitempty`). */
+  name?: string;
 }
 
 /** An overlay network. Returned by the networks endpoints. */

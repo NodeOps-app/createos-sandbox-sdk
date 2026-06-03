@@ -7,6 +7,7 @@ import { FcError, FcTimeoutError } from "./errors.js";
 import { encodePath, type FcHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
 import type {
+  AddSSHPubkeysResponse,
   AttachDiskOptions,
   BandwidthView,
   CreateSandboxOptions,
@@ -200,7 +201,8 @@ export class Sandbox {
     return this.#data.status;
   }
 
-  get ip(): string {
+  /** The VM's private IP, or `undefined` while the sandbox is still `creating`. */
+  get ip(): string | undefined {
     return this.#data.ip;
   }
 
@@ -503,6 +505,30 @@ export class Sandbox {
       this.#ingressUrlTemplate = undefined;
     }
     return this;
+  }
+
+  /**
+   * Adds OpenSSH public keys to this sandbox's authorized set. Keys already
+   * present are de-duplicated server-side. Returns the total `ssh_pubkeys`
+   * count after the add. Unlike `createSandbox({ ssh_pubkeys })`, this works
+   * on a live sandbox.
+   *
+   * @throws {FcValidationError} when a key is not a valid OpenSSH public key.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * const { count } = await sandbox.addSSHPubkeys([pubkey]);
+   */
+  addSSHPubkeys(keys: string[], options: RequestOptions = {}): Promise<AddSSHPubkeysResponse> {
+    return this.#http.request<AddSSHPubkeysResponse>("POST", this.#path("/ssh-pubkeys"), {
+      ...options,
+      body: { keys },
+    });
   }
 
   // ── waiters ───────────────────────────────────────────────────────────

@@ -251,6 +251,23 @@ describe("ingress", () => {
   });
 });
 
+describe("ssh pubkeys", () => {
+  test("addSSHPubkeys POSTs keys and returns the new count", async () => {
+    let pathname = "";
+    let body: { keys: string[] } | undefined;
+    const sandbox = await connect((_url, init, p) => {
+      pathname = p;
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(success({ count: 2 }));
+    });
+    const keys = ["ssh-ed25519 AAAAkey1", "ssh-rsa AAAAkey2"];
+    const out = await sandbox.addSSHPubkeys(keys);
+    expect(pathname).toBe("/v1/sandboxes/sb_1/ssh-pubkeys");
+    expect(body).toEqual({ keys });
+    expect(out.count).toBe(2);
+  });
+});
+
 describe("egress / bandwidth / networks", () => {
   test("getEgress reads /egress", async () => {
     const sandbox = await connect((_u, init, p) => {

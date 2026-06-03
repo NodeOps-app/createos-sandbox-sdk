@@ -71,6 +71,26 @@ describe("DisksApi", () => {
     expect(err).toBeInstanceOf(FcServerError);
     expect(err.statusCode).toBe(503);
   });
+
+  test("rotateCredentials PATCHes the credentials and returns the disk view", async () => {
+    let body: Record<string, unknown> | undefined;
+    let pathname = "";
+    let method = "";
+    const client = makeClient((url, init) => {
+      pathname = new URL(String(url)).pathname;
+      method = init.method ?? "";
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(success(DISK_VIEW));
+    });
+    const out = await client.disks.rotateCredentials("data", {
+      access_key: "new",
+      secret_key: "sec",
+    });
+    expect(method).toBe("PATCH");
+    expect(pathname).toBe("/v1/disks/data");
+    expect(body).toEqual({ credentials: { access_key: "new", secret_key: "sec" } });
+    expect(out.id).toBe("disk_01HFOO");
+  });
 });
 
 describe("Sandbox disk attachment", () => {

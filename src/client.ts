@@ -9,6 +9,7 @@ import type {
   CreateSandboxRequest,
   CreateSandboxResponse,
   DiskCreateRequest,
+  DiskCredentials,
   DiskDeletedResponse,
   DiskView,
   DisksListResponse,
@@ -355,6 +356,37 @@ export class DisksApi {
       `/v1/disks/${encodePath(idOrName)}`,
       options,
     );
+  }
+
+  /**
+   * Rotates a disk's S3 credentials. Replaces the stored access/secret key
+   * with `credentials`; the disk's non-secret config is untouched. Running
+   * sandboxes holding the disk pick up the new credentials on their next
+   * resume. Returns the disk's public view.
+   *
+   * @throws {FcValidationError} when access_key or secret_key is empty.
+   * @throws {FcNotFoundError} when the disk id or name does not exist.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the disk belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await fc.disks.rotateCredentials("shared-data", {
+   *   access_key: "AKIA…",
+   *   secret_key: "…",
+   * });
+   */
+  rotateCredentials(
+    idOrName: string,
+    credentials: DiskCredentials,
+    options: RequestOptions = {},
+  ): Promise<DiskView> {
+    return this.#http.request<DiskView>("PATCH", `/v1/disks/${encodePath(idOrName)}`, {
+      ...options,
+      body: { credentials },
+    });
   }
 }
 
