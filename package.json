@@ -1,6 +1,6 @@
 {
   "name": "fc-sandbox-sdk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "TypeScript SDK for the fc-spawn microVM sandbox control plane.",
   "keywords": [
     "compute",
@@ -32,6 +32,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json",
+    "typecheck:examples": "tsc -p examples/tsconfig.json",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
     "fmt": "oxfmt . '!**/*.md'",

@@ -21,6 +21,7 @@ SDKs live in `docs/explanation/sdk-analysis.md`.
 ```sh
 bun run build      # tsc -> dist/
 bun run typecheck  # tsc --noEmit (src)
+bun run typecheck:examples  # tsc -p examples/tsconfig.json (typechecks examples/)
 bun run lint       # oxlint
 bun run fmt        # oxfmt (writes); fmt:check to verify, lint:fix to autofix
 bun test           # bun test tests/*.test.ts (coverage gated by bunfig.toml)
@@ -30,8 +31,8 @@ bun run docs:gen   # regenerate the example index + llms.txt from examples/manif
 `tsc` is the type gate. `oxlint` + `oxfmt` lint and format code only —
 `oxfmt` skips Markdown (README/docs are hand-wrapped prose). Commits are
 gated by `.pre-commit-config.yaml` (oxlint, oxfmt, gitleaks, `tsc
---noEmit`, `bun test` with the coverage floor, and the docs-sync check);
-install once with `pre-commit install`.
+--noEmit` for `src`, tests and `examples`, `bun test` with the coverage
+floor, and the docs-sync check); install once with `pre-commit install`.
 
 **Always use `bun`** — not `node`, `npm`, or `npx` — to run scripts,
 tests, and tooling.

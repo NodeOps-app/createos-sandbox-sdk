@@ -52,6 +52,12 @@ repos:
         language: system
         files: '\.(ts|tsx)$'
         pass_filenames: false
+      - id: typecheck-examples
+        name: tsc --noEmit (examples)
+        entry: bunx tsc -p examples/tsconfig.json
+        language: system
+        files: '^examples/.*\.(ts|tsx)$'
+        pass_filenames: false
       - id: test
         name: bun test (coverage-gated)
         entry: bun test tests/

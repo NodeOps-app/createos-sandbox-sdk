@@ -55,7 +55,7 @@ describe("resolveConfig — sources and precedence", () => {
 
   test("default user-agent embeds the package VERSION", () => {
     const cfg = resolveConfig({ baseUrl: "https://api.test", fetch: fetchStub });
-    expect(VERSION).toBe("0.3.0");
+    expect(VERSION).toBe("0.4.0");
     expect(cfg.userAgent.startsWith(`fc-sandbox-sdk/${VERSION} `)).toBe(true);
   });
 });

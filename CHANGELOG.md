@@ -18,6 +18,21 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-03
+
+### Added
+
+- `Sandbox.sh(script, options?)` — runs `bash -lc <script>` and throws
+  `FcError` on a non-zero exit (or agent start error), surfacing the
+  optional `label`, the exit code, the run duration and the tail of
+  stdout/stderr. The throw-on-failure counterpart to `runCommand`.
+- `Sandbox.previewUrl(port, { scheme })` — optional `scheme` override
+  (`"http"` | `"https"`, default `"https"`) for ingress hostnames whose
+  TLS certificate has not been provisioned yet.
+- `pollUntil`, `sleep` and the `PollOptions` type are now exported — the
+  adaptive-backoff poller that backs the `waitUntil*` helpers, for
+  building custom wait loops.
+
 ### Changed
 
 - **BREAKING:** a base URL is now required. `FcClient` / `resolveConfig`
