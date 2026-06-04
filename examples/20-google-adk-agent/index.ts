@@ -13,7 +13,8 @@
  * Run:   bun 20-google-adk-agent/index.ts
  * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_URL / OPENAI_API_KEY /
  *        OPENAI_MODEL (the LLM ADK drives, via a LiteLLM OpenAI-compatible
- *        proxy). A local Python venv with google-adk + litellm (see below).
+ *        proxy). Requires python3 on the host PATH; the venv with google-adk
+ *        + litellm is auto-created on first run inside this directory.
  */
 
 import { spawn } from "node:child_process";
@@ -51,15 +52,49 @@ if (!OPENAI_API_URL || !OPENAI_API_KEY || !OPENAI_MODEL) {
 }
 
 const VENV_PYTHON = join(here, ".venv", "bin", "python");
+
+/** Wraps spawn in a Promise that resolves to the exit code. */
+function spawnAsync(cmd: string, args: string[], cwd: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const child = spawn(cmd, args, { cwd, stdio: "inherit" });
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+}
+
 try {
   await access(VENV_PYTHON, constants.X_OK);
+  // fast path — venv already exists
 } catch {
-  console.error(
-    `Python venv not found at ${VENV_PYTHON}.\n` +
-      "Create it once with:\n" +
-      "  python3 -m venv .venv && .venv/bin/pip install google-adk litellm",
+  console.log("[setup] creating Python venv + installing google-adk litellm (first run)...");
+
+  // Verify python3 is available on the host before attempting venv creation.
+  const python3Check = await spawnAsync("python3", ["--version"], here).catch(
+    (err: NodeJS.ErrnoException) => {
+      if (err.code === "ENOENT") {
+        console.error("python3 not found on PATH — install Python 3 on the host and retry.");
+        process.exit(1);
+      }
+      throw err;
+    },
   );
-  process.exit(1);
+  if (python3Check !== 0) {
+    throw new Error(`python3 --version exited with code ${python3Check}`);
+  }
+
+  const venvCode = await spawnAsync("python3", ["-m", "venv", ".venv"], here);
+  if (venvCode !== 0) {
+    throw new Error(`python3 -m venv .venv failed with exit code ${venvCode}`);
+  }
+
+  const pipCode = await spawnAsync(
+    join(here, ".venv", "bin", "pip"),
+    ["install", "-q", "--disable-pip-version-check", "google-adk", "litellm"],
+    here,
+  );
+  if (pipCode !== 0) {
+    throw new Error(`pip install failed with exit code ${pipCode}`);
+  }
 }
 
 const fc = new FcClient({ apiKey: FC_API_KEY, baseUrl: FC_BASE_URL });
