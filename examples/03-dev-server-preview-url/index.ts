@@ -33,13 +33,14 @@ try {
   //    fetching the URL immediately would race the listener.
   await sandbox.waitForPortReady(8080, { timeoutMs: 10_000 });
 
-  // 4. Resolve the public URL for the port. Note http:// not https:// — previews
-  //    are plain HTTP unless the ingress wildcard domain has a real TLS cert.
+  // 4. Resolve the public URL for the port. The URL is HTTPS but the ingress
+  //    serves a self-signed cert (issue #46 — not yet fronted by Cloudflare),
+  //    so TLS verification is disabled for this smoke-test fetch only.
   const url = sandbox.previewUrl(8080);
   console.log("URL:", url);
 
   console.log("--- response ---");
-  const res = await fetch(url);
+  const res = await fetch(url, { tls: { rejectUnauthorized: false } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   process.stdout.write(await res.text());
 } finally {

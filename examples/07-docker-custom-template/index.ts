@@ -5,8 +5,8 @@
  * on it, and use the baked-in tooling.
  *
  * Run:   bun 07-docker-custom-template/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). You MUST edit DOCKERFILE
- *        below to a real fc-spawn base image — the default is a placeholder. The
+ * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The DOCKERFILE below uses
+ *        the fc-spawn debian base image (bhautikchudasama/fc-base:debian-1). The
  *        in-VM `docker run` steps also need network egress to pull images.
  */
 import { FcClient, pollUntil } from "fc-sandbox-sdk";
@@ -17,8 +17,8 @@ const SHAPE = "s-1vcpu-1gb";
 
 // Installs Docker CE via the official convenience script.
 // FC v1 Dockerfile rules: single FROM (fc-allowed base only), no COPY/ADD.
-// replace with your fc-spawn base rootfs image
-const DOCKERFILE = `FROM your-registry/fc-base:latest
+// Uses the fc-spawn debian base (apt-based, required for Docker CE install).
+const DOCKERFILE = `FROM bhautikchudasama/fc-base:debian-1
 
 RUN apt-get update -qq \\
  && apt-get install -y --no-install-recommends curl ca-certificates \\

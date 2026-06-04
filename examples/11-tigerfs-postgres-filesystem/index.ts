@@ -34,10 +34,17 @@ const sandbox = await fc.createSandbox({
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {
-  console.log("[2/9] installing postgresql + python3 (apt-get)...");
+  console.log("[2/9] installing postgresql-18 (PGDG) + python3 (apt-get)...");
   const apt = await sandbox.sh(
-    "apt-get update -qq && apt-get install -y --no-install-recommends postgresql python3 ca-certificates curl",
-    { label: "apt-get install", timeoutMs: 300_000 },
+    [
+      "set -e",
+      "export DEBIAN_FRONTEND=noninteractive",
+      "apt-get update -qq && apt-get install -y --no-install-recommends ca-certificates curl gnupg python3",
+      "curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg",
+      'echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release; echo $VERSION_CODENAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list',
+      "apt-get update -qq && apt-get install -y --no-install-recommends postgresql-18",
+    ].join(" && "),
+    { label: "apt-get install", timeoutMs: 420_000 },
   );
   console.log(`      apt-get done (${apt.exec_ms} ms)`);
 

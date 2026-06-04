@@ -170,6 +170,7 @@ try {
   peers = ROLES.map((r, i) => {
     const sb = sandboxes[i]!;
     const overlayIp = ipById.get(sb.id) ?? sb.ip;
+    if (!overlayIp) throw new Error(`no overlay IP for sandbox ${sb.id}`);
     return { ...r, sandbox: sb, overlayIp };
   });
   for (const p of peers) console.log(`  ${p.role}: ${p.sandbox.id} overlay=${p.overlayIp}`);
@@ -315,6 +316,28 @@ git --git-dir="$STORAGE" for-each-ref --format='%(refname) %(objectname:short)' 
 } finally {
   console.log("\ncleanup…");
   await Promise.allSettled(peers.map((p) => p.sandbox.destroy()));
-  await fc.networks.delete(network.id).catch(() => undefined);
+  // Retry network delete: members may still be tearing down server-side for a
+  // few seconds after sandbox destroy returns, causing a "network in use" error.
+  // Retrying avoids silent leaks that accumulate against the 5-network quota.
+  {
+    const maxAttempts = 5;
+    let deleted = false;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await fc.networks.delete(network.id);
+        deleted = true;
+        break;
+      } catch {
+        if (attempt < maxAttempts) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
+    }
+    if (!deleted) {
+      process.stderr.write(
+        `[cleanup] WARNING: failed to delete network ${network.id} after ${maxAttempts} attempts — it may leak against your quota\n`,
+      );
+    }
+  }
   console.log("destroyed sandboxes + network");
 }
