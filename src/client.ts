@@ -56,8 +56,17 @@ export class TemplatesApi {
    * console.log(templates.map((t) => t.id));
    */
   async list(options: RequestOptions = {}): Promise<TemplateView[]> {
-    const data = await this.#http.request<TemplatesListResponse>("GET", "/v1/templates", options);
-    return data.templates;
+    // The list refactor returns a paginated envelope ({ data, pagination });
+    // older builds returned { templates: [...] }. Accept both (and a bare array).
+    const payload = await this.#http.request<
+      TemplatesListResponse | { data: TemplateView[]; pagination?: unknown } | TemplateView[]
+    >("GET", "/v1/templates", options);
+    if (Array.isArray(payload)) return payload;
+    return (
+      (payload as TemplatesListResponse).templates ??
+      (payload as { data?: TemplateView[] }).data ??
+      []
+    );
   }
 
   /**
@@ -647,10 +656,15 @@ export class FcClient {
    */
   async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
     const { limit, status, ...rest } = options;
-    const views = await this.http.request<SandboxView[]>("GET", "/v1/sandboxes", {
+    // The control plane wraps list results in a paginated envelope
+    // ({ data, pagination }); older builds returned a bare array. Accept both.
+    const payload = await this.http.request<
+      SandboxView[] | { data: SandboxView[]; pagination?: unknown }
+    >("GET", "/v1/sandboxes", {
       ...rest,
       query: { limit, status },
     });
+    const views = Array.isArray(payload) ? payload : (payload?.data ?? []);
     return views.map((view) => new Sandbox(this.http, view));
   }
 }
