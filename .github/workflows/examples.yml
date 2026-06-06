@@ -129,6 +129,14 @@ jobs:
         working-directory: examples
         run: bun install
 
+      # example 20 creates a Python venv on first run; setup-python ensures
+      # venv support is present (plain python3 on Ubuntu lacks python3-venv).
+      - name: Set up Python (google-adk example)
+        if: matrix.example == '20-google-adk-agent'
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}
         env:
