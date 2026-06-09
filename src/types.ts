@@ -234,6 +234,10 @@ export interface CreateSandboxRequest {
    *  configured region. When set it must equal the server's region —
    *  there is no cross-region routing today, and a mismatch is rejected. */
   region?: string;
+  /** Idle auto-pause: pause the sandbox after this many seconds with no
+   *  detected activity. Valid range 60–86400 (1 min – 24 h); the server
+   *  rejects values outside it. Omit to disable. */
+  auto_pause_after_seconds?: number;
 }
 
 /**
@@ -323,6 +327,8 @@ export interface SandboxView {
   last_resumed_at?: string;
   /** Source sandbox id when this sandbox was created via `fork`. */
   forked_from?: string;
+  /** Idle auto-pause timeout in seconds. Absent when auto-pause is disabled. */
+  auto_pause_after_seconds?: number;
 }
 
 /** Filters for `listSandboxes()`. */
@@ -344,9 +350,16 @@ export interface ForkSandboxRequest {
   bandwidth_quota_bytes?: number;
 }
 
-/** Body of the sandbox PATCH endpoint, used by `Sandbox.setIngress`. */
+/** Body of the sandbox PATCH endpoint, used by `Sandbox.setIngress` and
+ *  `Sandbox.setAutoPause`. Omitted fields are left unchanged. */
 export interface PatchSandboxRequest {
   ingress_enabled?: boolean;
+  /** Idle auto-pause timeout in seconds (60–86400). */
+  auto_pause_after_seconds?: number;
+  /** When true, clears the auto-pause timeout (disables auto-pause). The
+   *  server needs a separate flag because omitting
+   *  `auto_pause_after_seconds` means "leave unchanged", not "clear". */
+  disable_auto_pause?: boolean;
 }
 
 /** Body of `Sandbox.addSSHPubkeys` — keys to add to a live sandbox. */

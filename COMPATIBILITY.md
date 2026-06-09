@@ -13,8 +13,8 @@ spec. See `AGENTS.md` → "Wire types — source of truth".
 | --- | --- |
 | SDK version | `0.6.0` |
 | fc-spawn branch | `main` |
-| fc-spawn commit | `12ed1a7` ("Chore/response structure changed (#364)", 2026-06-04) |
-| Audited | 2026-06-06 (envelope shapes cross-checked against the live server) |
+| fc-spawn commit | `159bbb0` ("docs: remove unwanted section", 2026-06-09) |
+| Audited | 2026-06-10 (handler-source audit; wire delta since `12ed1a7` reviewed commit-by-commit) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
 wire-faithful to the server structs at the commit above — field names,
@@ -42,6 +42,31 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
+
+## Reconciled in 0.6.0, second pass (`12ed1a7` → `159bbb0`)
+
+Sixteen server commits; the user-facing wire delta is small — the bulk
+(mTLS bootstrap / CSR / CRL, admin cert revoke, host heartbeat catalog
+push, central billing emit) is internal/admin surface the SDK excludes
+by design.
+
+- **Idle auto-pause (server `7e2884c`).** `auto_pause_after_seconds`
+  added to `CreateReq`, `SandboxView` (`*int`, `omitempty` → optional),
+  and `PatchSandboxReq` alongside a new `disable_auto_pause` bool
+  (clears the nullable timeout — `omitempty` can't express "set to
+  null"). Valid range 60–86400, server-validated. SDK: new fields on
+  `CreateSandboxRequest` / `SandboxView` / `PatchSandboxRequest`, new
+  `Sandbox.setAutoPause(seconds | null)`.
+- **Credit gating (server `e760766`).** Cost-incurring endpoints
+  (sandbox create / resume / fork, bandwidth recharge, disk / network /
+  template create) now return `402 Payment Required` (JSend `fail`)
+  when the account has no credit. Internal keys bypass; lookup errors
+  fail open. SDK: `errorFromResponse` maps 402 to the new
+  `FcPaymentRequiredError` (was generic `FcApiError`). 402 is not a
+  retry status in either retry class — correct, since retrying without
+  topping up cannot succeed.
+- `Shape` gained `yaml` struct tags (server `ffd12e4`, central shape
+  management) — JSON wire format unchanged, no SDK impact.
 
 ## Reconciled in 0.6.0 (`52ea6c9` → `12ed1a7`)
 

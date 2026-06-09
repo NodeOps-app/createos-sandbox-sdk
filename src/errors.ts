@@ -111,6 +111,15 @@ export class FcNotFoundError extends FcApiError {}
 export class FcValidationError extends FcApiError {}
 
 /**
+ * Thrown for `402 Payment Required` responses — the account is out of
+ * credit. The control plane gates cost-incurring actions (sandbox create /
+ * resume / fork, bandwidth recharge, disk / network / template create) on a
+ * positive credit balance. Top up to continue; retrying without doing so
+ * returns the same error.
+ */
+export class FcPaymentRequiredError extends FcApiError {}
+
+/**
  * Thrown for `429 Too Many Requests` responses — the caller exceeded the
  * rate limit. {@link retryAfterSeconds} carries the parsed `Retry-After`
  * delay when the server provided one.
@@ -190,6 +199,8 @@ export function errorFromResponse(
     case 409:
     case 422:
       return new FcValidationError(message, response, typed, resourceId, context);
+    case 402:
+      return new FcPaymentRequiredError(message, response, typed, resourceId, context);
     case 429:
       return new FcRateLimitError(message, response, typed, resourceId, context);
     default:
@@ -242,6 +253,8 @@ function buildMessage(status: number, envelope?: FailEnvelope | ErrorEnvelope): 
       return "Forbidden (403): the API key cannot access this resource.";
     case 404:
       return "Not found (404).";
+    case 402:
+      return "Payment required (402): insufficient credit. Top up to continue.";
     case 429:
       return "Rate limited (429): too many requests. Retry after the Retry-After delay.";
     case 503:

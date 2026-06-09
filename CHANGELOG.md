@@ -18,11 +18,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.6.0] — 2026-06-06
+## [0.6.0] — 2026-06-10
 
-Reconciled against the `fc-spawn` control plane at `main` `12ed1a7`
-("response structure changed", server PRs #219/#364) — see
-`COMPATIBILITY.md`.
+Reconciled against the `fc-spawn` control plane at `main` `159bbb0`
+(two passes: `12ed1a7` response-structure changes, server PRs #219/#364,
+then idle auto-pause + credit gating) — see `COMPATIBILITY.md`.
 
 ### Changed
 
@@ -38,6 +38,19 @@ Reconciled against the `fc-spawn` control plane at `main` `12ed1a7`
 
 - `SandboxView.ingress_url_template?` — the sandbox view now carries the
   ingress URL template (server addition), not just the create response.
+- **Idle auto-pause.** `CreateSandboxRequest.auto_pause_after_seconds?`
+  (60–86400 s, validated server-side), `SandboxView
+  .auto_pause_after_seconds?` (absent when disabled), and
+  `PatchSandboxRequest.auto_pause_after_seconds?` /
+  `.disable_auto_pause?`. New `Sandbox.setAutoPause(seconds | null)`
+  sets or clears the timeout and refreshes the handle from the patched
+  view.
+- `FcPaymentRequiredError` — the control plane now gates cost-incurring
+  actions (sandbox create / resume / fork, bandwidth recharge, disk /
+  network / template create) on a positive credit balance and returns
+  `402 Payment Required` when the account is out of credit.
+  `errorFromResponse` maps 402 to the new class (previously the generic
+  `FcApiError`).
 
 ### Fixed
 

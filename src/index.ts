@@ -8,6 +8,7 @@ export {
   FcAuthError,
   FcPermissionError,
   FcNotFoundError,
+  FcPaymentRequiredError,
   FcValidationError,
   FcRateLimitError,
   FcServerError,

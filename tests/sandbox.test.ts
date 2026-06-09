@@ -197,6 +197,34 @@ describe("lifecycle", () => {
   });
 });
 
+describe("auto-pause", () => {
+  test("setAutoPause(600) PATCHes auto_pause_after_seconds and updates the handle", async () => {
+    let body: { auto_pause_after_seconds: number } | undefined;
+    const sandbox = await connect((_u, init, p) => {
+      expect(init.method).toBe("PATCH");
+      expect(p).toBe("/v1/sandboxes/sb_1");
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(success({ ...RUNNING_VIEW, auto_pause_after_seconds: 600 }));
+    });
+    await sandbox.setAutoPause(600);
+    expect(body).toEqual({ auto_pause_after_seconds: 600 });
+    expect(sandbox.data.auto_pause_after_seconds).toBe(600);
+  });
+
+  test("setAutoPause(null) sends disable_auto_pause and clears the field", async () => {
+    let body: { disable_auto_pause: boolean } | undefined;
+    const sandbox = await connect((_u, init, p) => {
+      expect(init.method).toBe("PATCH");
+      expect(p).toBe("/v1/sandboxes/sb_1");
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(success({ ...RUNNING_VIEW }));
+    });
+    await sandbox.setAutoPause(null);
+    expect(body).toEqual({ disable_auto_pause: true });
+    expect(sandbox.data.auto_pause_after_seconds).toBeUndefined();
+  });
+});
+
 describe("ingress", () => {
   test("setIngress(true) PATCHes ingress_enabled and updates the handle", async () => {
     let body: { ingress_enabled: boolean } | undefined;

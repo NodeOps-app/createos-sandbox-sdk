@@ -23,6 +23,7 @@ import type {
   FcClientOptions,
   ForkSandboxRequest,
   OKResponse,
+  PatchSandboxRequest,
   RequestOptions,
   ResizeSandboxResponse,
   SandboxDiskView,
@@ -497,6 +498,36 @@ export class Sandbox {
     this.#data = await this.#http.request<SandboxView>("PATCH", this.#path(), {
       ...options,
       body: { ingress_enabled: enabled },
+    });
+    return this;
+  }
+
+  /**
+   * Sets or clears the idle auto-pause timeout. When set, the control plane
+   * pauses the sandbox after `seconds` with no detected activity. Pass `null`
+   * to disable. The handle is updated to the patched view.
+   *
+   * @param seconds - Idle timeout in seconds, 60–86400 (1 min – 24 h), or
+   *   `null` to disable auto-pause.
+   *
+   * @throws {FcValidationError} when `seconds` is outside 60–86400.
+   * @throws {FcNotFoundError} when the sandbox no longer exists.
+   * @throws {FcAuthError} when the API key is missing or revoked.
+   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
+   * @throws {FcServerError} on 5xx from the control plane.
+   * @throws {FcConnectionError} when the network fails.
+   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   *
+   * @example
+   * await sandbox.setAutoPause(600); // pause after 10 min idle
+   * await sandbox.setAutoPause(null); // disable
+   */
+  async setAutoPause(seconds: number | null, options: RequestOptions = {}): Promise<this> {
+    const body: PatchSandboxRequest =
+      seconds === null ? { disable_auto_pause: true } : { auto_pause_after_seconds: seconds };
+    this.#data = await this.#http.request<SandboxView>("PATCH", this.#path(), {
+      ...options,
+      body,
     });
     return this;
   }
