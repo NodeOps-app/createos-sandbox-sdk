@@ -279,6 +279,10 @@ try {
   if (created.length) {
     await Promise.allSettled(sandboxes.map((sb) => sb.waitUntilDestroyed({ timeoutMs: 60_000 })));
     try {
+      // listSandboxes() walks every page since SDK 0.6.0 (the default is no
+      // longer capped at one page), so this sees the account's full running
+      // set and the leak check is exhaustive — at the cost of pulling every
+      // running sandbox in a busy tenant.
       const live = await fc.listSandboxes({ status: "running" });
       const liveIds = new Set(live.map((s) => s.id));
       const leaked = created.filter((id) => liveIds.has(id));

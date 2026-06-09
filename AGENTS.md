@@ -102,6 +102,17 @@ live API, not the spec.
 When a server field is `omitempty`, the TS field is optional (`?`) and not
 `| null` — `omitempty` omits the key entirely.
 
+**List endpoints are paginated.** Every list route (`sandboxes`, `disks`,
+`networks`, `templates`, `hosts`, `shapes`, per-sandbox `disks`) returns a
+doubly-nested envelope `{ data: { data: [...], pagination: { total, limit,
+offset, count } } }`; `rootfs` is the lone exception (plain view). Fetch
+all pages with `FcHttp.fetchAllPages` (accepts the paginated envelope, the
+legacy `{ <key>: [...] }` wrapper, and a bare array). The server clamps
+`limit` to **500** — drive paging by the reported `total` and the actual
+item count, never the requested page size. `bandwidth_quota_bytes` is not
+settable at create (server `400`s a non-zero value); grow it post-create
+with `Sandbox.rechargeBandwidth()`.
+
 ## Retry policy
 
 `FcHttp` retries with exponential backoff + jitter and honors

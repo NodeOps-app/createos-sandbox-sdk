@@ -11,10 +11,10 @@ spec. See `AGENTS.md` → "Wire types — source of truth".
 
 | | |
 | --- | --- |
-| SDK version | `0.5.0` |
+| SDK version | `0.6.0` |
 | fc-spawn branch | `main` |
-| fc-spawn commit | `52ea6c9` ("chore: worker detachment", 2026-06-02) |
-| Audited | 2026-06-03 |
+| fc-spawn commit | `12ed1a7` ("Chore/response structure changed (#364)", 2026-06-04) |
+| Audited | 2026-06-06 (envelope shapes cross-checked against the live server) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
 wire-faithful to the server structs at the commit above — field names,
@@ -42,6 +42,37 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
+
+## Reconciled in 0.6.0 (`52ea6c9` → `12ed1a7`)
+
+Server PRs #219 and #364 ("response structure changed") reshaped the wire
+format. Changes the SDK surfaces to callers:
+
+- **List endpoints are now paginated.** `GET /v1/sandboxes`, `/v1/disks`,
+  `/v1/networks`, `/v1/templates`, `/v1/hosts`, `/v1/shapes`, and
+  `GET /v1/sandboxes/:id/disks` return the doubly-nested envelope
+  `{ status, data: { data: [...], pagination: { total, limit, offset,
+  count } } }`. The legacy `{ <key>: [...] }` wrappers are deprecated
+  server-side. The SDK's list methods now auto-loop every page
+  (`FcHttp.fetchAllPages`, accepts paginated / legacy / bare-array
+  shapes) and return the full result set. The server clamps `limit` to
+  **500**; paging advances by the actual item count, not the requested
+  size. `listSandboxes({ limit })` treats `limit` as a cap on handles
+  returned. `GET /v1/rootfs` is **not** paginated (still a plain
+  `RootfsView`).
+- **`CreateSandboxResponse.mode` removed.** The server dropped `mode`
+  from `CreateResp` ("operational detail of the boot path, not part of
+  the user contract"). The `mode` field and the `SandboxSpawnMode` type
+  are gone from the SDK.
+- **`bandwidth_quota_bytes` is not settable at create.** The server
+  rejects any non-zero value with `400` and stamps the cluster default.
+  Removed from `CreateSandboxRequest`. Grow the quota post-create with
+  `Sandbox.rechargeBandwidth()` (`POST /v1/sandboxes/:id/bandwidth/
+  recharge`, body `{ add_bytes }`). Still accepted on `ForkReq`, so it
+  stays on `ForkSandboxRequest`.
+- **`SandboxView.ingress_url_template?` added.** The server now returns
+  the ingress template on the sandbox view, not just on the create
+  response.
 
 ## Coverage gaps closed in 0.5.0
 

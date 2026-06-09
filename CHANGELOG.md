@@ -18,6 +18,60 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-06
+
+Reconciled against the `fc-spawn` control plane at `main` `12ed1a7`
+("response structure changed", server PRs #219/#364) — see
+`COMPATIBILITY.md`.
+
+### Changed
+
+- **List endpoints are paginated and now return every page.** The
+  control plane switched all list routes to a paginated envelope
+  (`{ data: { data, pagination } }`). `templates.list`, `disks.list`,
+  `networks.list`, `listShapes`, `listHosts`, `listSandboxes`, and
+  `Sandbox.listDisks` transparently walk every page and return the full
+  result set (new internal `FcHttp.fetchAllPages`, which still accepts
+  the legacy `{ <key>: [] }` wrapper and a bare array).
+
+### Added
+
+- `SandboxView.ingress_url_template?` — the sandbox view now carries the
+  ingress URL template (server addition), not just the create response.
+
+### Fixed
+
+- `previewUrl()` now works on any handle that knows its ingress template —
+  `connect()` / `getSandbox()` / `listSandboxes()`, not just `create()` —
+  by reading the template from the canonical sandbox view instead of a
+  create-time-only cache. Re-enabling ingress via `setIngress(true)` now
+  repopulates the template (previously a documented one-way limitation).
+- `readyz()` no longer reports `{ ready: false }` for unexpected error
+  statuses. Only `200` (ready) and `503` (not ready) are treated as
+  readiness signals; any other non-OK status now throws the typed
+  `FcApiError`, matching the documented contract.
+- Observability hooks are now truthful and consistent. The request is built
+  once (one canonical URL/headers/body), so `onRequest` / `onResponse`
+  report the headers actually sent — including the `Content-Type` set for a
+  request body, previously missing from the hook payload. `stream()` now
+  fires the same `onRequest` / `onResponse` hooks as buffered requests.
+
+### BREAKING CHANGE
+
+- **`CreateSandboxResponse.mode` removed** along with the
+  `SandboxSpawnMode` type — the server dropped `mode` from the create
+  response (it was an operational boot-path detail). Read the sandbox
+  status from the handle instead.
+- **`CreateSandboxRequest.bandwidth_quota_bytes` removed** — the server
+  now rejects a non-zero value at create (`400`) and stamps the cluster
+  default. Grow the quota after create with
+  `Sandbox.rechargeBandwidth(addBytes)`. The field stays on
+  `ForkSandboxRequest` (still accepted on fork).
+- **`listSandboxes()` default changed from one page (≤50) to all rows.**
+  `listSandboxes({ limit })` now treats `limit` as a cap on the number
+  of handles returned. A bare `await fc.listSandboxes()` walks every
+  page — pass `limit` to bound it.
+
 ## [0.5.0] — 2026-06-03
 
 Reconciled against the `fc-spawn` control plane at `main` `52ea6c9` —

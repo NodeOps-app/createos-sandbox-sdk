@@ -16,6 +16,8 @@ import {
   FAST_RETRY,
   jsonResponse,
   makeClient,
+  ndjsonResponse,
+  streamOf,
   success,
 } from "./helpers.ts";
 
@@ -519,5 +521,43 @@ describe("observability hooks", () => {
     expect(events[0]?.status).toBe(503);
     expect(events[0]?.attempt).toBe(1);
     expect(typeof events[0]?.delayMs).toBe("number");
+  });
+
+  test("hook headers report the Content-Type actually sent with a body", async () => {
+    let captured: Record<string, string> = {};
+    const client = makeClient(() => Promise.resolve(success({ ok: true })), {
+      retry: false,
+      hooks: {
+        onRequest: (ctx) => {
+          captured = ctx.headers;
+        },
+      },
+    });
+    await client.http.request("POST", "/v1/sandboxes", { body: { shape: "s" } });
+    // The Content-Type is set while building the body; the hook payload is
+    // derived from those same headers, so it must be visible to observers.
+    expect(captured["content-type"]).toBe("application/json");
+  });
+
+  test("stream fires onRequest and onResponse like buffered requests", async () => {
+    const events: string[] = [];
+    const client = makeClient(() => Promise.resolve(ndjsonResponse(streamOf('{"v":1}\n'))), {
+      retry: false,
+      hooks: {
+        onRequest: () => {
+          events.push("req");
+        },
+        onResponse: (ctx) => {
+          events.push("res");
+          expect(ctx.status).toBe(200);
+        },
+      },
+    });
+    const out: unknown[] = [];
+    for await (const item of client.http.stream("GET", "/v1/stream")) {
+      out.push(item);
+    }
+    expect(events).toEqual(["req", "res"]);
+    expect(out).toEqual([{ v: 1 }]);
   });
 });

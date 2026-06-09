@@ -615,6 +615,19 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs an S3-compatible bucket reachable from the FC agent."
+    },
+    {
+      "id": "39",
+      "slug": "bandwidth-recharge",
+      "dir": "39-bandwidth-recharge",
+      "title": "Bandwidth recharge",
+      "summary": "Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes).",
+      "primitives": ["createSandbox", "getBandwidth", "rechargeBandwidth", "destroy"],
+      "deps": [],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }

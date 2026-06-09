@@ -2,6 +2,7 @@
 // identity calls, the sandbox factory, and the templates / networks APIs.
 
 import { DEFAULT_WAIT_MS, resolveConfig } from "./config.js";
+import { errorFromResponse } from "./errors.js";
 import { encodePath, FcHttp } from "./http.js";
 import { Sandbox } from "./sandbox.js";
 import type {
@@ -10,9 +11,9 @@ import type {
   CreateSandboxResponse,
   DiskCreateRequest,
   DiskCredentials,
+  JSendEnvelope,
   DiskDeletedResponse,
   DiskView,
-  DisksListResponse,
   FcClientOptions,
   GetTemplateOptions,
   HealthzResponse,
@@ -26,11 +27,9 @@ import type {
   RootfsData,
   SandboxView,
   Shape,
-  ShapesData,
   TemplateCreateRequest,
   TemplateLogEvent,
   TemplateLogsOptions,
-  TemplatesListResponse,
   TemplateView,
   WhoAmIView,
 } from "./types.js";
@@ -55,18 +54,10 @@ export class TemplatesApi {
    * const templates = await fc.templates.list();
    * console.log(templates.map((t) => t.id));
    */
-  async list(options: RequestOptions = {}): Promise<TemplateView[]> {
-    // The list refactor returns a paginated envelope ({ data, pagination });
-    // older builds returned { templates: [...] }. Accept both (and a bare array).
-    const payload = await this.#http.request<
-      TemplatesListResponse | { data: TemplateView[]; pagination?: unknown } | TemplateView[]
-    >("GET", "/v1/templates", options);
-    if (Array.isArray(payload)) return payload;
-    return (
-      (payload as TemplatesListResponse).templates ??
-      (payload as { data?: TemplateView[] }).data ??
-      []
-    );
+  list(options: RequestOptions = {}): Promise<TemplateView[]> {
+    return this.#http.fetchAllPages<TemplateView>("GET", "/v1/templates", options, {
+      legacyKey: "templates",
+    });
   }
 
   /**
@@ -205,7 +196,7 @@ export class NetworksApi {
    * console.log(nets.map((n) => n.id));
    */
   list(options: RequestOptions = {}): Promise<Network[]> {
-    return this.#http.request<Network[]>("GET", "/v1/networks", options);
+    return this.#http.fetchAllPages<Network>("GET", "/v1/networks", options);
   }
 
   /**
@@ -295,9 +286,8 @@ export class DisksApi {
    * const disks = await fc.disks.list();
    * console.log(disks.map((d) => d.name));
    */
-  async list(options: RequestOptions = {}): Promise<DiskView[]> {
-    const data = await this.#http.request<DisksListResponse>("GET", "/v1/disks", options);
-    return data.disks;
+  list(options: RequestOptions = {}): Promise<DiskView[]> {
+    return this.#http.fetchAllPages<DiskView>("GET", "/v1/disks", options, { legacyKey: "disks" });
   }
 
   /**
@@ -464,18 +454,27 @@ export class FcClient {
       retry: false,
     });
     const text = await response.text();
+    let envelope: { status?: string; data?: unknown } | undefined;
     try {
-      const envelope = JSON.parse(text) as { status?: string; data?: unknown };
+      envelope = JSON.parse(text) as { status?: string; data?: unknown };
+    } catch {
+      // Non-JSON body — fall through to the status-derived result.
+    }
+    // 200 (ready) and 503 (not ready) are the readiness signals; any other
+    // non-OK status is a real error, not a "not ready" verdict.
+    if (response.ok || response.status === 503) {
       if (
-        (envelope.status === "success" || envelope.status === "fail") &&
+        (envelope?.status === "success" || envelope?.status === "fail") &&
         envelope.data !== undefined
       ) {
         return envelope.data as ReadyzResponse;
       }
-    } catch {
-      // Non-JSON body — fall through to the status-derived result.
+      return { ready: response.ok };
     }
-    return { ready: response.ok };
+    throw errorFromResponse(response, envelope as JSendEnvelope<unknown> | undefined, {
+      endpoint: "/readyz",
+      method: "GET",
+    });
   }
 
   /**
@@ -508,12 +507,13 @@ export class FcClient {
    * const shapes = await fc.listShapes();
    * console.log(shapes.map((s) => s.id));
    */
-  async listShapes(options: RequestOptions = {}): Promise<Shape[]> {
-    const data = await this.http.request<ShapesData>("GET", "/v1/shapes", {
-      ...options,
-      auth: false,
-    });
-    return data.shapes;
+  listShapes(options: RequestOptions = {}): Promise<Shape[]> {
+    return this.http.fetchAllPages<Shape>(
+      "GET",
+      "/v1/shapes",
+      { ...options, auth: false },
+      { legacyKey: "shapes" },
+    );
   }
 
   /**
@@ -545,7 +545,7 @@ export class FcClient {
    * console.log(hosts.map((h) => h.id));
    */
   listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {
-    return this.http.request<HostPublic[]>("GET", "/v1/hosts", options);
+    return this.http.fetchAllPages<HostPublic>("GET", "/v1/hosts", options);
   }
 
   // ── sandboxes ─────────────────────────────────────────────────────────
@@ -584,7 +584,14 @@ export class FcClient {
       `/v1/sandboxes/${encodePath(created.id)}`,
       reqOptions,
     );
-    const sandbox = new Sandbox(this.http, view, created.ingress_url_template);
+    // A freshly-created view may not carry the ingress template yet (still
+    // `creating`); the create response computed it synchronously, so seed it
+    // onto the canonical view when the GET hasn't populated it.
+    const seeded =
+      view.ingress_url_template === undefined && created.ingress_url_template !== undefined
+        ? { ...view, ingress_url_template: created.ingress_url_template }
+        : view;
+    const sandbox = new Sandbox(this.http, seeded);
     if (wait !== false) {
       await sandbox.waitUntilRunning({
         timeoutMs: waitTimeoutMs ?? DEFAULT_WAIT_MS,
@@ -650,21 +657,21 @@ export class FcClient {
    * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
+   * Walks every page by default; pass `limit` to cap the number of
+   * handles returned.
+   *
    * @example
-   * const running = await fc.listSandboxes({ status: "running", limit: 50 });
-   * for (const s of running) console.log(s.id, s.ip);
+   * const all = await fc.listSandboxes({ status: "running" });
+   * for (const s of all) console.log(s.id, s.ip);
    */
   async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
     const { limit, status, ...rest } = options;
-    // The control plane wraps list results in a paginated envelope
-    // ({ data, pagination }); older builds returned a bare array. Accept both.
-    const payload = await this.http.request<
-      SandboxView[] | { data: SandboxView[]; pagination?: unknown }
-    >("GET", "/v1/sandboxes", {
-      ...rest,
-      query: { limit, status },
-    });
-    const views = Array.isArray(payload) ? payload : (payload?.data ?? []);
+    const views = await this.http.fetchAllPages<SandboxView>(
+      "GET",
+      "/v1/sandboxes",
+      { ...rest, query: { status } },
+      limit !== undefined ? { cap: limit } : {},
+    );
     return views.map((view) => new Sandbox(this.http, view));
   }
 }

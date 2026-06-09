@@ -221,8 +221,6 @@ export interface CreateSandboxRequest {
   envs?: Record<string, string>;
   /** OpenSSH public keys authorized for the SSH gateway. */
   ssh_pubkeys?: string[];
-  /** Total transferable bytes before the VM is capped. 0 = default, -1 = unmetered. */
-  bandwidth_quota_bytes?: number;
   /** Pin placement to a specific host id. Empty = scheduler picks. */
   host_id?: string;
   /** Scheduler placement labels (k8s NodeSelector semantics). */
@@ -238,9 +236,6 @@ export interface CreateSandboxRequest {
   region?: string;
 }
 
-/** How a sandbox booted: restored from a warm snapshot, or a cold start. */
-export type SandboxSpawnMode = "snapshot" | "cold";
-
 /**
  * Result of `POST /v1/sandboxes`, returned before the SDK fetches the full
  * {@link SandboxView}. Records the resolved placement and boot timing.
@@ -250,7 +245,6 @@ export interface CreateSandboxResponse {
   name: string;
   /** The VM's private IP. */
   ip: string;
-  mode: SandboxSpawnMode;
   shape: string;
   rootfs: string;
   vcpu: number;
@@ -301,6 +295,10 @@ export interface SandboxView {
   /** RFC 3339 timestamp of when the row was created. */
   created_at: string;
   ingress_enabled: boolean;
+  /** Ingress URL template with a literal `<port>` placeholder. Present when
+   *  `ingress_enabled` and the control plane knows its public domain suffix.
+   *  Same shape as {@link CreateSandboxResponse.ingress_url_template}. */
+  ingress_url_template?: string;
   name?: string;
   /** RFC 3339 timestamp of when the VM last reached `running`. */
   running_at?: string;
@@ -329,7 +327,7 @@ export interface SandboxView {
 
 /** Filters for `listSandboxes()`. */
 export interface ListSandboxesOptions extends RequestOptions {
-  /** Default 50, max 500. */
+  /** Cap the number of handles returned. Omit to fetch every page. */
   limit?: number;
   /** Filter to one lifecycle state. Omit to list every status. */
   status?: Extract<SandboxStatus, "running" | "creating" | "destroyed" | "failed">;

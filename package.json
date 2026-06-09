@@ -1,6 +1,6 @@
 {
   "name": "fc-sandbox-sdk",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "TypeScript SDK for the fc-spawn microVM sandbox control plane.",
   "keywords": [
     "compute",

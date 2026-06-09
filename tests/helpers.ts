@@ -27,7 +27,6 @@ export const CREATE_RESPONSE: CreateSandboxResponse = {
   id: "sb_1",
   name: "brave-otter",
   ip: "10.0.0.2",
-  mode: "snapshot",
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
   vcpu: 1,

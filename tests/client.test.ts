@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Sandbox } from "../src/index.ts";
-import { CREATE_RESPONSE, makeClient, RUNNING_VIEW, success } from "./helpers.ts";
+import { FcServerError, Sandbox } from "../src/index.ts";
+import { catchErr, CREATE_RESPONSE, makeClient, RUNNING_VIEW, success } from "./helpers.ts";
 
 const WHOAMI = {
   user_id: "u_1",
@@ -115,6 +115,14 @@ describe("health and identity", () => {
     expect(r.ready).toBe(true);
   });
 
+  test("readyz throws on a non-503 error status instead of reporting not-ready", async () => {
+    const client = makeClient(() =>
+      Promise.resolve(new Response("internal error", { status: 500 })),
+    );
+    const err = await catchErr(() => client.readyz());
+    expect(err).toBeInstanceOf(FcServerError);
+  });
+
   test("whoami returns the caller identity", async () => {
     const client = makeClient(() => Promise.resolve(success(WHOAMI)));
     const me = await client.whoami();
@@ -177,5 +185,59 @@ describe("catalog", () => {
     const hosts = await client.listHosts();
     expect(hosts[0]?.id).toBe("h1");
     expect(hosts[0]?.status).toBe("active");
+  });
+});
+
+describe("paginated list endpoints", () => {
+  test("unwraps the doubly-nested paginated envelope ({ data: { data, pagination } })", async () => {
+    const client = makeClient(() =>
+      Promise.resolve(
+        success({
+          data: [{ id: "s-1vcpu-256mb", vcpu: 1, mem_mib: 256, default_disk_mib: 10240 }],
+          pagination: { total: 1, limit: 500, offset: 0, count: 1 },
+        }),
+      ),
+    );
+    const shapes = await client.listShapes();
+    expect(shapes).toHaveLength(1);
+    expect(shapes[0]?.id).toBe("s-1vcpu-256mb");
+  });
+
+  test("walks every page until the reported total is reached", async () => {
+    const offsets: number[] = [];
+    const client = makeClient((url) => {
+      const offset = Number(new URL(String(url)).searchParams.get("offset"));
+      offsets.push(offset);
+      // total=3 but the server hands back fewer rows than requested, so the
+      // loop must advance by the actual item count, not the requested limit.
+      const page =
+        offset === 0
+          ? [RUNNING_VIEW, { ...RUNNING_VIEW, id: "sb_2" }]
+          : [{ ...RUNNING_VIEW, id: "sb_3" }];
+      return Promise.resolve(
+        success({ data: page, pagination: { total: 3, limit: 500, offset, count: page.length } }),
+      );
+    });
+    const sandboxes = await client.listSandboxes();
+    expect(sandboxes.map((s) => s.id)).toEqual(["sb_1", "sb_2", "sb_3"]);
+    expect(offsets).toEqual([0, 2]);
+  });
+
+  test("limit caps the number of handles and stops paging early", async () => {
+    let calls = 0;
+    const client = makeClient((url) => {
+      calls += 1;
+      const limit = Number(new URL(String(url)).searchParams.get("limit"));
+      expect(limit).toBe(1);
+      return Promise.resolve(
+        success({
+          data: [{ ...RUNNING_VIEW, id: `sb_${calls}` }],
+          pagination: { total: 99, limit: 1, offset: calls - 1, count: 1 },
+        }),
+      );
+    });
+    const sandboxes = await client.listSandboxes({ limit: 1 });
+    expect(sandboxes).toHaveLength(1);
+    expect(calls).toBe(1);
   });
 });

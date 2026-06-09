@@ -32,6 +32,21 @@ export interface HttpRequestOptions {
   auth?: boolean | undefined;
 }
 
+/**
+ * A request built once and dispatched one or more times (retries reuse it).
+ * `url`/`headers`/`body` are what actually goes on the wire; `hookMeta` is the
+ * redacted payload derived from those same `headers`, present only when hooks
+ * are configured. `path` is retained for error messages.
+ */
+interface PreparedRequest {
+  url: string;
+  path: string;
+  method: string;
+  headers: Headers;
+  body: BodyInit | undefined;
+  hookMeta: { url: string; method: string; headers: Record<string, string> } | undefined;
+}
+
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
 const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
 
@@ -82,6 +97,50 @@ export class FcHttp {
   }
 
   /**
+   * Fetches every page of a list endpoint and returns the concatenated
+   * items. The control plane wraps list results in a paginated envelope
+   * (`{ data: T[], pagination: { total, limit, offset, count } }`); older
+   * builds returned a legacy `{ <key>: T[] }` wrapper or a bare array.
+   * All three are accepted.
+   *
+   * Paging is driven by the server-reported `total` and the actual item
+   * count, never the requested page size — the control plane clamps
+   * `limit` (max 500), so a larger request silently returns fewer rows.
+   *
+   * @param page.legacyKey property holding the array on the pre-pagination
+   *   wrapper (e.g. `"disks"`, `"templates"`, `"shapes"`).
+   * @param page.cap stop once this many items are collected and return at
+   *   most `cap` rows. Omit to fetch everything.
+   */
+  async fetchAllPages<T>(
+    method: string,
+    path: string,
+    options: HttpRequestOptions = {},
+    page: { legacyKey?: string; cap?: number } = {},
+  ): Promise<T[]> {
+    const { legacyKey, cap } = page;
+    const pageSize = cap !== undefined ? Math.min(cap, 500) : 500;
+    const baseQuery = options.query ?? {};
+    const all: T[] = [];
+    let offset = 0;
+    for (;;) {
+      const payload = await this.request<unknown>(method, path, {
+        ...options,
+        query: { ...baseQuery, limit: pageSize, offset },
+      });
+      const { items, total } = extractPage<T>(payload, legacyKey);
+      all.push(...items);
+      if (cap !== undefined && all.length >= cap) return all.slice(0, cap);
+      // A missing total means a non-paginated shape (bare array / legacy
+      // wrapper) that already returned everything in one response.
+      if (total === undefined || items.length === 0 || all.length >= total) {
+        return all;
+      }
+      offset += items.length;
+    }
+  }
+
+  /**
    * Performs a request with retries. Returns the raw Response without
    * throwing on HTTP error statuses — callers inspect `response.ok`.
    * Still throws FcConnectionError / FcTimeoutError for transport failures.
@@ -103,9 +162,11 @@ export class FcHttp {
     const maxRetries = retry ? retry.maxRetries : 0;
     let attempt = 0;
 
-    // hookMeta (redacted url/method/headers) is identical across retry
-    // attempts — build it once rather than rebuilding Headers per attempt.
-    const hookMeta = this.#config.hooks ? this.#prepareHookMeta(method, path, options) : undefined;
+    // Build the request once: URL, headers and body are identical across
+    // retry attempts, and the hook payload is derived from the headers
+    // actually sent (so observers don't drift from the wire).
+    const prepared = this.#prepare(method, path, options);
+    const hookMeta = prepared.hookMeta;
 
     for (;;) {
       let response: Response;
@@ -120,7 +181,7 @@ export class FcHttp {
           });
         }
         startMs = performance.now();
-        response = await this.#fetchOnce(method, path, options);
+        response = await this.#dispatch(prepared, options);
         if (hookMeta) {
           await fireHook(this.#config.hooks?.onResponse, {
             url: hookMeta.url,
@@ -182,19 +243,25 @@ export class FcHttp {
   }
 
   /**
-   * Builds the redacted URL/headers payload reused across the per-attempt
-   * onRequest / onResponse / onRetry hook calls. Only called when hooks
-   * are configured — building Headers twice per request would otherwise
-   * be wasted work.
+   * Builds the canonical request once: the real URL, the headers (including
+   * the Content-Type that {@link buildBody} stamps on), the body, and — when
+   * hooks are configured — the redacted hook payload derived from those same
+   * headers. Deriving the hook payload here (not separately) is what keeps
+   * observers truthful: they see exactly the headers that were sent. Shared
+   * by `requestRaw` (re-dispatched per retry attempt) and `stream`.
+   *
+   * `#buildUrl` is called here so its non-base-origin `FcError` propagates
+   * before any dispatch — it must never be rewrapped as a connection error.
    */
-  #prepareHookMeta(
-    method: string,
-    path: string,
-    options: HttpRequestOptions,
-  ): { url: string; method: string; headers: Record<string, string> } {
-    const url = redactUrl(this.#buildUrl(path, options.query));
-    const headers = redactHeaders(this.#buildHeaders(options));
-    return { url, method: method.toUpperCase(), headers };
+  #prepare(method: string, path: string, options: HttpRequestOptions): PreparedRequest {
+    const httpMethod = method.toUpperCase();
+    const headers = this.#buildHeaders(options);
+    const body = buildBody(headers, options);
+    const url = this.#buildUrl(path, options.query);
+    const hookMeta = this.#config.hooks
+      ? { url: redactUrl(url), method: httpMethod, headers: redactHeaders(headers) }
+      : undefined;
+    return { url, path, method: httpMethod, headers, body, hookMeta };
   }
 
   /**
@@ -236,9 +303,33 @@ export class FcHttp {
     path: string,
     options: HttpRequestOptions = {},
   ): AsyncGenerator<T> {
-    const response = await this.#fetchOnce(method, path, options);
+    // Streams aren't retried, but they fire the same onRequest / onResponse
+    // hooks as buffered requests so observability is consistent across both.
+    const prepared = this.#prepare(method, path, options);
+    const hookMeta = prepared.hookMeta;
+    if (hookMeta) {
+      await fireHook(this.#config.hooks?.onRequest, {
+        url: hookMeta.url,
+        method: hookMeta.method,
+        headers: hookMeta.headers,
+        attempt: 1,
+      });
+    }
+    const startMs = performance.now();
+    const response = await this.#dispatch(prepared, options);
+    if (hookMeta) {
+      await fireHook(this.#config.hooks?.onResponse, {
+        url: hookMeta.url,
+        method: hookMeta.method,
+        headers: hookMeta.headers,
+        attempt: 1,
+        status: response.status,
+        durationMs: performance.now() - startMs,
+        requestId: response.headers.get("x-request-id") ?? undefined,
+      });
+    }
     if (!response.ok) {
-      await this.throwForResponse(response, method, path);
+      await this.throwForResponse(response, prepared.method, prepared.path);
     }
     if (!response.body) {
       throw new FcError("The control plane returned an empty stream.");
@@ -279,24 +370,29 @@ export class FcHttp {
     });
   }
 
-  async #fetchOnce(method: string, path: string, options: HttpRequestOptions): Promise<Response> {
+  /**
+   * Dispatches a single prepared request: composes the timeout +
+   * caller-supplied abort signals and calls `fetch`. Re-invoked per retry
+   * attempt with the same prepared object. The URL was already built (and
+   * origin-validated) in `#prepare`, so any `FcError` surfaced there, not
+   * here — keeping the `catch` below free to classify only network /
+   * timeout failures.
+   */
+  async #dispatch(prepared: PreparedRequest, options: HttpRequestOptions): Promise<Response> {
     const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
-    const headers = this.#buildHeaders(options);
-    const body = buildBody(headers, options);
-    const init: RequestInit & { duplex?: "half" } = { method, headers };
-    if (body !== undefined) {
-      init.body = body;
+    const init: RequestInit & { duplex?: "half" } = {
+      method: prepared.method,
+      headers: prepared.headers,
+    };
+    if (prepared.body !== undefined) {
+      init.body = prepared.body;
       // Node's fetch (undici) rejects a streaming body unless duplex is set;
       // browsers ignore the option, so adding it is always safe.
-      if (body instanceof ReadableStream) {
+      if (prepared.body instanceof ReadableStream) {
         init.duplex = "half";
       }
     }
 
-    // Build the URL before the try: #buildUrl throws FcError on a non-base
-    // origin, and that security/config error must not be caught and
-    // rewrapped as FcConnectionError below.
-    const url = this.#buildUrl(path, options.query);
     const signals: AbortSignal[] = [];
     if (options.signal) {
       signals.push(options.signal);
@@ -311,17 +407,20 @@ export class FcHttp {
     }
 
     try {
-      return await this.#config.fetch(url, init);
+      return await this.#config.fetch(prepared.url, init);
     } catch (err) {
       if (timeout?.signal.aborted === true && options.signal?.aborted !== true) {
-        throw new FcTimeoutError(`Request timed out after ${timeoutMs}ms: ${method} ${path}`, {
-          cause: err,
-        });
+        throw new FcTimeoutError(
+          `Request timed out after ${timeoutMs}ms: ${prepared.method} ${prepared.path}`,
+          { cause: err },
+        );
       }
       if (options.signal?.aborted === true) {
         throw err;
       }
-      throw new FcConnectionError(`Network error: ${method} ${path}`, { cause: err });
+      throw new FcConnectionError(`Network error: ${prepared.method} ${prepared.path}`, {
+        cause: err,
+      });
     } finally {
       timeout?.clear();
     }
@@ -461,6 +560,32 @@ async function fireHook<C>(
     // eslint-disable-next-line no-console
     console.warn("fc-sandbox-sdk: client hook threw, ignoring", err);
   }
+}
+
+/**
+ * Normalizes a list payload into `{ items, total }`. Accepts the paginated
+ * envelope (`{ data, pagination }`), a legacy `{ <legacyKey>: [] }` wrapper,
+ * or a bare array. `total` is `undefined` for the non-paginated shapes.
+ */
+function extractPage<T>(
+  payload: unknown,
+  legacyKey?: string,
+): { items: T[]; total: number | undefined } {
+  if (Array.isArray(payload)) {
+    return { items: payload as T[], total: undefined };
+  }
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.data)) {
+      const pagination = obj.pagination as { total?: number } | undefined;
+      const total = typeof pagination?.total === "number" ? pagination.total : undefined;
+      return { items: obj.data as T[], total };
+    }
+    if (legacyKey && Array.isArray(obj[legacyKey])) {
+      return { items: obj[legacyKey] as T[], total: undefined };
+    }
+  }
+  return { items: [], total: undefined };
 }
 
 async function unwrapJSend<T>(response: Response): Promise<T> {

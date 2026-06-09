@@ -25,7 +25,6 @@ import type {
   OKResponse,
   RequestOptions,
   ResizeSandboxResponse,
-  SandboxDisksListResponse,
   SandboxDiskView,
   SandboxStatus,
   SandboxView,
@@ -128,12 +127,10 @@ export class Sandbox {
 
   readonly #http: FcHttp;
   #data: SandboxView;
-  #ingressUrlTemplate: string | undefined;
 
-  constructor(http: FcHttp, view: SandboxView, ingressUrlTemplate?: string) {
+  constructor(http: FcHttp, view: SandboxView) {
     this.#http = http;
     this.#data = view;
-    this.#ingressUrlTemplate = ingressUrlTemplate;
     this.files = new SandboxFiles(http, view.id);
   }
 
@@ -494,16 +491,13 @@ export class Sandbox {
    * console.log(sandbox.previewUrl(8080));
    */
   async setIngress(enabled: boolean, options: RequestOptions = {}): Promise<this> {
+    // The PATCH returns the updated view, which carries (or omits)
+    // `ingress_url_template` to match the new state — so re-enabling
+    // repopulates the template and disabling clears it.
     this.#data = await this.#http.request<SandboxView>("PATCH", this.#path(), {
       ...options,
       body: { ingress_enabled: enabled },
     });
-    if (!enabled) {
-      // Disabling ingress invalidates the cached URL template. Re-enabling
-      // cannot repopulate it — SandboxView omits ingress_url_template
-      // (a known control-plane limitation).
-      this.#ingressUrlTemplate = undefined;
-    }
     return this;
   }
 
@@ -773,13 +767,10 @@ export class Sandbox {
    * const disks = await sandbox.listDisks();
    * for (const d of disks) console.log(d.disk_id, d.mount_path, d.mount_state);
    */
-  async listDisks(options: RequestOptions = {}): Promise<SandboxDiskView[]> {
-    const data = await this.#http.request<SandboxDisksListResponse>(
-      "GET",
-      this.#path("/disks"),
-      options,
-    );
-    return data.disks;
+  listDisks(options: RequestOptions = {}): Promise<SandboxDiskView[]> {
+    return this.#http.fetchAllPages<SandboxDiskView>("GET", this.#path("/disks"), options, {
+      legacyKey: "disks",
+    });
   }
 
   /**
@@ -917,18 +908,25 @@ export class Sandbox {
    */
   previewUrl(port: number, options: { scheme?: "http" | "https" } = {}): string {
     assertValidPort(port);
-    // Guard on current ingress state, not just the cached template — a
-    // handle whose ingress was disabled must not hand back a dead URL.
-    if (!this.#data.ingress_enabled || !this.#ingressUrlTemplate) {
+    // Guard on current ingress state, not just the template — a handle whose
+    // ingress was disabled must not hand back a dead URL.
+    const template = this.#data.ingress_url_template;
+    if (!this.#data.ingress_enabled || !template) {
       throw new FcError(
         "No ingress URL is available. Create the sandbox with ingress_enabled: true.",
       );
     }
-    const url = this.#ingressUrlTemplate.replace("<port>", String(port));
+    const url = template.replace("<port>", String(port));
     return options.scheme === "http" ? url.replace(/^https:/, "http:") : url;
   }
 }
 
+// `Sandbox.create()` / `connect()` take a single flat option bag for one-line
+// ergonomics (no separate client to construct). `headers`, `timeoutMs` and
+// `retry` are deliberately applied to BOTH layers: they configure the implicit
+// client AND ride along on the create/connect request. For finer control of
+// the two layers independently, construct `new FcClient(clientOpts)` and call
+// `.createSandbox(request, requestOpts)` directly.
 function splitOptions(options: FcClientOptions & RequestOptions): {
   clientOpts: FcClientOptions;
   requestOpts: RequestOptions;
