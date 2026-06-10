@@ -48,7 +48,7 @@ interface PreparedRequest {
 }
 
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
-const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE", "OPTIONS"]);
+const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE"]);
 
 // Strip the comprehensive credential set documented in redact.ts — keeping a
 // second hardcoded list here was the source of a gap (cookie /
@@ -118,23 +118,45 @@ export class FcHttp {
     options: HttpRequestOptions = {},
     page: { legacyKey?: string; cap?: number } = {},
   ): Promise<T[]> {
+    const all: T[] = [];
+    for await (const item of this.iteratePages<T>(method, path, options, page)) {
+      all.push(item);
+    }
+    return all;
+  }
+
+  /**
+   * Lazily yields every item of a paginated list endpoint, fetching one page
+   * at a time and walking pages until the server-reported `total` is reached.
+   * {@link fetchAllPages} is a thin collector over this; the public `iterate*`
+   * helpers expose it so callers can stream a large list without buffering
+   * every row in memory. Paging contract is identical to `fetchAllPages`.
+   */
+  async *iteratePages<T>(
+    method: string,
+    path: string,
+    options: HttpRequestOptions = {},
+    page: { legacyKey?: string; cap?: number } = {},
+  ): AsyncGenerator<T> {
     const { legacyKey, cap } = page;
     const pageSize = cap !== undefined ? Math.min(cap, 500) : 500;
     const baseQuery = options.query ?? {};
-    const all: T[] = [];
+    let yielded = 0;
     let offset = 0;
     for (;;) {
       const payload = await this.request<unknown>(method, path, {
         ...options,
         query: { ...baseQuery, limit: pageSize, offset },
       });
-      const { items, total } = extractPage<T>(payload, legacyKey);
-      all.push(...items);
-      if (cap !== undefined && all.length >= cap) return all.slice(0, cap);
+      const { items, total } = extractPage<T>(payload, legacyKey, path);
+      for (const item of items) {
+        yield item;
+        if (cap !== undefined && ++yielded >= cap) return;
+      }
       // A missing total means a non-paginated shape (bare array / legacy
       // wrapper) that already returned everything in one response.
-      if (total === undefined || items.length === 0 || all.length >= total) {
-        return all;
+      if (total === undefined || items.length === 0 || offset + items.length >= total) {
+        return;
       }
       offset += items.length;
     }
@@ -172,27 +194,10 @@ export class FcHttp {
       let response: Response;
       let startMs = 0;
       try {
-        if (hookMeta) {
-          await fireHook(this.#config.hooks?.onRequest, {
-            url: hookMeta.url,
-            method: hookMeta.method,
-            headers: hookMeta.headers,
-            attempt: attempt + 1,
-          });
-        }
+        await this.#fireRequestHook(hookMeta, attempt);
         startMs = performance.now();
         response = await this.#dispatch(prepared, options);
-        if (hookMeta) {
-          await fireHook(this.#config.hooks?.onResponse, {
-            url: hookMeta.url,
-            method: hookMeta.method,
-            headers: hookMeta.headers,
-            attempt: attempt + 1,
-            status: response.status,
-            durationMs: performance.now() - startMs,
-            requestId: response.headers.get("x-request-id") ?? undefined,
-          });
-        }
+        await this.#fireResponseHook(hookMeta, attempt, startMs, response);
       } catch (err) {
         const canRetry =
           err instanceof FcConnectionError &&
@@ -264,6 +269,36 @@ export class FcHttp {
     return { url, path, method: httpMethod, headers, body, hookMeta };
   }
 
+  /** Fires onRequest with the redacted meta. No-op when no hooks are configured. */
+  #fireRequestHook(hookMeta: HookMeta | undefined, attempt: number): Promise<void> {
+    if (!hookMeta) return Promise.resolve();
+    return fireHook(this.#config.hooks?.onRequest, {
+      url: hookMeta.url,
+      method: hookMeta.method,
+      headers: hookMeta.headers,
+      attempt: attempt + 1,
+    });
+  }
+
+  /** Fires onResponse with the redacted meta and timing. No-op when no hooks are configured. */
+  #fireResponseHook(
+    hookMeta: HookMeta | undefined,
+    attempt: number,
+    startMs: number,
+    response: Response,
+  ): Promise<void> {
+    if (!hookMeta) return Promise.resolve();
+    return fireHook(this.#config.hooks?.onResponse, {
+      url: hookMeta.url,
+      method: hookMeta.method,
+      headers: hookMeta.headers,
+      attempt: attempt + 1,
+      status: response.status,
+      durationMs: performance.now() - startMs,
+      requestId: response.headers.get("x-request-id") ?? undefined,
+    });
+  }
+
   /**
    * Fires the onRetry hook with the shared meta merged in. The two retry
    * paths (network error vs retryable status) decide *whether* to retry on
@@ -271,7 +306,7 @@ export class FcHttp {
    * share once that decision is made.
    */
   #fireRetryHook(
-    hookMeta: { url: string; method: string; headers: Record<string, string> },
+    hookMeta: HookMeta,
     attempt: number,
     detail: {
       durationMs: number;
@@ -307,27 +342,10 @@ export class FcHttp {
     // hooks as buffered requests so observability is consistent across both.
     const prepared = this.#prepare(method, path, options);
     const hookMeta = prepared.hookMeta;
-    if (hookMeta) {
-      await fireHook(this.#config.hooks?.onRequest, {
-        url: hookMeta.url,
-        method: hookMeta.method,
-        headers: hookMeta.headers,
-        attempt: 1,
-      });
-    }
+    await this.#fireRequestHook(hookMeta, 0);
     const startMs = performance.now();
     const response = await this.#dispatch(prepared, options);
-    if (hookMeta) {
-      await fireHook(this.#config.hooks?.onResponse, {
-        url: hookMeta.url,
-        method: hookMeta.method,
-        headers: hookMeta.headers,
-        attempt: 1,
-        status: response.status,
-        durationMs: performance.now() - startMs,
-        requestId: response.headers.get("x-request-id") ?? undefined,
-      });
-    }
+    await this.#fireResponseHook(hookMeta, 0, startMs, response);
     if (!response.ok) {
       await this.throwForResponse(response, prepared.method, prepared.path);
     }
@@ -507,8 +525,10 @@ function isRetryableStatus(method: string, status: number): boolean {
 }
 
 function backoffDelay(attempt: number, retry: Required<RetryOptions>): number {
-  const exponential = Math.min(retry.baseDelayMs * 2 ** attempt, retry.maxDelayMs);
-  return exponential + Math.random() * retry.baseDelayMs;
+  // Cap the jittered value, not the exponential term: clamping before adding
+  // jitter let the result exceed maxDelayMs by up to baseDelayMs.
+  const jittered = retry.baseDelayMs * 2 ** attempt + Math.random() * retry.baseDelayMs;
+  return Math.min(jittered, retry.maxDelayMs);
 }
 
 function buildBody(headers: Headers, options: HttpRequestOptions): BodyInit | undefined {
@@ -524,6 +544,9 @@ function buildBody(headers: Headers, options: HttpRequestOptions): BodyInit | un
   }
   return undefined;
 }
+
+/** Redacted request metadata shared by the onRequest / onResponse / onRetry hooks. */
+type HookMeta = { url: string; method: string; headers: Record<string, string> };
 
 interface TimeoutHandle {
   signal: AbortSignal;
@@ -569,7 +592,8 @@ async function fireHook<C>(
  */
 function extractPage<T>(
   payload: unknown,
-  legacyKey?: string,
+  legacyKey: string | undefined,
+  path: string,
 ): { items: T[]; total: number | undefined } {
   if (Array.isArray(payload)) {
     return { items: payload as T[], total: undefined };
@@ -585,13 +609,28 @@ function extractPage<T>(
       return { items: obj[legacyKey] as T[], total: undefined };
     }
   }
-  return { items: [], total: undefined };
+  // No recognized shape. Returning an empty page here would silently drop
+  // every row and report success — the exact failure mode that hid the
+  // listShapes paginated-envelope regression. Fail loudly instead.
+  const preview = typeof payload === "string" ? payload : JSON.stringify(payload);
+  throw new FcError(
+    `Unrecognized list payload shape from ${path}: ${(preview ?? String(payload)).slice(0, 200)}`,
+  );
 }
 
 async function unwrapJSend<T>(response: Response): Promise<T> {
   const text = await response.text();
   if (!text) {
-    return undefined as T;
+    // A JSend endpoint always returns an envelope. The only legitimate empty
+    // body is an explicit no-content status; anything else (a proxy stripping
+    // the body, the wrong endpoint) is a contract break and must not be
+    // silently coerced to `undefined` and handed back as a typed `T`.
+    if (response.status === 204 || response.status === 205) {
+      return undefined as T;
+    }
+    throw new FcError(
+      `The control plane returned an empty body with status ${response.status}; expected a JSend envelope.`,
+    );
   }
   let envelope: JSendEnvelope<T>;
   try {
