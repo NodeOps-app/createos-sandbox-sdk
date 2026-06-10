@@ -13,8 +13,8 @@ spec. See `AGENTS.md` → "Wire types — source of truth".
 | --- | --- |
 | SDK version | `0.6.0` |
 | fc-spawn branch | `main` |
-| fc-spawn commit | `159bbb0` ("docs: remove unwanted section", 2026-06-09) |
-| Audited | 2026-06-10 (handler-source audit; wire delta since `12ed1a7` reviewed commit-by-commit) |
+| fc-spawn commit | `8e197b5` ("fix(authz): per-host scope DB-proxy reads, drop dead host-proxy role, add mTLS-era authz suite", 2026-06-10) |
+| Audited | 2026-06-10 (handler-source audit; `159bbb0` → `8e197b5` delta reviewed commit-by-commit — no wire change) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
 wire-faithful to the server structs at the commit above — field names,
@@ -42,6 +42,28 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
+
+## Re-audited (`159bbb0` → `8e197b5`) — no wire delta
+
+Five server commits, three touching the monitored surface (`8e197b5`,
+`5e79b50`, `94a96c4`). `internal/httpx/types` is untouched, the JSend
+envelope (`internal/httpx`) is unchanged, and every user-facing `/v1`
+route is identical — no SDK code change. What did move, for the record:
+
+- **Ownership checks moved up to the control plane.** `PUT .../egress`,
+  `POST .../bandwidth/recharge`, and the file upload / download routes
+  now return `404 "sandbox not found"` (JSend `fail`) at the control
+  plane for a sandbox the caller does not own, instead of relying on
+  the downstream host forward to reject. The SDK already maps 404 to
+  `FcNotFoundError`; only the failure point moved. On `recharge` the
+  owner check now precedes the 402 credit gate, so a non-owned id
+  yields 404 rather than 402.
+- **Internal tunnel entrypoint removed** (`POST /v1/internal/tunnel/...`
+  and `HandleTunnel`); ingress / gateway now dial hosts directly. The
+  user-facing `POST /v1/sandboxes/:id/tunnel/:port` (`HandleUserTunnel`)
+  is unchanged — the "not modeled" rationale above still stands.
+- The rest is db-proxy / heartbeat authz gating and dead-JWT plumbing
+  removal — internal surface the SDK excludes by design.
 
 ## Reconciled in 0.6.0, second pass (`12ed1a7` → `159bbb0`)
 
