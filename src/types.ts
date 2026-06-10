@@ -6,15 +6,6 @@
 
 // ── JSend envelope ──────────────────────────────────────────────────────
 
-/** Any JSON-serializable value. */
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
-
 /** JSend `success` envelope: the request succeeded and `data` is the payload. */
 export interface SuccessEnvelope<T> {
   status: "success";
@@ -97,6 +88,11 @@ export interface RetryHookContext extends Omit<ResponseHookContext, "status"> {
  * runtime dependencies. Every payload is pre-redacted — credentials in
  * headers and query params never reach a hook. A throw inside a hook is
  * swallowed so a misbehaving observer cannot crash a real request.
+ *
+ * Hooks are awaited in the request path so a returned promise orders the
+ * trace deterministically against the request it describes; an async hook
+ * therefore adds its own latency to the call. Keep hook work cheap, or
+ * dispatch slow work without returning the promise.
  */
 export interface ClientHooks {
   onRequest?: (ctx: RequestHookContext) => void | Promise<void>;
@@ -110,7 +106,7 @@ export interface FcClientOptions {
   apiKey?: string;
   /** Auth headers used instead of an API key, e.g. your app's session token. */
   authHeaders?: HeadersInit;
-  /** Control-plane base URL. Falls back to FC_BASE_URL, then the default. */
+  /** Control-plane base URL. Required; falls back to the FC_BASE_URL env var. */
   baseUrl?: string;
   /** Custom fetch implementation. Defaults to globalThis.fetch. */
   fetch?: typeof fetch;
@@ -153,11 +149,6 @@ export interface Shape {
   /** cgroup v2 cpu.max quota as a percent of one CPU (`omitempty`; absent =
    *  unlimited). 25 = 0.25 vCPU, 50 = 0.5 vCPU. */
   cpu_quota_pct?: number;
-}
-
-/** Envelope for `listShapes()`. */
-export interface ShapesData {
-  shapes: Shape[];
 }
 
 /** Metadata for one built-in rootfs image in the catalog. */
@@ -562,11 +553,6 @@ export interface TemplateView {
   dockerfile?: string;
 }
 
-/** Envelope for `templates.list`. */
-export interface TemplatesListResponse {
-  templates: TemplateView[];
-}
-
 /** Options for `templates.get`. */
 export interface GetTemplateOptions extends RequestOptions {
   /** Set to `"dockerfile"` to include the original build source in the response. */
@@ -663,16 +649,6 @@ export interface SandboxDiskView {
   mount_status: DiskMountStatus;
   /** Failure detail when `mount_status` is `error`. */
   mount_error?: string;
-}
-
-/** Envelope for `disks.list`. */
-export interface DisksListResponse {
-  disks: DiskView[];
-}
-
-/** Envelope for `Sandbox.listDisks`. */
-export interface SandboxDisksListResponse {
-  disks: SandboxDiskView[];
 }
 
 /** Result of `disks.delete`. */

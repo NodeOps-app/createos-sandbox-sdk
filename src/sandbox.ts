@@ -1,7 +1,7 @@
 // The Sandbox handle: a stateful object returned by FcClient that owns a
 // sandbox id and exposes lifecycle, command, file and network operations.
 
-import { bootstrapClient } from "./client.js";
+import { createClient } from "./client.js";
 import { DEFAULT_WAIT_MS } from "./config.js";
 import { FcError, FcTimeoutError } from "./errors.js";
 import { encodePath, type FcHttp } from "./http.js";
@@ -48,7 +48,12 @@ function assertValidPort(port: number): void {
   }
 }
 
-/** File transfer scoped to one sandbox. Reached via `sandbox.files`. */
+/**
+ * File transfer scoped to one sandbox. Reached via `sandbox.files`.
+ *
+ * Every method also throws {@link FcServerError} on a 5xx response and
+ * {@link FcConnectionError} on network failure.
+ */
 export class SandboxFiles {
   readonly #http: FcHttp;
   readonly #sandboxId: string;
@@ -65,8 +70,6 @@ export class SandboxFiles {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -88,8 +91,6 @@ export class SandboxFiles {
    * @throws {FcValidationError} when the path is invalid.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -116,6 +117,10 @@ export class SandboxFiles {
  * network and disk operations, and the `waitUntil*` pollers. Mutating calls
  * refresh the cached projection in place; read it via `data` or the
  * `id` / `status` / `ip` / `name` getters.
+ *
+ * Every method that reaches the control plane also throws {@link FcServerError}
+ * on a 5xx response and {@link FcConnectionError} on network failure; per-method
+ * `@throws` tags list only the conditions specific to that call.
  *
  * @example
  * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
@@ -144,12 +149,10 @@ export class Sandbox {
    * @throws {FcValidationError} when shape or rootfs are unknown.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
    *
    * @example
-   * import Sandbox from "fc-sandbox-sdk";
+   * import { Sandbox } from "fc-sandbox-sdk";
    * const sandbox = await Sandbox.create({
    *   shape: "s-1vcpu-256mb",
    *   rootfs: "devbox:1",
@@ -160,11 +163,10 @@ export class Sandbox {
     request: CreateSandboxRequest,
     options: FcClientOptions & CreateSandboxOptions = {},
   ): Promise<Sandbox> {
-    const { clientOpts, requestOpts } = splitOptions(options);
-    const createOpts: CreateSandboxOptions = { ...requestOpts };
+    const createOpts: CreateSandboxOptions = pickRequestOpts(options);
     if (options.wait !== undefined) createOpts.wait = options.wait;
     if (options.waitTimeoutMs !== undefined) createOpts.waitTimeoutMs = options.waitTimeoutMs;
-    return bootstrapClient(clientOpts).createSandbox(request, createOpts);
+    return createClient(options).createSandbox(request, createOpts);
   }
 
   /**
@@ -174,12 +176,10 @@ export class Sandbox {
    * @throws {FcNotFoundError} when no sandbox with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * import Sandbox from "fc-sandbox-sdk";
+   * import { Sandbox } from "fc-sandbox-sdk";
    * const sandbox = await Sandbox.connect("sb_01h…");
    * console.log(sandbox.status);
    */
@@ -187,8 +187,7 @@ export class Sandbox {
     id: string,
     options: FcClientOptions & RequestOptions = {},
   ): Promise<Sandbox> {
-    const { clientOpts, requestOpts } = splitOptions(options);
-    return bootstrapClient(clientOpts).getSandbox(id, requestOpts);
+    return createClient(options).getSandbox(id, pickRequestOpts(options));
   }
 
   get id(): string {
@@ -208,7 +207,11 @@ export class Sandbox {
     return this.#data.name;
   }
 
-  /** The full, last-known sandbox projection. */
+  /**
+   * The full, last-known sandbox projection. This returns the handle's live
+   * internal object, not a copy — treat it as read-only. Mutating it corrupts
+   * the cached state the getters and `waitUntil*` pollers read back.
+   */
   get data(): SandboxView {
     return this.#data;
   }
@@ -233,8 +236,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -255,8 +256,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -283,8 +282,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -335,8 +332,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -371,8 +366,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -391,8 +384,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -411,8 +402,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the source sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -437,8 +426,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -460,8 +447,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -483,8 +468,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -514,8 +497,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -542,8 +523,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -567,8 +546,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the wait budget elapses.
    *
    * @example
@@ -591,8 +568,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the wait budget elapses.
    *
    * @example
@@ -615,8 +590,6 @@ export class Sandbox {
    * @throws {FcError} when the sandbox enters a non-destroy terminal failure state.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the wait budget elapses.
    *
    * @example
@@ -662,8 +635,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -683,8 +654,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -703,8 +672,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -724,8 +691,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -747,8 +712,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox or network does not exist.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -767,8 +730,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox or attachment does not exist.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -790,16 +751,27 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const disks = await sandbox.listDisks();
-   * for (const d of disks) console.log(d.disk_id, d.mount_path, d.mount_state);
+   * for (const d of disks) console.log(d.disk_id, d.mount_path, d.mount_status);
    */
   listDisks(options: RequestOptions = {}): Promise<SandboxDiskView[]> {
     return this.#http.fetchAllPages<SandboxDiskView>("GET", this.#path("/disks"), options, {
+      legacyKey: "disks",
+    });
+  }
+
+  /**
+   * Streams disks attached to this sandbox, one page at a time, instead of
+   * buffering the whole list like {@link listDisks}.
+   *
+   * @example
+   * for await (const d of sandbox.iterateDisks()) console.log(d.disk_id);
+   */
+  iterateDisks(options: RequestOptions = {}): AsyncGenerator<SandboxDiskView> {
+    return this.#http.iteratePages<SandboxDiskView>("GET", this.#path("/disks"), options, {
       legacyKey: "disks",
     });
   }
@@ -814,8 +786,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox or disk no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -845,8 +815,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox, disk, or attachment does not exist.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -877,8 +845,6 @@ export class Sandbox {
    * @throws {FcNotFoundError} when the sandbox no longer exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the wait budget elapses without the port opening.
    *
    * @example
@@ -953,30 +919,17 @@ export class Sandbox {
 }
 
 // `Sandbox.create()` / `connect()` take a single flat option bag for one-line
-// ergonomics (no separate client to construct). `headers`, `timeoutMs` and
-// `retry` are deliberately applied to BOTH layers: they configure the implicit
-// client AND ride along on the create/connect request. For finer control of
-// the two layers independently, construct `new FcClient(clientOpts)` and call
-// `.createSandbox(request, requestOpts)` directly.
-function splitOptions(options: FcClientOptions & RequestOptions): {
-  clientOpts: FcClientOptions;
-  requestOpts: RequestOptions;
-} {
-  const clientOpts: FcClientOptions = {};
-  if (options.apiKey !== undefined) clientOpts.apiKey = options.apiKey;
-  if (options.authHeaders !== undefined) clientOpts.authHeaders = options.authHeaders;
-  if (options.baseUrl !== undefined) clientOpts.baseUrl = options.baseUrl;
-  if (options.fetch !== undefined) clientOpts.fetch = options.fetch;
-  if (options.userAgent !== undefined) clientOpts.userAgent = options.userAgent;
-  if (options.headers !== undefined) clientOpts.headers = options.headers;
-  if (options.timeoutMs !== undefined) clientOpts.timeoutMs = options.timeoutMs;
-  if (options.retry !== undefined) clientOpts.retry = options.retry;
-
+// ergonomics (no separate client to construct). The WHOLE bag configures the
+// implicit client — so `hooks`, `userAgent`, `apiKey`, etc. all flow through —
+// while `headers`, `timeoutMs` and `retry` are ALSO applied to the
+// create/connect request itself, riding along via the picked RequestOptions.
+// For finer control of the two layers independently, construct
+// `new FcClient(clientOpts)` and call `.createSandbox(request, requestOpts)`.
+function pickRequestOpts(options: RequestOptions): RequestOptions {
   const requestOpts: RequestOptions = {};
   if (options.signal !== undefined) requestOpts.signal = options.signal;
   if (options.headers !== undefined) requestOpts.headers = options.headers;
   if (options.timeoutMs !== undefined) requestOpts.timeoutMs = options.timeoutMs;
   if (options.retry !== undefined) requestOpts.retry = options.retry;
-
-  return { clientOpts, requestOpts };
+  return requestOpts;
 }

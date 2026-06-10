@@ -34,7 +34,13 @@ import type {
   WhoAmIView,
 } from "./types.js";
 
-/** Template (custom rootfs) operations. Reached via `client.templates`. */
+/**
+ * Template (custom rootfs) operations. Reached via `client.templates`.
+ *
+ * Every method also throws {@link FcServerError} on a 5xx response and
+ * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * only the conditions specific to that call.
+ */
 export class TemplatesApi {
   readonly #http: FcHttp;
 
@@ -46,8 +52,6 @@ export class TemplatesApi {
    * Lists every template owned by the caller.
    *
    * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -61,13 +65,24 @@ export class TemplatesApi {
   }
 
   /**
+   * Streams every template owned by the caller, fetching one page at a time
+   * instead of buffering the whole list like {@link list}.
+   *
+   * @example
+   * for await (const t of fc.templates.iterate()) console.log(t.id);
+   */
+  iterate(options: RequestOptions = {}): AsyncGenerator<TemplateView> {
+    return this.#http.iteratePages<TemplateView>("GET", "/v1/templates", options, {
+      legacyKey: "templates",
+    });
+  }
+
+  /**
    * Submits a Dockerfile to build into a sandbox rootfs.
    *
    * @throws {FcValidationError} when the request body is malformed or the Dockerfile is rejected.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -91,8 +106,6 @@ export class TemplatesApi {
    * @throws {FcNotFoundError} when no template with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -113,8 +126,6 @@ export class TemplatesApi {
    * @throws {FcNotFoundError} when the template id does not exist.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -130,8 +141,6 @@ export class TemplatesApi {
    * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -157,8 +166,6 @@ export class TemplatesApi {
    * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -175,7 +182,13 @@ export class TemplatesApi {
   }
 }
 
-/** Overlay network operations. Reached via `client.networks`. */
+/**
+ * Overlay network operations. Reached via `client.networks`.
+ *
+ * Every method also throws {@link FcServerError} on a 5xx response and
+ * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * only the conditions specific to that call.
+ */
 export class NetworksApi {
   readonly #http: FcHttp;
 
@@ -187,8 +200,6 @@ export class NetworksApi {
    * Lists every overlay network owned by the caller.
    *
    * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -200,14 +211,22 @@ export class NetworksApi {
   }
 
   /**
+   * Streams every overlay network owned by the caller, one page at a time.
+   *
+   * @example
+   * for await (const n of fc.networks.iterate()) console.log(n.id);
+   */
+  iterate(options: RequestOptions = {}): AsyncGenerator<Network> {
+    return this.#http.iteratePages<Network>("GET", "/v1/networks", options);
+  }
+
+  /**
    * Creates an overlay network. Members are attached later via
    * `sandbox.attachNetwork`.
    *
    * @throws {FcValidationError} when the request body is malformed or the CIDR conflicts.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -224,8 +243,6 @@ export class NetworksApi {
    * @throws {FcNotFoundError} when no network with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -243,8 +260,6 @@ export class NetworksApi {
    * @throws {FcValidationError} when the network still has active members.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -265,6 +280,10 @@ export class NetworksApi {
  * The control plane returns HTTP 503 ("disks API not configured") when
  * the operator has not provisioned a disk-credential cipher key — this
  * is a configuration state, not a transient failure.
+ *
+ * Every method also throws {@link FcServerError} on a 5xx response and
+ * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * only the conditions specific to that call.
  */
 export class DisksApi {
   readonly #http: FcHttp;
@@ -279,7 +298,6 @@ export class DisksApi {
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcServerError} on 5xx from the control plane (including 503
    *   when the disks API is not configured by the operator).
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -291,6 +309,16 @@ export class DisksApi {
   }
 
   /**
+   * Streams every registered S3 disk owned by the caller, one page at a time.
+   *
+   * @example
+   * for await (const d of fc.disks.iterate()) console.log(d.name);
+   */
+  iterate(options: RequestOptions = {}): AsyncGenerator<DiskView> {
+    return this.#http.iteratePages<DiskView>("GET", "/v1/disks", options, { legacyKey: "disks" });
+  }
+
+  /**
    * Registers an S3 bucket as a mountable disk. The server HEADs the
    * bucket before accepting; a typo or bad creds returns 400.
    *
@@ -299,7 +327,6 @@ export class DisksApi {
    * @throws {FcPermissionError} when the caller hits a quota.
    * @throws {FcServerError} on 5xx from the control plane (including 503
    *   when the disks API is not configured by the operator).
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -322,8 +349,6 @@ export class DisksApi {
    * @throws {FcNotFoundError} when no disk with that id or name exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -342,8 +367,6 @@ export class DisksApi {
    * @throws {FcValidationError} when the disk is still attached to a sandbox.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -367,8 +390,6 @@ export class DisksApi {
    * @throws {FcNotFoundError} when the disk id or name does not exist.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -393,6 +414,10 @@ export class DisksApi {
  * The SDK entry point. Owns transport configuration (auth, base URL,
  * timeouts, retries) and exposes catalog and identity calls, the sandbox
  * factory, and the `templates` / `networks` / `disks` sub-APIs.
+ *
+ * Every method that reaches the control plane also throws {@link FcServerError}
+ * on a 5xx response and {@link FcConnectionError} on network failure; per-method
+ * `@throws` tags list only the conditions specific to that call.
  *
  * @example
  * const fc = new FcClient({ apiKey: process.env.FC_API_KEY });
@@ -425,8 +450,6 @@ export class FcClient {
    * Liveness probe. Unauthenticated; returns `{ up: true }` once the
    * control plane is up.
    *
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -440,7 +463,6 @@ export class FcClient {
   /**
    * Readiness probe. Returns `{ ready: false, reason }` instead of throwing on 503.
    *
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -481,8 +503,6 @@ export class FcClient {
    * Returns the identity associated with the configured API key.
    *
    * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -499,8 +519,6 @@ export class FcClient {
    * Lists the available sandbox shapes (vCPU / RAM presets).
    * Unauthenticated.
    *
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -519,8 +537,6 @@ export class FcClient {
   /**
    * Lists the catalog of built-in rootfs images. Unauthenticated.
    *
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -536,8 +552,6 @@ export class FcClient {
    *
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the caller cannot enumerate hosts.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -546,6 +560,16 @@ export class FcClient {
    */
   listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {
     return this.http.fetchAllPages<HostPublic>("GET", "/v1/hosts", options);
+  }
+
+  /**
+   * Streams the worker hosts visible to the caller, one page at a time.
+   *
+   * @example
+   * for await (const h of fc.iterateHosts()) console.log(h.id);
+   */
+  iterateHosts(options: RequestOptions = {}): AsyncGenerator<HostPublic> {
+    return this.http.iteratePages<HostPublic>("GET", "/v1/hosts", options);
   }
 
   // ── sandboxes ─────────────────────────────────────────────────────────
@@ -557,8 +581,6 @@ export class FcClient {
    * @throws {FcValidationError} when shape or rootfs are unknown.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
    *
    * @example
@@ -609,8 +631,6 @@ export class FcClient {
    * @throws {FcNotFoundError} when no sandbox with that id exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -632,8 +652,6 @@ export class FcClient {
    * @throws {FcNotFoundError} when no sandbox with that IP exists.
    * @throws {FcAuthError} when the API key is missing or revoked.
    * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * @example
@@ -653,8 +671,6 @@ export class FcClient {
    * Lists the caller's sandboxes as connected handles.
    *
    * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcServerError} on 5xx from the control plane.
-   * @throws {FcConnectionError} when the network fails.
    * @throws {FcTimeoutError} when the per-request timeout elapses.
    *
    * Walks every page by default; pass `limit` to cap the number of
@@ -674,6 +690,30 @@ export class FcClient {
     );
     return views.map((view) => new Sandbox(this.http, view));
   }
+
+  /**
+   * Streams the caller's sandboxes as connected handles, fetching one page at
+   * a time. Prefer over {@link listSandboxes} when the list may be large and
+   * you want to start processing before every page is fetched. `limit` caps
+   * the total handles yielded.
+   *
+   * @example
+   * for await (const s of fc.iterateSandboxes({ status: "running" })) {
+   *   console.log(s.id, s.ip);
+   * }
+   */
+  async *iterateSandboxes(options: ListSandboxesOptions = {}): AsyncGenerator<Sandbox> {
+    const { limit, status, ...rest } = options;
+    const views = this.http.iteratePages<SandboxView>(
+      "GET",
+      "/v1/sandboxes",
+      { ...rest, query: { status } },
+      limit !== undefined ? { cap: limit } : {},
+    );
+    for await (const view of views) {
+      yield new Sandbox(this.http, view);
+    }
+  }
 }
 
 /**
@@ -684,15 +724,5 @@ export class FcClient {
  * const fc = createClient({ apiKey: process.env.FC_API_KEY });
  */
 export function createClient(options: FcClientOptions = {}): FcClient {
-  return new FcClient(options);
-}
-
-/**
- * Internal bootstrap used by `Sandbox.create()` / `Sandbox.connect()`.
- * Defined here to avoid an import cycle on the FcClient class.
- *
- * @internal
- */
-export function bootstrapClient(options: FcClientOptions): FcClient {
   return new FcClient(options);
 }
