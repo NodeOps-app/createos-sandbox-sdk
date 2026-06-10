@@ -21,7 +21,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FcClient, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
+import { FcClient, FcPaymentRequiredError, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -92,6 +92,14 @@ async function createWithRetry(name: string): Promise<Sandbox> {
     try {
       return await fc.createSandbox(opts);
     } catch (err) {
+      // Out of credit is a hard stop, not a transient cap — waiting will not
+      // fix it, and a 402 message can contain "limit"/"quota" that the retriable
+      // regex below would otherwise match and retry pointlessly. Fail fast.
+      if (err instanceof FcPaymentRequiredError) {
+        throw new Error(`out of credit creating ${name} — top up the account, then retry`, {
+          cause: err,
+        });
+      }
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
         err instanceof FcValidationError ||

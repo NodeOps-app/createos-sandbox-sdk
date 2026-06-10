@@ -628,6 +628,19 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "40",
+      "slug": "idle-auto-pause",
+      "dir": "40-idle-auto-pause",
+      "title": "Idle auto-pause",
+      "summary": "Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.",
+      "primitives": ["createSandbox", "setAutoPause", "destroy"],
+      "deps": [],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }
