@@ -1007,6 +1007,31 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox."
+    },
+    {
+      "id": "45",
+      "slug": "claude-github-wiki",
+      "dir": "45-claude-github-wiki",
+      "title": "Claude agent GitHub wiki Q&A",
+      "summary": "Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase.",
+      "primitives": [
+        "createSandbox",
+        "runCommand",
+        "destroy"
+      ],
+      "deps": [
+        "@anthropic-ai/sdk"
+      ],
+      "env": [
+        "FC_API_KEY",
+        "FC_BASE_URL",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_MODEL"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "stable"
     }
   ]
 }

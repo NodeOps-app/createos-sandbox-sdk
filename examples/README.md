@@ -68,6 +68,7 @@ bun 01-hello-world/index.ts
 | 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 | 43 | [43-crawl4ai-crawler](43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 | 44 | [44-claude-changelog-generator](44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | createSandbox, sh, runCommand, files.upload, files.download, destroy | extra |
+| 45 | [45-claude-github-wiki](45-claude-github-wiki/) | Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase. | createSandbox, runCommand, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
