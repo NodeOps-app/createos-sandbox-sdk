@@ -641,6 +641,19 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "41",
+      "slug": "python-pdf-extractor",
+      "dir": "41-python-pdf-extractor",
+      "title": "Python PDF form extractor",
+      "summary": "Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.",
+      "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
+      "deps": [],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }

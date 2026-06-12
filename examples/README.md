@@ -64,6 +64,7 @@ bun 01-hello-world/index.ts
 | 38 | [38-s3-disk-ffmpeg-transcode](38-s3-disk-ffmpeg-transcode/) | Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy. | disks.create, disks.get, disks.list, disks.delete, createSandbox, getSandbox, detachDisk, pause, runCommand, destroy | extra |
 | 39 | [39-bandwidth-recharge](39-bandwidth-recharge/) | Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes). | createSandbox, getBandwidth, rechargeBandwidth, destroy | — |
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
+| 41 | [41-python-pdf-extractor](41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | createSandbox, files.upload, runCommand, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
