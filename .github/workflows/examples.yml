@@ -16,10 +16,12 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "examples/**"
       - ".github/workflows/examples.yml"
   pull_request:
     paths:
       - "src/**"
+      - "examples/**"
       - ".github/workflows/examples.yml"
 
 concurrency:
