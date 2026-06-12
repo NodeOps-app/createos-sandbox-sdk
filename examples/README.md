@@ -65,6 +65,7 @@ bun 01-hello-world/index.ts
 | 39 | [39-bandwidth-recharge](39-bandwidth-recharge/) | Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes). | createSandbox, getBandwidth, rechargeBandwidth, destroy | — |
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
 | 41 | [41-python-pdf-extractor](41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | createSandbox, files.upload, runCommand, destroy | — |
+| 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
