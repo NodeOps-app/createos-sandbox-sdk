@@ -66,6 +66,7 @@ bun 01-hello-world/index.ts
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
 | 41 | [41-python-pdf-extractor](41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | createSandbox, files.upload, runCommand, destroy | — |
 | 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
+| 43 | [43-crawl4ai-crawler](43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -78,6 +79,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **36 self-hosted-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **37 self-hosted-sandbox-per-session** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the FC agent.
+- **43 crawl4ai-crawler** — Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom.
 
 <!-- END GENERATED: examples -->
 

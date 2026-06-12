@@ -955,6 +955,20 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "43",
+      "slug": "crawl4ai-crawler",
+      "dir": "43-crawl4ai-crawler",
+      "title": "Crawl4AI web crawler",
+      "summary": "Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.",
+      "primitives": ["createSandbox", "files.upload", "runCommand", "files.download", "destroy"],
+      "deps": [],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "stable",
+      "notes": "Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom."
     }
   ]
 }

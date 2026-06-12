@@ -939,6 +939,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [40-idle-auto-pause](examples/40-idle-auto-pause/) — Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.
 - [41-python-pdf-extractor](examples/41-python-pdf-extractor/) — Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.
 - [42-doc-to-markdown](examples/42-doc-to-markdown/) — Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.
+- [43-crawl4ai-crawler](examples/43-crawl4ai-crawler/) — Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights
