@@ -943,6 +943,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [44-claude-changelog-generator](examples/44-claude-changelog-generator/) — Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.
 - [45-claude-github-wiki](examples/45-claude-github-wiki/) — Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase.
 - [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
+- [47-effective-agents-patterns](examples/47-effective-agents-patterns/) — Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

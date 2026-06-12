@@ -1057,6 +1057,35 @@
       "ci": false,
       "status": "stable",
       "notes": "Requires an OpenAI-compatible provider (OPENAI_API_URL + OPENAI_API_KEY + OPENAI_MODEL). OTEL_SDK_DISABLED=true is injected into the sandbox to prevent Mastra's OpenTelemetry flush from blocking exit."
+    },
+    {
+      "id": "47",
+      "slug": "effective-agents-patterns",
+      "dir": "47-effective-agents-patterns",
+      "title": "Effective agent patterns",
+      "summary": "Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy.",
+      "primitives": [
+        "createSandbox",
+        "files.upload",
+        "runCommand",
+        "sh",
+        "destroy"
+      ],
+      "deps": [
+        "ai",
+        "@ai-sdk/openai"
+      ],
+      "env": [
+        "FC_API_KEY",
+        "FC_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "stable",
+      "notes": "ai and @ai-sdk/openai are installed inside the sandbox, not on the host. ci=false because it needs an external LLM proxy."
     }
   ]
 }

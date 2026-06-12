@@ -1,0 +1,7 @@
+fc-sandbox-sdk: 0.6.0
+control-plane-url: https://fc-spawn.bhautik.in
+region: default
+captured-date: 2026-05-29
+rootfs: devbox:1
+shape: s-4vcpu-4gb
+verified end-to-end: yes

@@ -70,6 +70,7 @@ bun 01-hello-world/index.ts
 | 44 | [44-claude-changelog-generator](44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | createSandbox, sh, runCommand, files.upload, files.download, destroy | extra |
 | 45 | [45-claude-github-wiki](45-claude-github-wiki/) | Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase. | createSandbox, runCommand, destroy | — |
 | 46 | [46-mastra-agent](46-mastra-agent/) | Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | createSandbox, sh, files.upload, destroy | — |
+| 47 | [47-effective-agents-patterns](47-effective-agents-patterns/) | Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy. | createSandbox, files.upload, runCommand, sh, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -85,6 +86,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **43 crawl4ai-crawler** — Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom.
 - **44 claude-changelog-generator** — **needs extra setup** — Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox.
 - **46 mastra-agent** — Requires an OpenAI-compatible provider (OPENAI_API_URL + OPENAI_API_KEY + OPENAI_MODEL). OTEL_SDK_DISABLED=true is injected into the sandbox to prevent Mastra's OpenTelemetry flush from blocking exit.
+- **47 effective-agents-patterns** — ai and @ai-sdk/openai are installed inside the sandbox, not on the host. ci=false because it needs an external LLM proxy.
 
 <!-- END GENERATED: examples -->
 
