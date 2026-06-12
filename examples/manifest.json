@@ -641,6 +641,19 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "42",
+      "slug": "doc-to-markdown",
+      "dir": "42-doc-to-markdown",
+      "title": "Python doc to Markdown converter",
+      "summary": "Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.",
+      "primitives": ["createSandbox", "files.upload", "runCommand", "files.download", "destroy"],
+      "deps": [],
+      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }
