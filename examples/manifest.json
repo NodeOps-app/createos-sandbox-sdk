@@ -641,6 +641,33 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "44",
+      "slug": "claude-changelog-generator",
+      "dir": "44-claude-changelog-generator",
+      "title": "Claude changelog generator",
+      "summary": "Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.",
+      "primitives": [
+        "createSandbox",
+        "sh",
+        "runCommand",
+        "files.upload",
+        "files.download",
+        "destroy"
+      ],
+      "deps": ["@anthropic-ai/sdk"],
+      "env": [
+        "FC_API_KEY",
+        "FC_BASE_URL",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_MODEL"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox."
     }
   ]
 }

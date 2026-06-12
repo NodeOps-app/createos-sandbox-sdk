@@ -70,6 +70,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [38-s3-disk-ffmpeg-transcode](examples/38-s3-disk-ffmpeg-transcode/) — Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy.
 - [39-bandwidth-recharge](examples/39-bandwidth-recharge/) — Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes).
 - [40-idle-auto-pause](examples/40-idle-auto-pause/) — Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.
+- [44-claude-changelog-generator](examples/44-claude-changelog-generator/) — Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

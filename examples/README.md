@@ -64,6 +64,7 @@ bun 01-hello-world/index.ts
 | 38 | [38-s3-disk-ffmpeg-transcode](38-s3-disk-ffmpeg-transcode/) | Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy. | disks.create, disks.get, disks.list, disks.delete, createSandbox, getSandbox, detachDisk, pause, runCommand, destroy | extra |
 | 39 | [39-bandwidth-recharge](39-bandwidth-recharge/) | Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes). | createSandbox, getBandwidth, rechargeBandwidth, destroy | — |
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
+| 44 | [44-claude-changelog-generator](44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | createSandbox, sh, runCommand, files.upload, files.download, destroy | extra |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -76,6 +77,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **36 self-hosted-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **37 self-hosted-sandbox-per-session** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the FC agent.
+- **44 claude-changelog-generator** — **needs extra setup** — Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox.
 
 <!-- END GENERATED: examples -->
 
