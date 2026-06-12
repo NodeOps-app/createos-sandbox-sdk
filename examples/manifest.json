@@ -1032,6 +1032,31 @@
       "entry": "index.ts",
       "ci": false,
       "status": "stable"
+    },
+    {
+      "id": "46",
+      "slug": "mastra-agent",
+      "dir": "46-mastra-agent",
+      "title": "Mastra agent in a sandbox",
+      "summary": "Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.",
+      "primitives": [
+        "createSandbox",
+        "sh",
+        "files.upload",
+        "destroy"
+      ],
+      "deps": [],
+      "env": [
+        "FC_API_KEY",
+        "FC_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "stable",
+      "notes": "Requires an OpenAI-compatible provider (OPENAI_API_URL + OPENAI_API_KEY + OPENAI_MODEL). OTEL_SDK_DISABLED=true is injected into the sandbox to prevent Mastra's OpenTelemetry flush from blocking exit."
     }
   ]
 }
