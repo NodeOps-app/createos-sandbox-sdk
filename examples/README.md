@@ -64,6 +64,7 @@ bun 01-hello-world/index.ts
 | 38 | [38-s3-disk-ffmpeg-transcode](38-s3-disk-ffmpeg-transcode/) | Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy. | disks.create, disks.get, disks.list, disks.delete, createSandbox, getSandbox, detachDisk, pause, runCommand, destroy | extra |
 | 39 | [39-bandwidth-recharge](39-bandwidth-recharge/) | Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes). | createSandbox, getBandwidth, rechargeBandwidth, destroy | — |
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
+| 43 | [43-crawl4ai-crawler](43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -76,6 +77,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **36 self-hosted-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **37 self-hosted-sandbox-per-session** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the FC agent.
+- **43 crawl4ai-crawler** — Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom.
 
 <!-- END GENERATED: examples -->
 
