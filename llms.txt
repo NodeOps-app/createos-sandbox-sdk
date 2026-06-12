@@ -73,6 +73,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [41-python-pdf-extractor](examples/41-python-pdf-extractor/) — Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.
 - [42-doc-to-markdown](examples/42-doc-to-markdown/) — Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.
 - [43-crawl4ai-crawler](examples/43-crawl4ai-crawler/) — Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.
+- [44-claude-changelog-generator](examples/44-claude-changelog-generator/) — Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

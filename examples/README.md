@@ -67,6 +67,7 @@ bun 01-hello-world/index.ts
 | 41 | [41-python-pdf-extractor](41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | createSandbox, files.upload, runCommand, destroy | — |
 | 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 | 43 | [43-crawl4ai-crawler](43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | createSandbox, files.upload, runCommand, files.download, destroy | — |
+| 44 | [44-claude-changelog-generator](44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | createSandbox, sh, runCommand, files.upload, files.download, destroy | extra |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -80,6 +81,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **37 self-hosted-sandbox-per-session** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the FC agent.
 - **43 crawl4ai-crawler** — Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom.
+- **44 claude-changelog-generator** — **needs extra setup** — Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox.
 
 <!-- END GENERATED: examples -->
 
