@@ -89,12 +89,11 @@ jobs:
     runs-on: arc-runner-set
     timeout-minutes: 20
     strategy:
-      # Cap concurrency: running all examples at once saturates the
-      # createos-sandbox control plane (rotating 503s, slow pause/resume and
-      # state transitions, transient /exec network blips — a different few
-      # examples fail each unbounded run). 8 keeps the control plane within
-      # its comfortable throughput while still finishing in a few waves.
-      max-parallel: 8
+      # No max-parallel: intentionally run every example at once. This doubles
+      # as a load test of the createos-sandbox control plane — surfacing its
+      # behavior under a full parallel burst (503s, pause/resume latency, /exec
+      # blips) is a signal we want, not noise to suppress. Add a cap only if the
+      # goal shifts back to deterministic green CI.
       fail-fast: false # one failing example must not cancel the others
       matrix:
         example: ${{ fromJson(needs.discover.outputs.examples) }}
