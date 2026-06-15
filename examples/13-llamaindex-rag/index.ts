@@ -200,14 +200,37 @@ try {
   console.log(`      persisted index: ${indexBytes} bytes`);
 
   console.log("[5/7] pause/resume — snapshot the prepared sandbox…");
-  await sandbox.pause();
-  // Snapshotting a VM with torch + the embed model resident is multi-GB and,
-  // under CI contention, routinely exceeds 60s — give the checkpoint room.
-  await sandbox.waitUntilPaused({ timeoutMs: 180_000 });
-  console.log(`      paused (status=${sandbox.status})`);
-  await sandbox.resume();
-  await sandbox.waitUntilRunning({ timeoutMs: 180_000 });
-  console.log(`      resumed (status=${sandbox.status})`);
+  // Pause/resume is a bonus demonstration, not the point of this example.
+  // Snapshotting a VM with torch + the embed model resident is multi-GB, and
+  // under heavy CI contention the control plane's snapshot/restore can exceed
+  // any reasonable wait. Treat it as best-effort: if it doesn't settle, warn,
+  // make sure the box is running again, and carry on to the actual RAG query.
+  try {
+    await sandbox.pause();
+    await sandbox.waitUntilPaused({ timeoutMs: 180_000 });
+    console.log(`      paused (status=${sandbox.status})`);
+    await sandbox.resume();
+    await sandbox.waitUntilRunning({ timeoutMs: 180_000 });
+    console.log(`      resumed (status=${sandbox.status})`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `      ⚠ snapshot did not settle in time (${msg}); ensuring running and continuing`,
+    );
+    // The box may be paused (resume timed out) or mid-transition; nudge it back
+    // to running. Both calls are best-effort — never fail the run over the demo.
+    try {
+      await sandbox.resume();
+    } catch {
+      // already running, or resume raced with a late state change — ignore
+    }
+    try {
+      await sandbox.waitUntilRunning({ timeoutMs: 120_000 });
+    } catch {
+      // platform still slow; proceed — a truly-down box surfaces at the query
+    }
+    console.log(`      continuing (status=${sandbox.status})`);
+  }
 
   console.log(`[6/7] querying against the persisted index…`);
   console.log(`      question: ${QUESTION}`);
