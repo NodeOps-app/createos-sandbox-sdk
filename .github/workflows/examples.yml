@@ -47,7 +47,7 @@ jobs:
       - id: list
         run: |
           json=$(cd examples && for d in [0-9]*/; do printf '%s\n' "${d%/}"; done \
-            | grep . | grep -vE '^(10|36|37|38)-' | sed 's/.*/"&"/' | paste -sd, -)
+            | grep . | grep -vE '^(10|36|37)-' | sed 's/.*/"&"/' | paste -sd, -)
           echo "examples=[$json]" >> "$GITHUB_OUTPUT"
 
       # Single source of truth for the cache key, consumed by the matrix jobs.
@@ -141,6 +141,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      # example 38 mounts an S3 bucket as a disk; the script seeds + verifies
+      # objects but never creates the bucket. Backed by play.min.io, which
+      # purges buckets periodically — (re)create it before each run so a wipe
+      # between nightly runs can't fail the job on a missing bucket.
+      - name: Ensure S3 bucket (minio play, example 38)
+        if: matrix.example == '38-s3-disk-ffmpeg-transcode'
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+        run: |
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
+          chmod +x /tmp/mc
+          /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
+          /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
+
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}
         env:
@@ -168,13 +185,13 @@ jobs:
           # OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
           # SCRAPE_URL: ${{ secrets.SCRAPE_URL }}
           # --- S3-compatible bucket for example 38 (s3-disk-ffmpeg-transcode) ---
-          # Wire these secrets, uncomment, and drop 38 from the discover
-          # exclude list above to run that example end-to-end in CI. The bucket
-          # must be reachable from the createos-sandbox agent, not just the runner.
-          # S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          # S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-          # S3_REGION: ${{ secrets.S3_REGION }}
-          # S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          # S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          # S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
+          # Backed by the public MinIO Playground (play.min.io). The bucket is
+          # (re)created by the "Ensure S3 bucket" step above, since play purges
+          # buckets periodically and the example does not create one itself.
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
         run: bun index.ts
