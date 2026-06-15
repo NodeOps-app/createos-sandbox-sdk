@@ -12,7 +12,7 @@
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus ANTHROPIC_API_KEY (or the proxy pair
  *        ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL). See .env.example.
  */
-import { Sandbox } from "createos-sandbox-sdk";
+import { CreateosSandboxConnectionError, Sandbox } from "createos-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";
 
 loadParentEnvFallback();
@@ -71,21 +71,31 @@ try {
   console.log(`      prompt: "${TASK.slice(0, 80)}..."\n`);
 
   // streamCommand exits -1 for long-running CLIs on this backend; use runCommand instead.
-  const { result } = await sandbox.runCommand(
-    "su",
-    [
-      "-s",
-      "/bin/bash",
-      "-c",
-      [
-        "export HOME=/home/sandboxuser",
-        "export PATH=/usr/local/bin:$PATH",
-        `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)} 2>&1`,
-      ].join(" && "),
-      "sandboxuser",
-    ],
-    { timeoutMs: 300_000 },
-  );
+  // Retry on connection errors — the task output is deterministic so re-running is safe.
+  let result!: Awaited<ReturnType<typeof sandbox.runCommand>>["result"];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      ({ result } = await sandbox.runCommand(
+        "su",
+        [
+          "-s",
+          "/bin/bash",
+          "-c",
+          [
+            "export HOME=/home/sandboxuser",
+            "export PATH=/usr/local/bin:$PATH",
+            `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)} 2>&1`,
+          ].join(" && "),
+          "sandboxuser",
+        ],
+        { timeoutMs: 300_000 },
+      ));
+      break;
+    } catch (err) {
+      if (attempt === 3 || !(err instanceof CreateosSandboxConnectionError)) throw err;
+      console.warn(`claude exec attempt ${attempt}/3 failed (network error); retrying…`);
+    }
+  }
 
   if (result.exit_code !== 0) {
     throw new Error(`claude exited ${result.exit_code}:\n${result.stderr}`);

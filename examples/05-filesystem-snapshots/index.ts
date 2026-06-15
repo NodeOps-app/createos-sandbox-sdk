@@ -53,7 +53,7 @@ try {
   // 4. Resume the fork into a running VM so we can run commands in it.
   console.log("resuming fork...");
   await fork.resume();
-  await fork.waitUntilRunning({ timeoutMs: 600_000 });
+  await fork.waitUntilRunning({ timeoutMs: 1_200_000 });
   console.log(`fork running: ${fork.id}`);
 
   // 5. The fork inherits everything written before the pause.
