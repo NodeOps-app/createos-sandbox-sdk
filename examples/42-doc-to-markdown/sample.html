@@ -7,8 +7,8 @@
   <body>
     <h1>FC Sandbox SDK</h1>
     <p>
-      The <strong>fc-sandbox-sdk</strong> is a TypeScript SDK for the <em>fc-spawn</em> microVM
-      sandbox control plane.
+      The <strong>createos-sandbox-sdk</strong> is a TypeScript SDK for the
+      <em>createos-sandbox</em> microVM sandbox control plane.
     </p>
 
     <h2>Key Features</h2>
@@ -21,7 +21,7 @@
 
     <h2>Quick Start</h2>
     <p>Install the SDK and create your first sandbox in seconds:</p>
-    <pre><code>import { Sandbox } from "fc-sandbox-sdk";
+    <pre><code>import { Sandbox } from "createos-sandbox-sdk";
 const sb = await Sandbox.create({ shape: "s-1vcpu-1gb", rootfs: "devbox:1" });
 await sb.destroy();</code></pre>
 

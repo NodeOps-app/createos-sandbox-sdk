@@ -1,5 +1,5 @@
-fc-sandbox-sdk: 0.6.0
-control-plane-url: https://fc-spawn.bhautik.in
+createos-sandbox-sdk: 0.6.0
+control-plane-url: https://createos-sandbox.bhautik.in
 region: bhautik.in
 captured: 2026-05-29
 rootfs: devbox:1

@@ -6,12 +6,16 @@
  * URL, and verifies JSON responses from two routes.
  *
  * Run:   bun 27-fastapi-app/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY. The control plane must
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY. The control plane must
  *        grant ingress for previewUrl() to resolve.
  */
 
 import { readFile } from "node:fs/promises";
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
@@ -19,14 +23,14 @@ const PORT = 8000;
 const APP_DIR = "/root/app";
 
 // exactOptionalPropertyTypes: narrow env vars to strings before passing them
-// to FcClient options so no possibly-undefined value lands in an optional field.
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+// to CreateosSandboxClient options so no possibly-undefined value lands in an optional field.
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // The ASGI app lives in ./app.py (committed beside this example); we read it
 // here and upload it into the sandbox below.
@@ -124,7 +128,7 @@ try {
       timeoutMs: 60_000,
     });
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     const log = (await sandbox.sh(`tail -40 ${APP_DIR}/uvicorn.log`, { label: "log" })).result
       .stdout;
     throw new Error(

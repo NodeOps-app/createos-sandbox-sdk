@@ -1,10 +1,10 @@
 {
-  "name": "fc-sandbox-sdk",
+  "name": "createos-sandbox-sdk",
   "version": "0.6.0",
-  "description": "TypeScript SDK for the fc-spawn microVM sandbox control plane.",
+  "description": "TypeScript SDK for the createos-sandbox microVM sandbox control plane.",
   "keywords": [
     "compute",
-    "fc-spawn",
+    "createos-sandbox",
     "firecracker",
     "microvm",
     "sandbox",

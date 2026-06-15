@@ -7,7 +7,7 @@ consumer-facing docs.
 
 ## What this is
 
-`fc-sandbox-sdk` — the TypeScript SDK for the `fc-spawn` microVM sandbox
+`createos-sandbox-sdk` — the TypeScript SDK for the `createos-sandbox` microVM sandbox
 control plane. A hand-written HTTP client: **zero runtime dependencies**,
 ESM-only, built with `tsc`. The control plane itself is a separate service
 maintained by the NodeOps team; this repository is the client SDK only.
@@ -42,10 +42,10 @@ tests, and tooling.
 | File | Responsibility |
 | --- | --- |
 | `index.ts` | Public exports. Anything not re-exported here is internal. |
-| `client.ts` | `FcClient` — entry point; catalog, identity, sandbox factory, `TemplatesApi`, `NetworksApi`, `DisksApi`. |
+| `client.ts` | `CreateosSandboxClient` — entry point; catalog, identity, sandbox factory, `TemplatesApi`, `NetworksApi`, `DisksApi`. |
 | `sandbox.ts` | `Sandbox` handle + `SandboxFiles`. Owns a sandbox id; all per-sandbox operations live here. |
-| `http.ts` | `FcHttp` transport — URL building, auth, JSend unwrapping, retries, timeouts, `AbortSignal` composition. |
-| `errors.ts` | `FcError` hierarchy + `errorFromResponse` status→class mapping. |
+| `http.ts` | `CreateosSandboxHttp` transport — URL building, auth, JSend unwrapping, retries, timeouts, `AbortSignal` composition. |
+| `errors.ts` | `CreateosSandboxError` hierarchy + `errorFromResponse` status→class mapping. |
 | `poll.ts` | `pollUntil` (adaptive backoff) + `sleep`. Backs the `waitUntil*` helpers. |
 | `config.ts` | `resolveConfig` — merges options, env vars, defaults. Holds `VERSION`. |
 | `types.ts` | All wire types and option interfaces. |
@@ -53,8 +53,8 @@ tests, and tooling.
 | `runtime.ts` | Feature-detects node/bun/deno/workerd/edge-light/browser/react-native; tags `User-Agent` and `X-Fc-Runtime`. |
 | `redact.ts` | Pure helpers (`redactHeaders` / `redactUrl` / `redactQuery`) for logging middleware; never wired into the SDK transport. |
 
-Data flow: `FcClient` → `FcHttp` (transport) → returns `Sandbox` handles.
-`Sandbox` holds an `FcHttp` reference, never the client.
+Data flow: `CreateosSandboxClient` → `CreateosSandboxHttp` (transport) → returns `Sandbox` handles.
+`Sandbox` holds an `CreateosSandboxHttp` reference, never the client.
 
 ## Conventions
 
@@ -84,15 +84,15 @@ Data flow: `FcClient` → `FcHttp` (transport) → returns `Sandbox` handles.
 ## Wire types — source of truth
 
 `types.ts` is the source of truth for the JSON wire format in this repo;
-it mirrors the `fc-spawn` control plane's HTTP API. The control plane is a
+it mirrors the `createos-sandbox` control plane's HTTP API. The control plane is a
 separate service — contributors with access reconcile these types against
 its handlers; its published OpenAPI spec is **stale** and must not be
 trusted over the live server behavior.
 
-`COMPATIBILITY.md` records the `fc-spawn` control-plane version the SDK
+`COMPATIBILITY.md` records the `createos-sandbox` control-plane version the SDK
 was last reconciled against, plus the known wire drift and coverage gaps
 at that point. Update it whenever you re-reconcile against a newer
-`fc-spawn` `main`.
+`createos-sandbox` `main`.
 
 Known drift to watch for: the spec has omitted `node_selector`,
 `ingress_enabled`, `ingress_url_template`, and `ingress_bytes`, and has
@@ -106,7 +106,7 @@ When a server field is `omitempty`, the TS field is optional (`?`) and not
 `networks`, `templates`, `hosts`, `shapes`, per-sandbox `disks`) returns a
 doubly-nested envelope `{ data: { data: [...], pagination: { total, limit,
 offset, count } } }`; `rootfs` is the lone exception (plain view). Fetch
-all pages with `FcHttp.fetchAllPages` (accepts the paginated envelope, the
+all pages with `CreateosSandboxHttp.fetchAllPages` (accepts the paginated envelope, the
 legacy `{ <key>: [...] }` wrapper, and a bare array). The server clamps
 `limit` to **500** — drive paging by the reported `total` and the actual
 item count, never the requested page size. `bandwidth_quota_bytes` is not
@@ -115,7 +115,7 @@ with `Sandbox.rechargeBandwidth()`.
 
 ## Retry policy
 
-`FcHttp` retries with exponential backoff + jitter and honors
+`CreateosSandboxHttp` retries with exponential backoff + jitter and honors
 `Retry-After`. Idempotent methods (`GET/HEAD/PUT/DELETE`) retry on network
 errors and `408/500/502/503/504`. Non-idempotent methods retry only on
 `429/503` — statuses where the server provably did not process the
@@ -126,7 +126,7 @@ request. Streaming requests are never retried.
 1. Confirm the exact path, method, request/response shapes, and status
    codes against the control-plane API.
 2. Add or correct the wire types in `types.ts`.
-3. Add the method — on `FcClient` for catalog/cross-sandbox operations, on
+3. Add the method — on `CreateosSandboxClient` for catalog/cross-sandbox operations, on
    `Sandbox` for per-sandbox operations, or on `TemplatesApi` /
    `NetworksApi` / `DisksApi`.
 4. Use `http.request` for JSend endpoints, `http.requestRaw` for

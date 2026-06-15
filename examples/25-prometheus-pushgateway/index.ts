@@ -7,12 +7,16 @@
  * the public ingress URL to verify the metric round-trips.
  *
  * Run:   bun 25-prometheus-pushgateway/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY. Ingress must be granted
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY. Ingress must be granted
  *        for previewUrl() to resolve. No external services — the binary is
  *        fetched from GitHub releases at runtime.
  */
 
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-1gb";
 const ROOTFS = "devbox:1";
@@ -22,13 +26,15 @@ const PUSHGATEWAY_VERSION = "1.11.1";
 // Pushgateway listens on port 9091 by default.
 // Bind 0.0.0.0 so the FC ingress proxy can forward external traffic.
 
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY in .env (see .env.example)");
+  throw new Error(
+    "set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY in .env (see .env.example)",
+  );
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox with ingress enabled so the scrape endpoint is public.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
@@ -120,7 +126,7 @@ try {
       timeoutMs: 60_000,
     });
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     const log = (await sandbox.sh("tail -20 /var/log/pushgateway.log", { label: "pgw-log" })).result
       .stdout;
     throw new Error(

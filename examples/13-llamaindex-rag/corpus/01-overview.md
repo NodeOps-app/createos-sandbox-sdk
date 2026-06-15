@@ -1,6 +1,6 @@
-# fc-spawn Overview
+# createos-sandbox Overview
 
-fc-spawn is a microVM sandbox control plane built on Firecracker. It exposes
+createos-sandbox is a microVM sandbox control plane built on Firecracker. It exposes
 an HTTP API that lets clients spawn lightweight VMs, run commands inside
 them, move files in and out, and join sandboxes onto private overlay
 networks.

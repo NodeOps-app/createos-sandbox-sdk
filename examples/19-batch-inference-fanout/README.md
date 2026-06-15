@@ -16,9 +16,9 @@ cp .env.example .env  # the shared ../.env is already symlinked
 bun index.ts
 ```
 
-bun auto-loads `.env` from this dir. The only required var is `FC_API_KEY`.
+bun auto-loads `.env` from this dir. The only required var is `CREATEOS_SANDBOX_API_KEY`.
 The model is public, so no model API key is needed. The base URL resolves from
-`FC_BASE_URL`, defaulting to the production control plane.
+`CREATEOS_SANDBOX_BASE_URL`, defaulting to the production control plane.
 
 ## What it does
 

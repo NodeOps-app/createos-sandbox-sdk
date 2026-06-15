@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcNotFoundError } from "../src/index.ts";
+import { CreateosSandboxNotFoundError } from "../src/index.ts";
 import { catchErr, makeClient, RUNNING_VIEW, success } from "./helpers.ts";
 
 describe("SandboxFiles.upload", () => {
@@ -62,7 +62,7 @@ describe("SandboxFiles.download", () => {
     );
     const sandbox = await client.getSandbox("sb_1");
     const err = await catchErr(() => sandbox.files.download("/missing"));
-    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err).toBeInstanceOf(CreateosSandboxNotFoundError);
     expect(err.method).toBe("GET");
     expect(err.endpoint).toBe("/v1/sandboxes/sb_1/files");
   });

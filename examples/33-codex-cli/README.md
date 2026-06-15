@@ -8,7 +8,7 @@ OpenAI-compatible provider, then drives a coding task non-interactively with
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY, FC_BASE_URL, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
+# fill in CREATEOS_SANDBOX_API_KEY, CREATEOS_SANDBOX_BASE_URL, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
 bun index.ts
 ```
 

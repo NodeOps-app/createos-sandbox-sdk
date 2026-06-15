@@ -10,13 +10,13 @@
  * verifies it by checking the PNG magic bytes.
  *
  * Run:   bun 17-analyze-data-with-ai/index.ts
- * Needs: FC_API_KEY + ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN (Claude writes
+ * Needs: CREATEOS_SANDBOX_API_KEY + ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN (Claude writes
  *        the analysis; see .env.example). No other external services.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient, FcValidationError } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
@@ -41,7 +41,7 @@ const anthropic = new Anthropic({
   authToken: ANTHROPIC_AUTH_TOKEN,
 });
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // Create a sandbox, retrying through the shared-capacity / transient-5xx
 // errors that surface when the account's concurrency cap is full. MPLBACKEND=Agg
@@ -61,7 +61,7 @@ async function createWithRetry() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;

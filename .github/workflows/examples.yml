@@ -1,6 +1,6 @@
 name: examples
 
-# Runs every example end-to-end against the live fc-spawn control plane.
+# Runs every example end-to-end against the live createos-sandbox control plane.
 # Each example is a one-shot `bun index.ts` that creates a sandbox, verifies
 # it, and destroys it in a `finally` block — so a green job means the example
 # worked against production.
@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       # No max-parallel: GitHub runs as many matrix jobs in parallel as the
-      # runner pool allows (unlimited by request). The fc-spawn control plane
+      # runner pool allows (unlimited by request). The createos-sandbox control plane
       # is the backstop that queues sandbox creation under load.
       fail-fast: false # one failing example must not cancel the others
       matrix:
@@ -126,7 +126,7 @@ jobs:
           bun run build
 
       # Warm install: links example deps from the restored store and recreates
-      # the fc-sandbox-sdk → dist/ symlink. No network on a cache hit.
+      # the createos-sandbox-sdk → dist/ symlink. No network on a cache hit.
       - name: Install example deps
         working-directory: examples
         run: bun install
@@ -142,9 +142,9 @@ jobs:
       - name: Run ${{ matrix.example }}
         working-directory: examples/${{ matrix.example }}
         env:
-          # --- fc-spawn control plane (read by the SDK + most examples) ---
-          FC_API_KEY: ${{ secrets.FC_API_KEY }}
-          FC_BASE_URL: ${{ secrets.FC_BASE_URL }}
+          # --- createos-sandbox control plane (read by the SDK + most examples) ---
+          CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
+          CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
           # --- OpenAI / OpenAI-compatible ---
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_URL: ${{ secrets.OPENAI_API_URL }}

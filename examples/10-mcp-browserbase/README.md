@@ -22,7 +22,7 @@ authenticate with Browserbase cloud.
 
 ## Prerequisites
 
-- FC API key (`FC_API_KEY`)
+- FC API key (`CREATEOS_SANDBOX_API_KEY`)
 - Anthropic API key (`ANTHROPIC_API_KEY`)
 - Browserbase API key (`BROWSERBASE_API_KEY`)
 - Browserbase project ID (`BROWSERBASE_PROJECT_ID`)

@@ -6,12 +6,12 @@ starts the Docker daemon, then pulls and runs containers inside the microVM.
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_BASE_URL` and
-`FC_API_KEY` are the standard inputs `fc-sandbox-sdk` consumes; any
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_BASE_URL` and
+`CREATEOS_SANDBOX_API_KEY` are the standard inputs `createos-sandbox-sdk` consumes; any
 additional secrets the example needs (LLM keys, third-party API
 tokens) are documented in `.env.example`.
 

@@ -10,16 +10,16 @@
  * — the simplest way to return structured data out of a `runCommand` call.
  *
  * Run:   bun 31-git-clone-lsp-typescript/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services
  *        beyond the public GitHub repo the clone pulls.
  */
 import { readFile } from "node:fs/promises";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
 // Small public TS library used as the LSP target corpus.

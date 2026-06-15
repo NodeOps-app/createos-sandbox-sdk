@@ -5,11 +5,11 @@
  * on it, and use the baked-in tooling.
  *
  * Run:   bun 07-docker-custom-template/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The DOCKERFILE below uses
- *        the fc-spawn debian base image (bhautikchudasama/fc-base:debian-1). The
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). The DOCKERFILE below uses
+ *        the createos-sandbox debian base image (bhautikchudasama/fc-base:debian-1). The
  *        in-VM `docker run` steps also need network egress to pull images.
  */
-import { FcClient, pollUntil } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, pollUntil } from "createos-sandbox-sdk";
 
 // Unique name per run so repeated runs don't collide on an existing template.
 const TEMPLATE_NAME = `docker-ce-${Date.now()}`;
@@ -17,7 +17,7 @@ const SHAPE = "s-1vcpu-1gb";
 
 // Installs Docker CE via the official convenience script.
 // FC v1 Dockerfile rules: single FROM (fc-allowed base only), no COPY/ADD.
-// Uses the fc-spawn debian base (apt-based, required for Docker CE install).
+// Uses the createos-sandbox debian base (apt-based, required for Docker CE install).
 const DOCKERFILE = `FROM bhautikchudasama/fc-base:debian-1
 
 RUN apt-get update -qq \\
@@ -26,9 +26,9 @@ RUN apt-get update -qq \\
  && rm -rf /var/lib/apt/lists/*
 `;
 
-// Template builds are a catalog-level operation, so go through FcClient
+// Template builds are a catalog-level operation, so go through CreateosSandboxClient
 // directly rather than the per-sandbox Sandbox.create factory.
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // 1. Submit the build. Returns immediately with a pending template; the actual
 //    image build runs server-side.

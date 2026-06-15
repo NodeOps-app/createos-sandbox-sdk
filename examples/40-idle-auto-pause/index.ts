@@ -5,9 +5,9 @@
  * and changed on a live sandbox with `setAutoPause(seconds | null)`.
  *
  * Run:   bun 40-idle-auto-pause/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // 1. Create with an idle timeout baked in: pause after 5 min (300 s) without
 //    activity. Valid range is 60–86400 (1 min – 24 h); the server rejects

@@ -7,7 +7,7 @@ sandbox's public ingress URL, and verify live JSON responses from two routes.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL + FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 

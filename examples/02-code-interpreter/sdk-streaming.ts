@@ -8,9 +8,9 @@
  * (the buffered path) is the working default; re-run this once the issue closes.
  *
  * Run:   bun 02-code-interpreter/sdk-streaming.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 import { readFile } from "node:fs/promises";
 
 // 1. Read the local script (next to this file) and create the sandbox.

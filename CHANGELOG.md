@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `fc-sandbox-sdk` are documented here.
+All notable changes to `createos-sandbox-sdk` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/).
 
@@ -20,7 +20,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.6.0] — 2026-06-10
 
-Reconciled against the `fc-spawn` control plane `main` — response-
+Reconciled against the `createos-sandbox` control plane `main` — response-
 structure changes (paginated list envelope) plus idle auto-pause and
 credit gating. See `COMPATIBILITY.md`.
 
@@ -31,7 +31,7 @@ credit gating. See `COMPATIBILITY.md`.
   (`{ data: { data, pagination } }`). `templates.list`, `disks.list`,
   `networks.list`, `listShapes`, `listHosts`, `listSandboxes`, and
   `Sandbox.listDisks` transparently walk every page and return the full
-  result set (new internal `FcHttp.fetchAllPages`, which still accepts
+  result set (new internal `CreateosSandboxHttp.fetchAllPages`, which still accepts
   the legacy `{ <key>: [] }` wrapper and a bare array).
 
 ### Added
@@ -45,12 +45,12 @@ credit gating. See `COMPATIBILITY.md`.
   `.disable_auto_pause?`. New `Sandbox.setAutoPause(seconds | null)`
   sets or clears the timeout and refreshes the handle from the patched
   view.
-- `FcPaymentRequiredError` — the control plane now gates cost-incurring
+- `CreateosSandboxPaymentRequiredError` — the control plane now gates cost-incurring
   actions (sandbox create / resume / fork, bandwidth recharge, disk /
   network / template create) on a positive credit balance and returns
   `402 Payment Required` when the account is out of credit.
   `errorFromResponse` maps 402 to the new class (previously the generic
-  `FcApiError`).
+  `CreateosSandboxApiError`).
 
 ### Fixed
 
@@ -62,7 +62,7 @@ credit gating. See `COMPATIBILITY.md`.
 - `readyz()` no longer reports `{ ready: false }` for unexpected error
   statuses. Only `200` (ready) and `503` (not ready) are treated as
   readiness signals; any other non-OK status now throws the typed
-  `FcApiError`, matching the documented contract.
+  `CreateosSandboxApiError`, matching the documented contract.
 - Observability hooks are now truthful and consistent. The request is built
   once (one canonical URL/headers/body), so `onRequest` / `onResponse`
   report the headers actually sent — including the `Content-Type` set for a
@@ -87,7 +87,7 @@ credit gating. See `COMPATIBILITY.md`.
 
 ## [0.5.0] — 2026-06-03
 
-Reconciled against the `fc-spawn` control plane `main` — see
+Reconciled against the `createos-sandbox` control plane `main` — see
 `COMPATIBILITY.md`.
 
 ### Added
@@ -123,7 +123,7 @@ Reconciled against the `fc-spawn` control plane `main` — see
 ### Added
 
 - `Sandbox.sh(script, options?)` — runs `bash -lc <script>` and throws
-  `FcError` on a non-zero exit (or agent start error), surfacing the
+  `CreateosSandboxError` on a non-zero exit (or agent start error), surfacing the
   optional `label`, the exit code, the run duration and the tail of
   stdout/stderr. The throw-on-failure counterpart to `runCommand`.
 - `Sandbox.previewUrl(port, { scheme })` — optional `scheme` override
@@ -135,9 +135,9 @@ Reconciled against the `fc-spawn` control plane `main` — see
 
 ### Changed
 
-- **BREAKING:** a base URL is now required. `FcClient` / `resolveConfig`
+- **BREAKING:** a base URL is now required. `CreateosSandboxClient` / `resolveConfig`
   no longer fall back to a built-in default control plane — pass `baseUrl`
-  or set the `FC_BASE_URL` environment variable, otherwise construction
+  or set the `CREATEOS_SANDBOX_BASE_URL` environment variable, otherwise construction
   throws. The previous fallback pointed at a non-public host.
 
 ### Docs
@@ -155,19 +155,19 @@ Reconciled against the `fc-spawn` control plane `main` — see
 
 ### Added
 
-- `FcApiError.endpoint` and `FcApiError.method` — every HTTP error now
+- `CreateosSandboxApiError.endpoint` and `CreateosSandboxApiError.method` — every HTTP error now
   carries the request pathname and verb so support tickets and
   structured logs can pin the failure to its exact call site.
-- `FcApiError.requestId` now also reads `X-Fc-Request-Id` in addition
+- `CreateosSandboxApiError.requestId` now also reads `X-Fc-Request-Id` in addition
   to `X-Request-Id`.
-- `ClientHooks` (`onRequest`, `onResponse`, `onRetry`) on `FcClient`
+- `ClientHooks` (`onRequest`, `onResponse`, `onRetry`) on `CreateosSandboxClient`
   for zero-dependency observability. Payloads are pre-redacted through
   the existing `redact.ts` helpers; a throw inside a hook is caught and
   warned rather than propagated.
 - `ExecStreamFrame` — the raw NDJSON frame shape, exported for
   advanced users who want to bypass the discriminated-union projection.
 - `ErrorRequestContext` — the optional context bag accepted by every
-  `FcApiError` constructor and `errorFromResponse`.
+  `CreateosSandboxApiError` constructor and `errorFromResponse`.
 - `AttachDiskOptions` / `DetachDiskOptions` interfaces.
 - Full JSDoc coverage on the public surface (TypeDoc-ready).
 

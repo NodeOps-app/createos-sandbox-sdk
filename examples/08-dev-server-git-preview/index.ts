@@ -6,9 +6,9 @@
  * to gate on the bind before handing out the link.
  *
  * Run:   bun 08-dev-server-git-preview/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // 1 vCPU is enough for next dev cold-compile; ingress required for public URL
 const sandbox = await Sandbox.create({

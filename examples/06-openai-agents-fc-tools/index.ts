@@ -8,19 +8,19 @@
  * to a built-in deterministic model so the FC tool path is exercisable with no key.
  *
  * Run:   bun 06-openai-agents-fc-tools/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY. OPENAI_API_KEY is optional (external service:
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY. OPENAI_API_KEY is optional (external service:
  *        OpenAI / any OpenAI-compatible endpoint); without it the local model runs.
  */
 import type { Model } from "@openai/agents";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
 
 // Hydrate env from the shared examples/.env (../.env from this dir) before
 // anything reads process.env. See loadParentEnvFallback at the bottom.
 loadParentEnvFallback();
-if (!process.env.FC_BASE_URL || !process.env.FC_API_KEY) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+if (!process.env.CREATEOS_SANDBOX_BASE_URL || !process.env.CREATEOS_SANDBOX_API_KEY) {
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 process.env.OPENAI_AGENTS_DISABLE_TRACING ??= "true";
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcServerError, Sandbox } from "../src/index.ts";
+import { CreateosSandboxServerError, Sandbox } from "../src/index.ts";
 import { catchErr, CREATE_RESPONSE, makeClient, RUNNING_VIEW, success } from "./helpers.ts";
 
 const WHOAMI = {
@@ -120,7 +120,7 @@ describe("health and identity", () => {
       Promise.resolve(new Response("internal error", { status: 500 })),
     );
     const err = await catchErr(() => client.readyz());
-    expect(err).toBeInstanceOf(FcServerError);
+    expect(err).toBeInstanceOf(CreateosSandboxServerError);
   });
 
   test("whoami returns the caller identity", async () => {

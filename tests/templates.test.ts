@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcNotFoundError } from "../src/index.ts";
+import { CreateosSandboxNotFoundError } from "../src/index.ts";
 import { catchErr, makeClient, ndjsonResponse, streamOf, success } from "./helpers.ts";
 
 const TEMPLATE: Record<string, unknown> = {
@@ -84,7 +84,7 @@ describe("TemplatesApi", () => {
       { retry: false },
     );
     const err = await catchErr(() => client.templates.logs("tpl_1"));
-    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err).toBeInstanceOf(CreateosSandboxNotFoundError);
     expect(err.method).toBe("GET");
     expect(err.endpoint).toBe("/v1/templates/tpl_1/logs");
   });

@@ -1,6 +1,6 @@
 # Examples
 
-Self-contained, runnable examples for `fc-sandbox-sdk`. Each subdirectory is
+Self-contained, runnable examples for `createos-sandbox-sdk`. Each subdirectory is
 one example you run with `bun`.
 
 ## Running
@@ -11,8 +11,8 @@ Install dependencies once from this directory:
 bun install
 ```
 
-Every example needs a reachable `fc-spawn` control plane (`FC_BASE_URL`) and
-an API key (`FC_API_KEY`); some need extra provider keys. Each example ships a
+Every example needs a reachable `createos-sandbox` control plane (`CREATEOS_SANDBOX_BASE_URL`) and
+an API key (`CREATEOS_SANDBOX_API_KEY`); some need extra provider keys. Each example ships a
 `.env.example` listing what it needs. Create a `.env` that `bun` will load
 (it reads `.env` from the directory you run the command in), then run it:
 

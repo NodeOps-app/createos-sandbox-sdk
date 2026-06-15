@@ -8,11 +8,11 @@ to stdout — no external API keys required.
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY and FC_BASE_URL
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY and CREATEOS_SANDBOX_BASE_URL
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_BASE_URL` and `FC_API_KEY`
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_BASE_URL` and `CREATEOS_SANDBOX_API_KEY`
 are the only required inputs.  To convert a different file, swap `sample.html`
 for any document MarkItDown supports, update `INPUT_LOCAL` at the top of
 `index.ts`, and adjust `REMOTE_INPUT` to match the file extension.

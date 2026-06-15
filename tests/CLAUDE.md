@@ -1,6 +1,6 @@
 # CLAUDE.md — tests
 
-Guidance for writing and maintaining the `fc-sandbox-sdk` test suite.
+Guidance for writing and maintaining the `createos-sandbox-sdk` test suite.
 Read this before adding tests; the root `../CLAUDE.md` covers the SDK
 itself.
 
@@ -36,7 +36,7 @@ Run: `bun test` (all), `bun test tests/http.test.ts` (one file),
 | `fail(data, status)` | JSend fail envelope (4xx). |
 | `errorEnvelope(msg, code, status)` | JSend error envelope (5xx / coded). |
 | `jsonResponse(body, init?)` | Raw JSON `Response` (when you need a non-JSend body). |
-| `makeClient(fetchImpl, extra?)` | `FcClient` with test defaults (`apiKey: "sk"`, `baseUrl: BASE`); `extra` overrides. |
+| `makeClient(fetchImpl, extra?)` | `CreateosSandboxClient` with test defaults (`apiKey: "sk"`, `baseUrl: BASE`); `extra` overrides. |
 | `catchErr(fn)` | Awaits `fn`, returns the thrown error; throws if it resolves. Use to assert on error properties. |
 | `streamOf(...chunks)` | `ReadableStream` from string chunks. |
 | `ndjsonResponse(stream)` | `application/x-ndjson` `Response`. |
@@ -81,7 +81,7 @@ assert what went over the wire. Read `new URL(url).pathname` /
   to your `op` responder — copy that pattern, don't route on `method`
   alone (sub-resource reads like `/egress` are also GETs).
 - **Errors:** `const err = await catchErr(() => client.x()); expect(err)
-  .toBeInstanceOf(FcNotFoundError)` then assert `statusCode`, `code`,
+  .toBeInstanceOf(CreateosSandboxNotFoundError)` then assert `statusCode`, `code`,
   `endpoint`, `method`, `requestId`, `resourceId`, `retryAfterSeconds`.
   Always pass `retry: false` so the error surfaces on the first
   attempt.
@@ -92,7 +92,7 @@ assert what went over the wire. Read `new URL(url).pathname` /
 - **Timeouts / cancellation:** the mock must reject when the signal
   aborts — `init.signal?.addEventListener("abort", () =>
   reject(new DOMException("aborted", "AbortError")))` — with a small
-  `timeoutMs`. A fired timeout → `FcTimeoutError`; a caller-aborted
+  `timeoutMs`. A fired timeout → `CreateosSandboxTimeoutError`; a caller-aborted
   signal re-throws the original `AbortError`.
 - **Streaming:** build the body with `streamOf(...)` + `ndjsonResponse`.
   Test the NDJSON parser itself against `readNdjson` directly

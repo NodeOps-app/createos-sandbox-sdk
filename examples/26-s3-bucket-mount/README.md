@@ -8,7 +8,7 @@ modelled after a dbt transformation workflow.
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY (and FC_BASE_URL if not using the default control plane)
+# fill in CREATEOS_SANDBOX_API_KEY (and CREATEOS_SANDBOX_BASE_URL if not using the default control plane)
 bun index.ts
 ```
 

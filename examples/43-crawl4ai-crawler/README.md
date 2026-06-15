@@ -8,7 +8,7 @@ then download the output to the host.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL + FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY
 # optionally set CRAWL_URL (defaults to https://example.com)
 bun index.ts
 ```

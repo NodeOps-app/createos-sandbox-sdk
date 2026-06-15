@@ -1,4 +1,4 @@
-# Pre-commit hooks for fc-sandbox-sdk (TypeScript SDK).
+# Pre-commit hooks for createos-sandbox-sdk (TypeScript SDK).
 # Install: `pre-commit install`
 # Run on all files: `pre-commit run --all-files`
 

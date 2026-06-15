@@ -8,10 +8,10 @@
  * — every step is a `runCommand` against the sandbox.
  *
  * Run:   bun 11-tigerfs-postgres-filesystem/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The sandbox needs
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). The sandbox needs
  *        outbound network to fetch the TigerFS installer (install.tigerfs.io).
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 import { readFileSync } from "node:fs";
 
 const SHAPE = "s-2vcpu-2gb";
@@ -20,7 +20,7 @@ const PG_PASSWORD = "demo";
 const PG_DB = "demodb";
 const MOUNT = "/mnt/db";
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 console.log(`[1/9] creating sandbox (shape=${SHAPE}, rootfs=devbox:1)...`);
 const sandbox = await fc.createSandbox({

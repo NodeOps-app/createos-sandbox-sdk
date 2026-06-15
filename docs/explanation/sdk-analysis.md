@@ -3,7 +3,7 @@
 Before the `v0.2` redesign, seven competing sandbox / compute SDKs were
 read in depth — their source, not just their docs. This document records
 what each does well, what each does badly, which ideas
-`fc-sandbox-sdk` borrowed, and where our SDK now leads.
+`createos-sandbox-sdk` borrowed, and where our SDK now leads.
 
 SDKs surveyed:
 
@@ -263,7 +263,7 @@ Node ≥22.
 Thin ACP / Claude bridge over Axon SSE event bus. **Not** Runloop's
 REST sandbox SDK — that is the peer-dep `@runloop/api-client`
 (Stainless-generated, not in this repo). Apples-to-oranges with
-`fc-sandbox-sdk`; the transport / retry / auth layer is absent here.
+`createos-sandbox-sdk`; the transport / retry / auth layer is absent here.
 
 **Good**
 
@@ -595,30 +595,30 @@ Re-read at `10f8266` (2025-12-04), v2.4.2.
 | OpenSandbox | adapter facade | **none** (one class) | **none** | hand-rolled `while(true)` | REST + SSE/NDJSON | 2 |
 | OpenComputer | static factory | weak (2 named, rest bare) | **none** | n/a | REST + SSE + WS | zero |
 | Beam | resource handle + singleton | **weak** (3 message-only) | **none** | busy-poll | axios + WS | 6 |
-| **fc-sandbox-sdk** | **handle + factory** | **yes (10 classes)** | **yes (method-aware)** | **yes (adaptive)** | **REST + NDJSON** | **zero** |
+| **createos-sandbox-sdk** | **handle + factory** | **yes (10 classes)** | **yes (method-aware)** | **yes (adaptive)** | **REST + NDJSON** | **zero** |
 
 ---
 
-## What fc-sandbox-sdk borrowed
+## What createos-sandbox-sdk borrowed
 
 | Feature in our SDK | Inspired by |
 | --- | --- |
 | `Sandbox` handle returned by `createSandbox` / `getSandbox` | E2B, Daytona, Modal, CodeSandbox (universal pattern) |
 | Handle exposes `status` / `ip` getters over a `SandboxView` | Daytona (DTO-on-handle) |
 | Single `.files` namespace, everything else flat on the handle | ComputeSDK (don't over-namespace) |
-| `FcError` hierarchy + status→class map + teaching messages | Daytona, E2B, Cloudflare |
+| `CreateosSandboxError` hierarchy + status→class map + teaching messages | Daytona, E2B, Cloudflare |
 | Retry with backoff + jitter, honors `Retry-After` | Vercel |
 | Method-aware retry idempotency (POST retried only on 429/503) | Modal (method-aware) + Cloudflare (conservative) |
 | `waitUntil*` with adaptive backoff; `createSandbox` auto-waits | Daytona |
 | `AbortSignal` composition + per-request timeout | E2B |
-| Env-var config (`FC_API_KEY` / `FC_BASE_URL`) | E2B, Daytona, CodeSandbox |
+| Env-var config (`CREATEOS_SANDBOX_API_KEY` / `CREATEOS_SANDBOX_BASE_URL`) | E2B, Daytona, CodeSandbox |
 | Versioned `User-Agent` header | Daytona, E2B |
 | `previewUrl(port)` helper | Cloudflare (token preview URLs) |
 | `exports` map, `sideEffects: false`, ESM-only | Vercel |
 | `fc.http` low-level escape hatch | ComputeSDK (`getInstance()`) |
 | Streaming surfaced as an async iterator | E2B, Modal |
 
-## Where fc-sandbox-sdk leads
+## Where createos-sandbox-sdk leads
 
 - **Zero runtime dependencies.** Lighter than every SDK surveyed — E2B
   carries a gRPC-web stack, Daytona pulls `axios` + `@aws-sdk/*`, Modal a
@@ -652,7 +652,7 @@ Re-read at `10f8266` (2025-12-04), v2.4.2.
 - **Two-layer handle (CodeSandbox).** One handle is enough; there is no
   separate data-plane connection to model.
 - **`.git` / `.pty` / code-interpreter namespaces (E2B, Daytona).**
-  fc-spawn exposes no such endpoints.
+  createos-sandbox exposes no such endpoints.
 - **CJS build.** ESM-only is a defensible modern choice (Vercel does the
   same). Revisit if consumers need CJS.
 
@@ -661,7 +661,7 @@ Re-read at `10f8266` (2025-12-04), v2.4.2.
 ## Round 2 borrow candidates
 
 Patterns from the 2026-05-28 survey worth backporting into
-`fc-sandbox-sdk` — ordered by effort. ✅ marks items shipped in v0.2.1.
+`createos-sandbox-sdk` — ordered by effort. ✅ marks items shipped in v0.2.1.
 
 ### Cheap wins (~10–40 LOC)
 
@@ -670,7 +670,7 @@ Patterns from the 2026-05-28 survey worth backporting into
   ad-hoc scripts. Shipped in v0.2.1 (Tensorlake, OpenComputer).
 - **`anySignal([...])` AbortSignal composer** — superseded by platform
   `AbortSignal.any()` already in `http.ts:175`. Nothing to do.
-- ✅ **Path-aware error mapping** — `FcApiError.resourceId` populated
+- ✅ **Path-aware error mapping** — `CreateosSandboxApiError.resourceId` populated
   from the request path. Shipped in v0.2.1 (Tensorlake).
 - ✅ **Sensitive-header / query / userinfo redaction set** — exported as
   `redactHeaders` / `redactUrl` / `redactQuery` for consumers writing
@@ -687,11 +687,11 @@ Patterns from the 2026-05-28 survey worth backporting into
 - ✅ **NDJSON parser tolerant of SSE control lines** — `src/ndjson.ts`
   now skips `:` / `event:` / `id:` / `retry:` and strips a `data: `
   prefix. Shipped in v0.2.1 (OpenSandbox).
-- ✅ **Body-`code` discriminated errors** — `FcApiError.code` populated
+- ✅ **Body-`code` discriminated errors** — `CreateosSandboxApiError.code` populated
   from `envelope.data.code` for stable machine-readable branching
   without parsing prose (OpenComputer, Islo). Shipped in v0.2.1.
 - **Stable error-code prefix parser** — `"<code>: <detail>"` split.
-  Subsumed by the body-`code` field above once fc-spawn standardizes
+  Subsumed by the body-`code` field above once createos-sandbox standardizes
   emitting `code` (Superserve).
 
 ### Medium effort (~100–300 LOC)
@@ -728,13 +728,13 @@ Patterns from the 2026-05-28 survey worth backporting into
 
 - **Code-interpreter primitive** (`Sandbox.code.run(code, {language,
   context, handlers, signal})`) returning a Jupyter-shaped aggregate
-  with mime-bundle `result.raw` — only useful once fc-spawn exposes
+  with mime-bundle `result.raw` — only useful once createos-sandbox exposes
   Jupyter execd endpoints (OpenSandbox).
 - **`ExecutionEventDispatcher` shared state machine** consumed by both
   `streamCommand` and a future `code.run` — same dispatcher fans out
   to handlers (OpenSandbox).
 - **H2 connection pool warming during `createSandbox`** — only matters
-  if fc-spawn goes multi-region with edge domains (Blaxel).
+  if createos-sandbox goes multi-region with edge domains (Blaxel).
 - **Sequence-numbered event subscriptions with `afterSequence` resume**
   if FC adds an event bus (Runloop).
 - **Multipart upload with parallel parts and transient-marker

@@ -8,11 +8,11 @@ that point on.
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_BASE_URL` defaults to the
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_BASE_URL` defaults to the
 production control plane and only needs to be set to override.
 
 ## What it does

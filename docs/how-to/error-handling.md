@@ -12,41 +12,41 @@ Catch by class, never by string. Every failure throws one of:
 
 | Class | Trigger |
 | --- | --- |
-| `FcAuthError` | HTTP 401 |
-| `FcPermissionError` | HTTP 403 |
-| `FcNotFoundError` | HTTP 404 |
-| `FcValidationError` | HTTP 400 / 409 / 422 |
-| `FcRateLimitError` | HTTP 429 (carries `retryAfterSeconds`) |
-| `FcServerError` | HTTP 5xx |
-| `FcConnectionError` | DNS, TCP, socket reset — no response |
-| `FcTimeoutError` | per-request timeout or `waitUntil*` deadline |
+| `CreateosSandboxAuthError` | HTTP 401 |
+| `CreateosSandboxPermissionError` | HTTP 403 |
+| `CreateosSandboxNotFoundError` | HTTP 404 |
+| `CreateosSandboxValidationError` | HTTP 400 / 409 / 422 |
+| `CreateosSandboxRateLimitError` | HTTP 429 (carries `retryAfterSeconds`) |
+| `CreateosSandboxServerError` | HTTP 5xx |
+| `CreateosSandboxConnectionError` | DNS, TCP, socket reset — no response |
+| `CreateosSandboxTimeoutError` | per-request timeout or `waitUntil*` deadline |
 
 ```ts
 import {
-  FcNotFoundError,
-  FcRateLimitError,
-  FcValidationError,
-} from "fc-sandbox-sdk";
+  CreateosSandboxNotFoundError,
+  CreateosSandboxRateLimitError,
+  CreateosSandboxValidationError,
+} from "createos-sandbox-sdk";
 
 try {
   await fc.getSandbox("sb-might-be-gone");
 } catch (err) {
-  if (err instanceof FcNotFoundError) {
+  if (err instanceof CreateosSandboxNotFoundError) {
     // Caller-controlled fallback.
     return null;
   }
-  if (err instanceof FcRateLimitError) {
+  if (err instanceof CreateosSandboxRateLimitError) {
     await new Promise((r) => setTimeout(r, (err.retryAfterSeconds ?? 1) * 1000));
     return null;
   }
-  if (err instanceof FcValidationError) {
+  if (err instanceof CreateosSandboxValidationError) {
     console.error("bad request:", err.envelope?.data);
   }
   throw err;
 }
 ```
 
-## What every `FcApiError` carries
+## What every `CreateosSandboxApiError` carries
 
 ```ts
 err.statusCode      // 404

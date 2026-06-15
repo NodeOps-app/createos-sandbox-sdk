@@ -8,7 +8,7 @@ OpenAI-compatible model proxy.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL, FC_API_KEY, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
+# fill in CREATEOS_SANDBOX_BASE_URL, CREATEOS_SANDBOX_API_KEY, OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL
 source .env
 bun index.ts
 ```

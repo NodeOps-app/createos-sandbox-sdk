@@ -15,13 +15,13 @@ script that generates Fibonacci numbers and identifies which are prime.
 
 ## Prerequisites
 
-A valid `FC_API_KEY` in `../.env`. The env file at that path is read
+A valid `CREATEOS_SANDBOX_API_KEY` in `../.env`. The env file at that path is read
 automatically at startup via `loadParentEnvFallback()`.
 
 ## Setup
 
 ```sh
-# ensure ../.env has a valid FC_API_KEY
+# ensure ../.env has a valid CREATEOS_SANDBOX_API_KEY
 # then run from this directory:
 bun index.ts
 ```
@@ -36,7 +36,7 @@ bun index.ts
 
 | Variable               | Required | Description                                                    |
 | ---------------------- | -------- | -------------------------------------------------------------- |
-| `FC_API_KEY`           | yes      | FC control-plane API key                                       |
+| `CREATEOS_SANDBOX_API_KEY`           | yes      | FC control-plane API key                                       |
 | `ANTHROPIC_API_KEY`    | yes\*    | Anthropic API key                                              |
 | `ANTHROPIC_AUTH_TOKEN` | yes\*    | Alternative to `ANTHROPIC_API_KEY` (custom proxy)              |
 | `ANTHROPIC_BASE_URL`   | no       | Custom Anthropic proxy URL                                     |

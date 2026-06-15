@@ -14,7 +14,7 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 
 const view = (id: string): typeof RUNNING_VIEW => ({ ...RUNNING_VIEW, id });
 
-describe("FcClient.iterateSandboxes", () => {
+describe("CreateosSandboxClient.iterateSandboxes", () => {
   test("walks pages lazily until the server total is reached", async () => {
     const client = makeClient((u) => {
       const offset = Number(new URL(String(u)).searchParams.get("offset") ?? "0");

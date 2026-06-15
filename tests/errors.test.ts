@@ -1,31 +1,31 @@
 import { describe, expect, test } from "bun:test";
 import {
-  FcApiError,
-  FcAuthError,
-  FcConnectionError,
-  FcNotFoundError,
-  FcPaymentRequiredError,
-  FcPermissionError,
-  FcRateLimitError,
-  FcServerError,
-  FcValidationError,
+  CreateosSandboxApiError,
+  CreateosSandboxAuthError,
+  CreateosSandboxConnectionError,
+  CreateosSandboxNotFoundError,
+  CreateosSandboxPaymentRequiredError,
+  CreateosSandboxPermissionError,
+  CreateosSandboxRateLimitError,
+  CreateosSandboxServerError,
+  CreateosSandboxValidationError,
 } from "../src/index.ts";
 import { BASE, catchErr, fail, jsonResponse, makeClient, success } from "./helpers.ts";
 
 describe("status code → typed error mapping", () => {
-  const cases: [number, new (...args: never[]) => FcApiError][] = [
-    [401, FcAuthError],
-    [403, FcPermissionError],
-    [404, FcNotFoundError],
-    [400, FcValidationError],
-    [409, FcValidationError],
-    [422, FcValidationError],
-    [402, FcPaymentRequiredError],
-    [429, FcRateLimitError],
-    [500, FcServerError],
-    [502, FcServerError],
-    [503, FcServerError],
-    [504, FcServerError],
+  const cases: [number, new (...args: never[]) => CreateosSandboxApiError][] = [
+    [401, CreateosSandboxAuthError],
+    [403, CreateosSandboxPermissionError],
+    [404, CreateosSandboxNotFoundError],
+    [400, CreateosSandboxValidationError],
+    [409, CreateosSandboxValidationError],
+    [422, CreateosSandboxValidationError],
+    [402, CreateosSandboxPaymentRequiredError],
+    [429, CreateosSandboxRateLimitError],
+    [500, CreateosSandboxServerError],
+    [502, CreateosSandboxServerError],
+    [503, CreateosSandboxServerError],
+    [504, CreateosSandboxServerError],
   ];
 
   for (const [status, ErrorClass] of cases) {
@@ -35,14 +35,14 @@ describe("status code → typed error mapping", () => {
       });
       const err = await catchErr(() => client.getSandbox("sb_x"));
       expect(err).toBeInstanceOf(ErrorClass);
-      expect(err).toBeInstanceOf(FcApiError);
+      expect(err).toBeInstanceOf(CreateosSandboxApiError);
       expect(err.statusCode).toBe(status);
     });
   }
 });
 
-describe("FcApiError metadata", () => {
-  test("FcRateLimitError exposes the Retry-After delay", async () => {
+describe("CreateosSandboxApiError metadata", () => {
+  test("CreateosSandboxRateLimitError exposes the Retry-After delay", async () => {
     const client = makeClient(
       () =>
         Promise.resolve(
@@ -54,16 +54,16 @@ describe("FcApiError metadata", () => {
       { retry: false },
     );
     const err = await catchErr(() => client.getSandbox("sb_x"));
-    expect(err).toBeInstanceOf(FcRateLimitError);
+    expect(err).toBeInstanceOf(CreateosSandboxRateLimitError);
     expect(err.retryAfterSeconds).toBe(7);
   });
 
-  test("FcNotFoundError parses the resource id from the path", async () => {
+  test("CreateosSandboxNotFoundError parses the resource id from the path", async () => {
     const client = makeClient(() => Promise.resolve(fail({ id: "missing" }, 404)), {
       retry: false,
     });
     const err = await catchErr(() => client.getSandbox("sb_abc123"));
-    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err).toBeInstanceOf(CreateosSandboxNotFoundError);
     expect(err.resourceId).toBe("sb_abc123");
   });
 
@@ -72,7 +72,7 @@ describe("FcApiError metadata", () => {
       retry: false,
     });
     const err = await catchErr(() => client.disks.get("disk_abc123"));
-    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err).toBeInstanceOf(CreateosSandboxNotFoundError);
     expect(err.resourceId).toBe("disk_abc123");
   });
 
@@ -81,7 +81,7 @@ describe("FcApiError metadata", () => {
       retry: false,
     });
     const err = await catchErr(() => client.getSandbox("sb id/with space"));
-    expect(err).toBeInstanceOf(FcNotFoundError);
+    expect(err).toBeInstanceOf(CreateosSandboxNotFoundError);
     expect(err.resourceId).toBe("sb id/with space");
   });
 
@@ -144,13 +144,13 @@ describe("FcApiError metadata", () => {
   });
 });
 
-describe("FcConnectionError", () => {
+describe("CreateosSandboxConnectionError", () => {
   test("wraps a non-abort network failure", async () => {
     const client = makeClient(() => Promise.reject(new TypeError("socket hang up")), {
       retry: false,
     });
     const err = await catchErr(() => client.getSandbox("sb_x"));
-    expect(err).toBeInstanceOf(FcConnectionError);
+    expect(err).toBeInstanceOf(CreateosSandboxConnectionError);
   });
 
   test("baseUrl is reachable through the client", () => {

@@ -12,7 +12,7 @@ session, see `37-self-hosted-sandbox-per-session`.
 
 ## Setup — credentials
 
-You need FC creds (`FC_BASE_URL`, `FC_API_KEY`) in `.env`, and three Anthropic
+You need FC creds (`CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_API_KEY`) in `.env`, and three Anthropic
 values in `.env.ant`. Both files are gitignored — never commit them. `bun`
 auto-loads `.env`; the example reads `.env.ant` itself (kept separate so the
 shared `.env`'s internal Anthropic gateway vars can't misroute the real API).

@@ -1,4 +1,4 @@
-// Wire types for the fc-spawn control plane API.
+// Wire types for the createos-sandbox control plane API.
 //
 // Every shape here mirrors the Go control-plane response/request structs
 // (internal/api/types). Fields use the server's snake_case names so the
@@ -100,13 +100,13 @@ export interface ClientHooks {
   onRetry?: (ctx: RetryHookContext) => void | Promise<void>;
 }
 
-/** Construction options for {@link FcClient}. All fields are optional. */
-export interface FcClientOptions {
-  /** fc-spawn API key sent as X-Api-Key. Falls back to the FC_API_KEY env var. */
+/** Construction options for {@link CreateosSandboxClient}. All fields are optional. */
+export interface CreateosSandboxClientOptions {
+  /** createos-sandbox API key sent as X-Api-Key. Falls back to the CREATEOS_SANDBOX_API_KEY env var. */
   apiKey?: string;
   /** Auth headers used instead of an API key, e.g. your app's session token. */
   authHeaders?: HeadersInit;
-  /** Control-plane base URL. Required; falls back to the FC_BASE_URL env var. */
+  /** Control-plane base URL. Required; falls back to the CREATEOS_SANDBOX_BASE_URL env var. */
   baseUrl?: string;
   /** Custom fetch implementation. Defaults to globalThis.fetch. */
   fetch?: typeof fetch;

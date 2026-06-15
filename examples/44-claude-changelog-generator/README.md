@@ -8,7 +8,7 @@ generated `CHANGELOG.md` to your terminal.
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY, FCSPAWN_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL
+# fill in CREATEOS_SANDBOX_API_KEY, FCSPAWN_URL, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL
 source .env
 bun index.ts
 ```

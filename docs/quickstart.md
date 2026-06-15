@@ -6,8 +6,8 @@ command, destroy.
 ## 1. Install
 
 ```sh
-npm install fc-sandbox-sdk
-# or: bun add fc-sandbox-sdk
+npm install createos-sandbox-sdk
+# or: bun add createos-sandbox-sdk
 ```
 
 > Not yet published to npm — until the first release, install from a local
@@ -18,7 +18,7 @@ Bun, Deno, Cloudflare Workers, Vercel Edge, and the browser.
 
 ## 2. Get an API key
 
-Provision one through your fc-spawn control plane (`fcctl token create`
+Provision one through your createos-sandbox control plane (`fcctl token create`
 or the operator's identity portal). The key is per-user; treat it like
 a database password.
 
@@ -29,16 +29,16 @@ client throws without it) — and give it an API key. The simplest path is
 two environment variables:
 
 ```sh
-export FC_BASE_URL="https://your-fc-spawn-control-plane"
-export FC_API_KEY="sk_…"
+export CREATEOS_SANDBOX_BASE_URL="https://your-createos-sandbox-control-plane"
+export CREATEOS_SANDBOX_API_KEY="sk_…"
 ```
 
 ```ts
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new FcClient(); // reads FC_BASE_URL + FC_API_KEY from the env
+const fc = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY from the env
 // or pass them explicitly:
-// new FcClient({ baseUrl: "https://…", apiKey: "sk_…" })
+// new CreateosSandboxClient({ baseUrl: "https://…", apiKey: "sk_…" })
 ```
 
 ## 4. Spawn a sandbox
@@ -76,14 +76,14 @@ if you need to be sure the row is reclaimed before continuing.
 
 ## Troubleshooting
 
-- **`FcAuthError` on the first call**: the API key is missing or wrong.
+- **`CreateosSandboxAuthError` on the first call**: the API key is missing or wrong.
   Verify with `await fc.whoami()`.
-- **`FcConnectionError`**: the control plane is unreachable. Check
-  `FC_BASE_URL` and any corporate proxy / firewall.
-- **`FcTimeoutError` from `createSandbox`**: the sandbox never reached
+- **`CreateosSandboxConnectionError`**: the control plane is unreachable. Check
+  `CREATEOS_SANDBOX_BASE_URL` and any corporate proxy / firewall.
+- **`CreateosSandboxTimeoutError` from `createSandbox`**: the sandbox never reached
   `running` before the wait budget elapsed. Increase `waitTimeoutMs`,
   or pass `{ wait: false }` and poll yourself.
-- **`FcServerError` with status 503**: the host pool is saturated.
+- **`CreateosSandboxServerError` with status 503**: the host pool is saturated.
   Retry after the suggested `Retry-After` window.
 
 ## Next steps

@@ -9,7 +9,7 @@ The agent uses `read_file` and `list_dir` tools backed by
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL, FC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN
+# fill in CREATEOS_SANDBOX_BASE_URL, CREATEOS_SANDBOX_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_AUTH_TOKEN
 bun index.ts
 ```
 

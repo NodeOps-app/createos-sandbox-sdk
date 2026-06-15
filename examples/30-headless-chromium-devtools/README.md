@@ -8,7 +8,7 @@ works by fetching `/json/version` through the public ingress URL.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL and FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
@@ -17,7 +17,7 @@ Expected output (timings vary — Chrome + deps install takes ~60–90 s):
 ```
 [1/8] creating sandbox (shape=s-1vcpu-2gb, rootfs=devbox:1, ingress on)...
       sandbox: sb-<id>  ip: 10.0.0.x
-      preview URL: http://<id>-8080.fc-spawn.example.com
+      preview URL: http://<id>-8080.createos-sandbox.example.com
 [2/8] installing Chrome deps + nginx (apt-get)...
 [3/8] downloading + installing Google Chrome stable...
       Google Chrome 148.0.7778.215
@@ -37,7 +37,7 @@ Expected output (timings vary — Chrome + deps install takes ~60–90 s):
   type: background_page
   ...
 
-verified end-to-end: Chrome/148.0.7778.215 reachable at http://<id>-8080.fc-spawn.example.com/json/version
+verified end-to-end: Chrome/148.0.7778.215 reachable at http://<id>-8080.createos-sandbox.example.com/json/version
 ```
 
 ## What it does

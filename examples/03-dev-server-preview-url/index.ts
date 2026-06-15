@@ -4,9 +4,9 @@
  * a live app preview (dev server, web UI) straight out of a microVM.
  *
  * Run:   bun 03-dev-server-preview-url/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // 1. Create with ingress on. ingress_enabled provisions a public hostname that
 //    proxies to a port inside the VM; without it previewUrl has nothing to route.

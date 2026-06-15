@@ -8,10 +8,10 @@
  * cost stays inside the sandbox and is torn down with it.
  *
  * Run:   bun 29-playwright-headless-browser/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The scrape runs entirely
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). The scrape runs entirely
  *        inside the VM, so no ingress is involved.
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // Chromium needs >=1GB RAM; 2GB gives comfortable headroom for the
 // browser process + system deps that --with-deps pulls.
@@ -19,13 +19,13 @@ const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 const APP_DIR = "/app";
 
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox. DEBIAN_FRONTEND=noninteractive keeps apt from
 //    blocking on tzdata/debconf prompts when --with-deps pulls packages.

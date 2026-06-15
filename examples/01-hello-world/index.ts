@@ -4,12 +4,12 @@
  * credentials and the control plane are wired up correctly.
  *
  * Run:   bun 01-hello-world/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
-// 1. Create. Sandbox.create is the client-less factory — it builds the FcClient
-//    from FC_BASE_URL / FC_API_KEY and does not resolve until the VM is `running`.
+// 1. Create. Sandbox.create is the client-less factory — it builds the CreateosSandboxClient
+//    from CREATEOS_SANDBOX_BASE_URL / CREATEOS_SANDBOX_API_KEY and does not resolve until the VM is `running`.
 const sandbox = await Sandbox.create({
   // smallest shape — this smoke test runs a single command
   shape: "s-1vcpu-256mb",

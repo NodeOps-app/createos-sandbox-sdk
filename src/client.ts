@@ -1,9 +1,9 @@
-// FcClient: the entry point. Owns transport configuration, catalog and
+// CreateosSandboxClient: the entry point. Owns transport configuration, catalog and
 // identity calls, the sandbox factory, and the templates / networks APIs.
 
 import { DEFAULT_WAIT_MS, resolveConfig } from "./config.js";
 import { errorFromResponse } from "./errors.js";
-import { encodePath, FcHttp } from "./http.js";
+import { encodePath, CreateosSandboxHttp } from "./http.js";
 import { Sandbox } from "./sandbox.js";
 import type {
   CreateSandboxOptions,
@@ -14,7 +14,7 @@ import type {
   JSendEnvelope,
   DiskDeletedResponse,
   DiskView,
-  FcClientOptions,
+  CreateosSandboxClientOptions,
   GetTemplateOptions,
   HealthzResponse,
   HostPublic,
@@ -37,22 +37,22 @@ import type {
 /**
  * Template (custom rootfs) operations. Reached via `client.templates`.
  *
- * Every method also throws {@link FcServerError} on a 5xx response and
- * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * Every method also throws {@link CreateosSandboxServerError} on a 5xx response and
+ * {@link CreateosSandboxConnectionError} on network failure; per-method `@throws` tags list
  * only the conditions specific to that call.
  */
 export class TemplatesApi {
-  readonly #http: FcHttp;
+  readonly #http: CreateosSandboxHttp;
 
-  constructor(http: FcHttp) {
+  constructor(http: CreateosSandboxHttp) {
     this.#http = http;
   }
 
   /**
    * Lists every template owned by the caller.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const templates = await fc.templates.list();
@@ -80,10 +80,10 @@ export class TemplatesApi {
   /**
    * Submits a Dockerfile to build into a sandbox rootfs.
    *
-   * @throws {FcValidationError} when the request body is malformed or the Dockerfile is rejected.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the request body is malformed or the Dockerfile is rejected.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const tpl = await fc.templates.create({
@@ -103,10 +103,10 @@ export class TemplatesApi {
    * Looks up a template by id. Pass `include: "dockerfile"` to receive the
    * original build input alongside the projection.
    *
-   * @throws {FcNotFoundError} when no template with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no template with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the template belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const tpl = await fc.templates.get("tpl_01h…", { include: "dockerfile" });
@@ -123,10 +123,10 @@ export class TemplatesApi {
   /**
    * Deletes a template. Existing sandboxes built from it are unaffected.
    *
-   * @throws {FcNotFoundError} when the template id does not exist.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the template id does not exist.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the template belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await fc.templates.delete("tpl_01h…");
@@ -138,10 +138,10 @@ export class TemplatesApi {
   /**
    * Fetches the build log so far as plain text.
    *
-   * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no template (or attempt) with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the template belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const logs = await fc.templates.logs("tpl_01h…");
@@ -163,10 +163,10 @@ export class TemplatesApi {
   /**
    * Follows the build log, yielding NDJSON events until the build finishes.
    *
-   * @throws {FcNotFoundError} when no template (or attempt) with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the template belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no template (or attempt) with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the template belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * for await (const event of fc.templates.followLogs("tpl_01h…")) {
@@ -185,22 +185,22 @@ export class TemplatesApi {
 /**
  * Overlay network operations. Reached via `client.networks`.
  *
- * Every method also throws {@link FcServerError} on a 5xx response and
- * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * Every method also throws {@link CreateosSandboxServerError} on a 5xx response and
+ * {@link CreateosSandboxConnectionError} on network failure; per-method `@throws` tags list
  * only the conditions specific to that call.
  */
 export class NetworksApi {
-  readonly #http: FcHttp;
+  readonly #http: CreateosSandboxHttp;
 
-  constructor(http: FcHttp) {
+  constructor(http: CreateosSandboxHttp) {
     this.#http = http;
   }
 
   /**
    * Lists every overlay network owned by the caller.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const nets = await fc.networks.list();
@@ -224,10 +224,10 @@ export class NetworksApi {
    * Creates an overlay network. Members are attached later via
    * `sandbox.attachNetwork`.
    *
-   * @throws {FcValidationError} when the request body is malformed or the CIDR conflicts.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the request body is malformed or the CIDR conflicts.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const net = await fc.networks.create({ name: "team-net" });
@@ -240,10 +240,10 @@ export class NetworksApi {
   /**
    * Looks up an overlay network by id.
    *
-   * @throws {FcNotFoundError} when no network with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no network with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the network belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const net = await fc.networks.get("net_01h…");
@@ -256,11 +256,11 @@ export class NetworksApi {
   /**
    * Deletes an overlay network. Member sandboxes are detached but not destroyed.
    *
-   * @throws {FcNotFoundError} when the network id does not exist.
-   * @throws {FcValidationError} when the network still has active members.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the network id does not exist.
+   * @throws {CreateosSandboxValidationError} when the network still has active members.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the network belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await fc.networks.delete("net_01h…");
@@ -281,24 +281,24 @@ export class NetworksApi {
  * the operator has not provisioned a disk-credential cipher key — this
  * is a configuration state, not a transient failure.
  *
- * Every method also throws {@link FcServerError} on a 5xx response and
- * {@link FcConnectionError} on network failure; per-method `@throws` tags list
+ * Every method also throws {@link CreateosSandboxServerError} on a 5xx response and
+ * {@link CreateosSandboxConnectionError} on network failure; per-method `@throws` tags list
  * only the conditions specific to that call.
  */
 export class DisksApi {
-  readonly #http: FcHttp;
+  readonly #http: CreateosSandboxHttp;
 
-  constructor(http: FcHttp) {
+  constructor(http: CreateosSandboxHttp) {
     this.#http = http;
   }
 
   /**
    * Lists every registered S3 disk owned by the caller.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcServerError} on 5xx from the control plane (including 503
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxServerError} on 5xx from the control plane (including 503
    *   when the disks API is not configured by the operator).
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const disks = await fc.disks.list();
@@ -322,12 +322,12 @@ export class DisksApi {
    * Registers an S3 bucket as a mountable disk. The server HEADs the
    * bucket before accepting; a typo or bad creds returns 400.
    *
-   * @throws {FcValidationError} when the bucket HEAD fails or credentials are rejected.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcServerError} on 5xx from the control plane (including 503
+   * @throws {CreateosSandboxValidationError} when the bucket HEAD fails or credentials are rejected.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
+   * @throws {CreateosSandboxServerError} on 5xx from the control plane (including 503
    *   when the disks API is not configured by the operator).
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const disk = await fc.disks.create({
@@ -346,10 +346,10 @@ export class DisksApi {
   /**
    * Looks up a disk by id (`disk_<ulid>`) or by user-scoped name.
    *
-   * @throws {FcNotFoundError} when no disk with that id or name exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no disk with that id or name exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the disk belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const disk = await fc.disks.get("shared-data");
@@ -360,14 +360,14 @@ export class DisksApi {
   }
 
   /**
-   * Deletes a disk. Returns 409 (FcValidationError) if the disk is still
+   * Deletes a disk. Returns 409 (CreateosSandboxValidationError) if the disk is still
    * attached to a non-destroyed sandbox — detach first.
    *
-   * @throws {FcNotFoundError} when the disk id or name does not exist.
-   * @throws {FcValidationError} when the disk is still attached to a sandbox.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the disk id or name does not exist.
+   * @throws {CreateosSandboxValidationError} when the disk is still attached to a sandbox.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the disk belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await fc.disks.delete("shared-data");
@@ -386,11 +386,11 @@ export class DisksApi {
    * sandboxes holding the disk pick up the new credentials on their next
    * resume. Returns the disk's public view.
    *
-   * @throws {FcValidationError} when access_key or secret_key is empty.
-   * @throws {FcNotFoundError} when the disk id or name does not exist.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when access_key or secret_key is empty.
+   * @throws {CreateosSandboxNotFoundError} when the disk id or name does not exist.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the disk belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await fc.disks.rotateCredentials("shared-data", {
@@ -415,17 +415,17 @@ export class DisksApi {
  * timeouts, retries) and exposes catalog and identity calls, the sandbox
  * factory, and the `templates` / `networks` / `disks` sub-APIs.
  *
- * Every method that reaches the control plane also throws {@link FcServerError}
- * on a 5xx response and {@link FcConnectionError} on network failure; per-method
+ * Every method that reaches the control plane also throws {@link CreateosSandboxServerError}
+ * on a 5xx response and {@link CreateosSandboxConnectionError} on network failure; per-method
  * `@throws` tags list only the conditions specific to that call.
  *
  * @example
- * const fc = new FcClient({ apiKey: process.env.FC_API_KEY });
+ * const fc = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
  * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
  */
-export class FcClient {
+export class CreateosSandboxClient {
   /** Low-level transport. An escape hatch for requests the SDK does not model. */
-  readonly http: FcHttp;
+  readonly http: CreateosSandboxHttp;
   /** Template (custom rootfs) operations. */
   readonly templates: TemplatesApi;
   /** Overlay network operations. */
@@ -433,8 +433,8 @@ export class FcClient {
   /** S3-disk catalog operations. */
   readonly disks: DisksApi;
 
-  constructor(options: FcClientOptions = {}) {
-    this.http = new FcHttp(resolveConfig(options));
+  constructor(options: CreateosSandboxClientOptions = {}) {
+    this.http = new CreateosSandboxHttp(resolveConfig(options));
     this.templates = new TemplatesApi(this.http);
     this.networks = new NetworksApi(this.http);
     this.disks = new DisksApi(this.http);
@@ -450,7 +450,7 @@ export class FcClient {
    * Liveness probe. Unauthenticated; returns `{ up: true }` once the
    * control plane is up.
    *
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const ok = await fc.healthz();
@@ -463,7 +463,7 @@ export class FcClient {
   /**
    * Readiness probe. Returns `{ ready: false, reason }` instead of throwing on 503.
    *
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const r = await fc.readyz();
@@ -502,8 +502,8 @@ export class FcClient {
   /**
    * Returns the identity associated with the configured API key.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const me = await fc.whoami();
@@ -519,7 +519,7 @@ export class FcClient {
    * Lists the available sandbox shapes (vCPU / RAM presets).
    * Unauthenticated.
    *
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const shapes = await fc.listShapes();
@@ -537,7 +537,7 @@ export class FcClient {
   /**
    * Lists the catalog of built-in rootfs images. Unauthenticated.
    *
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const { rootfs } = await fc.listRootfs();
@@ -550,9 +550,9 @@ export class FcClient {
   /**
    * Lists the worker hosts visible to the caller.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller cannot enumerate hosts.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller cannot enumerate hosts.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const hosts = await fc.listHosts();
@@ -578,10 +578,10 @@ export class FcClient {
    * Creates a sandbox and, by default, waits until it is `running`.
    * Pass `{ wait: false }` to return as soon as the row exists.
    *
-   * @throws {FcValidationError} when shape or rootfs are unknown.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
+   * @throws {CreateosSandboxValidationError} when shape or rootfs are unknown.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout or wait budget elapses.
    *
    * @example
    * const sandbox = await fc.createSandbox({
@@ -628,10 +628,10 @@ export class FcClient {
   /**
    * Connects to an existing sandbox by id.
    *
-   * @throws {FcNotFoundError} when no sandbox with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no sandbox with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const sandbox = await fc.getSandbox("sb_01h…");
@@ -649,10 +649,10 @@ export class FcClient {
   /**
    * Connects to an existing sandbox by its VM IP.
    *
-   * @throws {FcNotFoundError} when no sandbox with that IP exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no sandbox with that IP exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const sandbox = await fc.getSandboxByIP("10.0.0.42");
@@ -670,8 +670,8 @@ export class FcClient {
   /**
    * Lists the caller's sandboxes as connected handles.
    *
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * Walks every page by default; pass `limit` to cap the number of
    * handles returned.
@@ -717,12 +717,12 @@ export class FcClient {
 }
 
 /**
- * Constructs an FcClient. Equivalent to `new FcClient(options)`.
+ * Constructs an CreateosSandboxClient. Equivalent to `new CreateosSandboxClient(options)`.
  *
  * @example
- * import { createClient } from "fc-sandbox-sdk";
- * const fc = createClient({ apiKey: process.env.FC_API_KEY });
+ * import { createClient } from "createos-sandbox-sdk";
+ * const fc = createClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
  */
-export function createClient(options: FcClientOptions = {}): FcClient {
-  return new FcClient(options);
+export function createClient(options: CreateosSandboxClientOptions = {}): CreateosSandboxClient {
+  return new CreateosSandboxClient(options);
 }

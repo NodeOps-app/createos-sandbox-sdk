@@ -35,9 +35,9 @@ bun install            # from the examples/ root
 bun index.ts
 ```
 
-`.env` is a symlink to the shared `examples/.env`. Set `FC_API_KEY`,
+`.env` is a symlink to the shared `examples/.env`. Set `CREATEOS_SANDBOX_API_KEY`,
 `ANTHROPIC_BASE_URL`, and `ANTHROPIC_AUTH_TOKEN` there (and optionally
-`ANTHROPIC_MODEL`). `FC_BASE_URL` defaults to the production control plane.
+`ANTHROPIC_MODEL`). `CREATEOS_SANDBOX_BASE_URL` defaults to the production control plane.
 See `.env.example` for the full list.
 
 ## Files

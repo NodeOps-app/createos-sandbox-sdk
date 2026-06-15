@@ -4,8 +4,12 @@
 // via the client `fetch` option — there is no live control plane. Keep the
 // fixtures here in sync with the wire types in `src/types.ts`.
 
-import { FcClient } from "../src/index.ts";
-import type { CreateSandboxResponse, FcClientOptions, SandboxView } from "../src/types.ts";
+import { CreateosSandboxClient } from "../src/index.ts";
+import type {
+  CreateSandboxResponse,
+  CreateosSandboxClientOptions,
+  SandboxView,
+} from "../src/types.ts";
 
 /** Stand-in control-plane origin. Never actually contacted. */
 export const BASE = "https://example.test";
@@ -71,8 +75,16 @@ export function errorEnvelope(message: string, code: number, status: number): Re
 }
 
 /** Builds a client with the standard test defaults; `extra` overrides them. */
-export function makeClient(fetchImpl: FetchImpl, extra: FcClientOptions = {}): FcClient {
-  return new FcClient({ apiKey: "sk", baseUrl: BASE, fetch: fetchImpl as typeof fetch, ...extra });
+export function makeClient(
+  fetchImpl: FetchImpl,
+  extra: CreateosSandboxClientOptions = {},
+): CreateosSandboxClient {
+  return new CreateosSandboxClient({
+    apiKey: "sk",
+    baseUrl: BASE,
+    fetch: fetchImpl as typeof fetch,
+    ...extra,
+  });
 }
 
 /**

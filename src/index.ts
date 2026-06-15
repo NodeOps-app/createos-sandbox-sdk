@@ -1,19 +1,25 @@
-export { FcClient, createClient, TemplatesApi, NetworksApi, DisksApi } from "./client.js";
+export {
+  CreateosSandboxClient,
+  createClient,
+  TemplatesApi,
+  NetworksApi,
+  DisksApi,
+} from "./client.js";
 export { Sandbox, SandboxFiles } from "./sandbox.js";
-export { FcHttp } from "./http.js";
+export { CreateosSandboxHttp } from "./http.js";
 export { VERSION } from "./config.js";
 export {
-  FcError,
-  FcApiError,
-  FcAuthError,
-  FcPermissionError,
-  FcNotFoundError,
-  FcPaymentRequiredError,
-  FcValidationError,
-  FcRateLimitError,
-  FcServerError,
-  FcConnectionError,
-  FcTimeoutError,
+  CreateosSandboxError,
+  CreateosSandboxApiError,
+  CreateosSandboxAuthError,
+  CreateosSandboxPermissionError,
+  CreateosSandboxNotFoundError,
+  CreateosSandboxPaymentRequiredError,
+  CreateosSandboxValidationError,
+  CreateosSandboxRateLimitError,
+  CreateosSandboxServerError,
+  CreateosSandboxConnectionError,
+  CreateosSandboxTimeoutError,
 } from "./errors.js";
 export type { ErrorRequestContext } from "./errors.js";
 export { detectRuntime, runtimeTag } from "./runtime.js";

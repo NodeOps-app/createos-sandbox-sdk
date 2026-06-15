@@ -11,12 +11,12 @@
  * instead of through Radicle's public bootstrap peers.
  *
  * Run:   bun 12-radicle-multi-agent/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY and ANTHROPIC_API_KEY (see .env.example).
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY and ANTHROPIC_API_KEY (see .env.example).
  *        Each sandbox needs outbound network to fetch the Radicle installer.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient, Sandbox } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, Sandbox } from "createos-sandbox-sdk";
 
 const RAD_PASS = "fc-radicle-mesh";
 const RAD_BIN = "/root/.radicle/bin";
@@ -66,7 +66,7 @@ const ROLES: Omit<Peer, "sandbox" | "overlayIp">[] = [
   },
 ];
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 async function bootRadicleNode(sb: Sandbox, alias: string) {
   await sb.sh(

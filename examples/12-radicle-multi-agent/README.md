@@ -16,7 +16,7 @@ cp .env.example .env  # ../.env is already symlinked here
 bun index.ts
 ```
 
-bun auto-loads `.env` from this dir. `FC_API_KEY` is the only required
+bun auto-loads `.env` from this dir. `CREATEOS_SANDBOX_API_KEY` is the only required
 input for the SDK; `ANTHROPIC_API_KEY` (or the gateway equivalent shipped
 in the shared `../.env`) is needed for the Claude calls.
 
@@ -26,7 +26,7 @@ in the shared `../.env`) is needed for the Claude calls.
 sequenceDiagram
     autonumber
     participant Host as Host (index.ts)
-    participant FC as fc-spawn
+    participant FC as createos-sandbox
     participant A as Sandbox A — coder
     participant B as Sandbox B — tester
     participant C as Sandbox C — docs

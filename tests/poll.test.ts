@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcError, FcTimeoutError } from "../src/index.ts";
+import { CreateosSandboxError, CreateosSandboxTimeoutError } from "../src/index.ts";
 import { pollUntil, sleep } from "../src/poll.ts";
 import { catchErr } from "./helpers.ts";
 
@@ -35,7 +35,7 @@ describe("pollUntil", () => {
     expect(calls).toBe(3);
   });
 
-  test("throws FcError with the failure message when failed() returns a string", async () => {
+  test("throws CreateosSandboxError with the failure message when failed() returns a string", async () => {
     const err = await catchErr(() =>
       pollUntil<string>({
         poll: () => Promise.resolve("error"),
@@ -44,11 +44,11 @@ describe("pollUntil", () => {
         timeoutMs: 1000,
       }),
     );
-    expect(err).toBeInstanceOf(FcError);
+    expect(err).toBeInstanceOf(CreateosSandboxError);
     expect(err.message).toBe("entered error state");
   });
 
-  test("throws FcTimeoutError once the budget elapses", async () => {
+  test("throws CreateosSandboxTimeoutError once the budget elapses", async () => {
     const err = await catchErr(() =>
       pollUntil<string>({
         poll: () => Promise.resolve("creating"),
@@ -56,10 +56,10 @@ describe("pollUntil", () => {
         timeoutMs: 0,
       }),
     );
-    expect(err).toBeInstanceOf(FcTimeoutError);
+    expect(err).toBeInstanceOf(CreateosSandboxTimeoutError);
   });
 
-  test("throws FcError when the signal is already aborted", async () => {
+  test("throws CreateosSandboxError when the signal is already aborted", async () => {
     const controller = new AbortController();
     controller.abort();
     const err = await catchErr(() =>
@@ -70,7 +70,7 @@ describe("pollUntil", () => {
         signal: controller.signal,
       }),
     );
-    expect(err).toBeInstanceOf(FcError);
+    expect(err).toBeInstanceOf(CreateosSandboxError);
     expect(err.message).toBe("Wait aborted.");
   });
 });

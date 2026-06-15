@@ -13,13 +13,18 @@
  * destroy A → fork B → destroy B) so we never exceed two concurrent VMs.
  *
  * Run:   bun 14-jupyter-singleton/index.ts
- * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_API_KEY (CREATEOS_SANDBOX_BASE_URL defaults; see .env.example). No external services.
  */
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FcClient, FcTimeoutError, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  CreateosSandboxValidationError,
+  type Sandbox,
+} from "createos-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const daemonSrc = await readFile(join(here, "kernel_daemon.py"));
@@ -35,7 +40,7 @@ interface CellReply {
   result: string;
 }
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // One-shot retry helper for the cap-exhausted / transient 5xx case. We back
 // off 30s and retry exactly once; further failures propagate so the run fails
@@ -64,7 +69,7 @@ async function createWithRetry() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;
@@ -133,7 +138,7 @@ async function runOnFork(parent: Sandbox, label: string, code: string): Promise<
     try {
       await child.waitUntilPaused({ timeoutMs: FORK_TIMEOUT_MS });
     } catch (err) {
-      if (err instanceof FcTimeoutError) {
+      if (err instanceof CreateosSandboxTimeoutError) {
         await child.refresh().catch(() => undefined);
         console.log(
           `[fork:${label}] fork stuck in '${child.status}' after ${FORK_TIMEOUT_MS}ms — ` +

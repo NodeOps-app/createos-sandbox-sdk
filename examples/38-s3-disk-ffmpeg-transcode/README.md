@@ -14,8 +14,8 @@ cp .env.example .env  # fill in FC + S3 values
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_API_KEY` is the standard FC
-input (`FC_BASE_URL` defaults to the prod control plane). The `S3_*` vars
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_API_KEY` is the standard FC
+input (`CREATEOS_SANDBOX_BASE_URL` defaults to the prod control plane). The `S3_*` vars
 point at any S3-compatible bucket — **it must be reachable from both your
 machine and the FC agent** (AWS S3, Cloudflare R2, MinIO, …). Set
 `S3_USE_PATH_STYLE=1` for MinIO-style endpoints.

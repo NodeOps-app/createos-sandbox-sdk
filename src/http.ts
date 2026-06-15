@@ -4,9 +4,9 @@
 import { DEFAULT_RETRY, mergeRetry, type ResolvedConfig } from "./config.js";
 import {
   errorFromResponse,
-  FcConnectionError,
-  FcError,
-  FcTimeoutError,
+  CreateosSandboxConnectionError,
+  CreateosSandboxError,
+  CreateosSandboxTimeoutError,
   parseRetryAfterSeconds,
 } from "./errors.js";
 import { readNdjson } from "./ndjson.js";
@@ -66,7 +66,7 @@ function deleteAuthHeaders(headers: Headers): void {
  * composition. Reached via `client.http` as an escape hatch for endpoints
  * the SDK does not model directly.
  */
-export class FcHttp {
+export class CreateosSandboxHttp {
   readonly baseUrl: string;
   readonly #config: ResolvedConfig;
   readonly #baseOrigin: string;
@@ -80,12 +80,12 @@ export class FcHttp {
   /**
    * Performs a request, unwraps the JSend success envelope, throws on non-2xx.
    *
-   * @throws {FcApiError} (or a subclass: FcAuthError, FcPermissionError,
-   *   FcNotFoundError, FcValidationError, FcRateLimitError, FcServerError)
+   * @throws {CreateosSandboxApiError} (or a subclass: CreateosSandboxAuthError, CreateosSandboxPermissionError,
+   *   CreateosSandboxNotFoundError, CreateosSandboxValidationError, CreateosSandboxRateLimitError, CreateosSandboxServerError)
    *   on a non-2xx response.
-   * @throws {FcConnectionError} when the request never reaches the server.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
-   * @throws {FcError} when the success body is not valid JSON or not a
+   * @throws {CreateosSandboxConnectionError} when the request never reaches the server.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxError} when the success body is not valid JSON or not a
    *   `success` envelope.
    */
   async request<T>(method: string, path: string, options: HttpRequestOptions = {}): Promise<T> {
@@ -165,11 +165,11 @@ export class FcHttp {
   /**
    * Performs a request with retries. Returns the raw Response without
    * throwing on HTTP error statuses — callers inspect `response.ok`.
-   * Still throws FcConnectionError / FcTimeoutError for transport failures.
+   * Still throws CreateosSandboxConnectionError / CreateosSandboxTimeoutError for transport failures.
    *
-   * @throws {FcConnectionError} when the request never reaches the server.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
-   * @throws {FcError} when the resolved URL would target a non-base origin.
+   * @throws {CreateosSandboxConnectionError} when the request never reaches the server.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxError} when the resolved URL would target a non-base origin.
    */
   async requestRaw(
     method: string,
@@ -200,7 +200,7 @@ export class FcHttp {
         await this.#fireResponseHook(hookMeta, attempt, startMs, response);
       } catch (err) {
         const canRetry =
-          err instanceof FcConnectionError &&
+          err instanceof CreateosSandboxConnectionError &&
           retry !== false &&
           attempt < maxRetries &&
           IDEMPOTENT.has(method.toUpperCase());
@@ -255,7 +255,7 @@ export class FcHttp {
    * observers truthful: they see exactly the headers that were sent. Shared
    * by `requestRaw` (re-dispatched per retry attempt) and `stream`.
    *
-   * `#buildUrl` is called here so its non-base-origin `FcError` propagates
+   * `#buildUrl` is called here so its non-base-origin `CreateosSandboxError` propagates
    * before any dispatch — it must never be rewrapped as a connection error.
    */
   #prepare(method: string, path: string, options: HttpRequestOptions): PreparedRequest {
@@ -328,10 +328,10 @@ export class FcHttp {
   /**
    * Streams an NDJSON response as an async iterator. Not retried.
    *
-   * @throws {FcApiError} (or a subclass) on a non-2xx response.
-   * @throws {FcConnectionError} when the request never reaches the server.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
-   * @throws {FcError} when the control plane returns an empty stream body.
+   * @throws {CreateosSandboxApiError} (or a subclass) on a non-2xx response.
+   * @throws {CreateosSandboxConnectionError} when the request never reaches the server.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxError} when the control plane returns an empty stream body.
    */
   async *stream<T>(
     method: string,
@@ -350,7 +350,7 @@ export class FcHttp {
       await this.throwForResponse(response, prepared.method, prepared.path);
     }
     if (!response.body) {
-      throw new FcError("The control plane returned an empty stream.");
+      throw new CreateosSandboxError("The control plane returned an empty stream.");
     }
     yield* readNdjson<T>(response.body);
   }
@@ -361,8 +361,8 @@ export class FcHttp {
    * surface them in logs and bug reports; `requestPath` falls back to
    * `response.url`'s pathname when omitted.
    *
-   * @throws {FcApiError} (or a subclass: FcAuthError, FcPermissionError,
-   *   FcNotFoundError, FcValidationError, FcRateLimitError, FcServerError)
+   * @throws {CreateosSandboxApiError} (or a subclass: CreateosSandboxAuthError, CreateosSandboxPermissionError,
+   *   CreateosSandboxNotFoundError, CreateosSandboxValidationError, CreateosSandboxRateLimitError, CreateosSandboxServerError)
    *   matching the response status. Always throws — never returns.
    */
   async throwForResponse(response: Response, method: string, requestPath?: string): Promise<never> {
@@ -392,7 +392,7 @@ export class FcHttp {
    * Dispatches a single prepared request: composes the timeout +
    * caller-supplied abort signals and calls `fetch`. Re-invoked per retry
    * attempt with the same prepared object. The URL was already built (and
-   * origin-validated) in `#prepare`, so any `FcError` surfaced there, not
+   * origin-validated) in `#prepare`, so any `CreateosSandboxError` surfaced there, not
    * here — keeping the `catch` below free to classify only network /
    * timeout failures.
    */
@@ -428,7 +428,7 @@ export class FcHttp {
       return await this.#config.fetch(prepared.url, init);
     } catch (err) {
       if (timeout?.signal.aborted === true && options.signal?.aborted !== true) {
-        throw new FcTimeoutError(
+        throw new CreateosSandboxTimeoutError(
           `Request timed out after ${timeoutMs}ms: ${prepared.method} ${prepared.path}`,
           { cause: err },
         );
@@ -436,9 +436,12 @@ export class FcHttp {
       if (options.signal?.aborted === true) {
         throw err;
       }
-      throw new FcConnectionError(`Network error: ${prepared.method} ${prepared.path}`, {
-        cause: err,
-      });
+      throw new CreateosSandboxConnectionError(
+        `Network error: ${prepared.method} ${prepared.path}`,
+        {
+          cause: err,
+        },
+      );
     } finally {
       timeout?.clear();
     }
@@ -469,8 +472,8 @@ export class FcHttp {
     } else if (this.#config.apiKey) {
       headers.set("X-Api-Key", this.#config.apiKey);
     } else {
-      throw new FcError(
-        "Authentication is required. Pass apiKey, set FC_API_KEY, or pass authHeaders.",
+      throw new CreateosSandboxError(
+        "Authentication is required. Pass apiKey, set CREATEOS_SANDBOX_API_KEY, or pass authHeaders.",
       );
     }
     return headers;
@@ -483,7 +486,9 @@ export class FcHttp {
     // Reject it before dispatch so the API key never leaves the
     // configured control plane.
     if (url.origin !== this.#baseOrigin) {
-      throw new FcError(`Refusing to send a request to a non-base origin: ${url.origin}`);
+      throw new CreateosSandboxError(
+        `Refusing to send a request to a non-base origin: ${url.origin}`,
+      );
     }
     if (query) {
       for (const [key, value] of Object.entries(query)) {
@@ -581,7 +586,7 @@ async function fireHook<C>(
   } catch (err) {
     // Mirror what most logging libraries do: avoid throwing in I/O paths.
     // eslint-disable-next-line no-console
-    console.warn("fc-sandbox-sdk: client hook threw, ignoring", err);
+    console.warn("createos-sandbox-sdk: client hook threw, ignoring", err);
   }
 }
 
@@ -613,7 +618,7 @@ function extractPage<T>(
   // every row and report success — the exact failure mode that hid the
   // listShapes paginated-envelope regression. Fail loudly instead.
   const preview = typeof payload === "string" ? payload : JSON.stringify(payload);
-  throw new FcError(
+  throw new CreateosSandboxError(
     `Unrecognized list payload shape from ${path}: ${(preview ?? String(payload)).slice(0, 200)}`,
   );
 }
@@ -628,7 +633,7 @@ async function unwrapJSend<T>(response: Response): Promise<T> {
     if (response.status === 204 || response.status === 205) {
       return undefined as T;
     }
-    throw new FcError(
+    throw new CreateosSandboxError(
       `The control plane returned an empty body with status ${response.status}; expected a JSend envelope.`,
     );
   }
@@ -636,14 +641,14 @@ async function unwrapJSend<T>(response: Response): Promise<T> {
   try {
     envelope = JSON.parse(text) as JSendEnvelope<T>;
   } catch {
-    throw new FcError(
+    throw new CreateosSandboxError(
       `Expected a JSON response from the control plane, got: ${text.slice(0, 200)}`,
     );
   }
   if (envelope.status === "success") {
     return envelope.data;
   }
-  throw new FcError(
+  throw new CreateosSandboxError(
     `The control plane returned a non-success envelope (status="${envelope.status}").`,
   );
 }

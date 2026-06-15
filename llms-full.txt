@@ -1,4 +1,4 @@
-# fc-sandbox-sdk — full context bundle
+# createos-sandbox-sdk — full context bundle
 
 ---
 
@@ -7,9 +7,9 @@
 
 ---
 
-# fc-sandbox-sdk
+# createos-sandbox-sdk
 
-TypeScript SDK for the `fc-spawn` microVM sandbox control plane — spawn
+TypeScript SDK for the `createos-sandbox` microVM sandbox control plane — spawn
 Firecracker VMs, run commands, move files, and manage networks.
 
 `createSandbox()` returns a stateful `Sandbox` handle, errors are a typed
@@ -18,7 +18,7 @@ hierarchy, and the transport retries transient failures automatically.
 ## Install
 
 ```sh
-npm install fc-sandbox-sdk
+npm install createos-sandbox-sdk
 ```
 
 > **Not yet published to npm.** Until the first release, install from a
@@ -31,9 +31,9 @@ and `AbortSignal.any` — Bun, Deno, modern edge runtimes).
 ## Quick start
 
 ```ts
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new FcClient({ apiKey: process.env.FC_API_KEY }); // baseUrl from FC_BASE_URL
+const fc = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY }); // baseUrl from CREATEOS_SANDBOX_BASE_URL
 
 const sandbox = await fc.createSandbox({
   shape: "s-1vcpu-256mb",
@@ -52,15 +52,15 @@ try {
 
 ## Configuration
 
-`baseUrl` is required: pass it explicitly or set the `FC_BASE_URL`
+`baseUrl` is required: pass it explicitly or set the `CREATEOS_SANDBOX_BASE_URL`
 environment variable — the client throws if neither is set. `apiKey` is
-optional and falls back to `FC_API_KEY`, sent as `X-Api-Key`. Auth is
+optional and falls back to `CREATEOS_SANDBOX_API_KEY`, sent as `X-Api-Key`. Auth is
 required for control-plane calls: provide either `apiKey` or `authHeaders`.
 
 ```ts
-const fc = new FcClient({
-  apiKey: "sk-...",                 // or env FC_API_KEY
-  baseUrl: "https://fc-spawn...",   // or env FC_BASE_URL
+const fc = new CreateosSandboxClient({
+  apiKey: "sk-...",                 // or env CREATEOS_SANDBOX_API_KEY
+  baseUrl: "https://createos-sandbox...",   // or env CREATEOS_SANDBOX_BASE_URL
   timeoutMs: 30_000,                // per-request deadline (default 60s)
   retry: { maxRetries: 2, baseDelayMs: 500, maxDelayMs: 30_000 },
   headers: { "x-team": "platform" },// merged into every request
@@ -68,10 +68,10 @@ const fc = new FcClient({
 ```
 
 Use `authHeaders` when the SDK is talking to your own API/proxy and your app
-auth is not an fc-spawn API key:
+auth is not an createos-sandbox API key:
 
 ```ts
-const fc = new FcClient({
+const fc = new CreateosSandboxClient({
   baseUrl: "https://api.your-app.com/fc",
   authHeaders: {
     Authorization: `Bearer ${sessionToken}`,
@@ -83,8 +83,8 @@ const fc = new FcClient({
 `apiKey` and `authHeaders` are mutually exclusive.
 
 ```ts
-// Reads FC_API_KEY + FC_BASE_URL from the environment (FC_BASE_URL required).
-const fc = new FcClient();
+// Reads CREATEOS_SANDBOX_API_KEY + CREATEOS_SANDBOX_BASE_URL from the environment (CREATEOS_SANDBOX_BASE_URL required).
+const fc = new CreateosSandboxClient();
 ```
 
 Every method takes a final options argument for per-call overrides:
@@ -120,11 +120,11 @@ Skip the client object entirely for one-off scripts — `Sandbox.create`
 constructs the client for you:
 
 ```ts
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 const sandbox = await Sandbox.create(
   { shape: "s-1vcpu-256mb", ingress_enabled: true },
-  { apiKey: process.env.FC_API_KEY }, // baseUrl from FC_BASE_URL
+  { apiKey: process.env.CREATEOS_SANDBOX_API_KEY }, // baseUrl from CREATEOS_SANDBOX_BASE_URL
 );
 ```
 
@@ -143,7 +143,7 @@ for (const sbx of running) {
 `Sandbox.connect` is the client-less analogue of `getSandbox`:
 
 ```ts
-const sandbox = await Sandbox.connect("sb_01K...", { apiKey: process.env.FC_API_KEY }); // baseUrl from FC_BASE_URL
+const sandbox = await Sandbox.connect("sb_01K...", { apiKey: process.env.CREATEOS_SANDBOX_API_KEY }); // baseUrl from CREATEOS_SANDBOX_BASE_URL
 ```
 
 ## The Sandbox handle
@@ -170,7 +170,7 @@ const check = await sandbox.runCommand("test", ["-f", "/etc/hosts"]);
 if (check.result.exit_code !== 0) console.log("missing");
 
 // `sh()` is the throw-on-failure shortcut: it runs the script through
-// `bash -lc`, throws FcError on a non-zero exit, and returns the same
+// `bash -lc`, throws CreateosSandboxError on a non-zero exit, and returns the same
 // ExecResponse on success. `label` tags the thrown error.
 const { result: built } = await sandbox.sh("apt-get update -qq && apt-get install -y curl", {
   label: "apt",
@@ -245,7 +245,7 @@ const { destroyed } = await sandbox.destroy();       // destroyed sandbox id —
 
 `pause`, `resume` and `fork` are asynchronous on the server. The
 `waitUntil*` helpers poll with adaptive backoff and throw
-`FcTimeoutError` if the budget runs out:
+`CreateosSandboxTimeoutError` if the budget runs out:
 
 ```ts
 await sandbox.waitUntilRunning({ timeoutMs: 90_000 });
@@ -289,9 +289,9 @@ const url = sandbox.previewUrl(8080, { scheme: "http" });
 
 `waitForPortReady(port, options?)` opens a `/dev/tcp` probe inside the
 VM until the port accepts a connection. Defaults: 30 s budget, 200 ms
-poll interval, host `127.0.0.1`. Throws `FcTimeoutError` if the port
+poll interval, host `127.0.0.1`. Throws `CreateosSandboxTimeoutError` if the port
 stays closed. Requires a rootfs with `bash` and GNU `timeout` (both
-present in the fc-spawn default rootfs).
+present in the createos-sandbox default rootfs).
 
 For custom wait loops, `pollUntil({ poll, done, timeoutMs })` and the
 cancellable `sleep(ms, signal?)` are exported — the same adaptive-backoff
@@ -332,7 +332,7 @@ Build a custom rootfs from a Dockerfile:
 const template = await fc.templates.create({
   name: "rg-base",
   dockerfile:
-    "FROM your-registry/fc-base:latest\n" + // your fc-spawn base rootfs image
+    "FROM your-registry/fc-base:latest\n" + // your createos-sandbox base rootfs image
     "RUN apt-get update && apt-get install -y ripgrep",
 });
 
@@ -368,22 +368,22 @@ await fc.readyz();       // { ready, reason? } — does not throw on 503
 
 ## Errors
 
-Non-2xx responses throw a typed error. Every one extends `FcError`; HTTP
-errors also extend `FcApiError` and carry the request context needed to
+Non-2xx responses throw a typed error. Every one extends `CreateosSandboxError`; HTTP
+errors also extend `CreateosSandboxApiError` and carry the request context needed to
 file a useful support ticket — `statusCode`, `endpoint`, `method`,
 `requestId`, `resourceId`, and the parsed JSend `envelope`.
 
 ```ts
-import { FcNotFoundError, FcRateLimitError, FcValidationError } from "fc-sandbox-sdk";
+import { CreateosSandboxNotFoundError, CreateosSandboxRateLimitError, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 try {
   await fc.createSandbox({ shape: "does-not-exist" });
 } catch (err) {
-  if (err instanceof FcValidationError) {
+  if (err instanceof CreateosSandboxValidationError) {
     console.error("bad request:", err.envelope?.data);
-  } else if (err instanceof FcNotFoundError) {
+  } else if (err instanceof CreateosSandboxNotFoundError) {
     console.error(`not found at ${err.method} ${err.endpoint} (req ${err.requestId})`);
-  } else if (err instanceof FcRateLimitError) {
+  } else if (err instanceof CreateosSandboxRateLimitError) {
     console.error("retry after", err.retryAfterSeconds, "s");
   } else {
     throw err;
@@ -391,7 +391,7 @@ try {
 }
 ```
 
-Every `FcApiError` exposes:
+Every `CreateosSandboxApiError` exposes:
 
 - `statusCode` — HTTP status as a number.
 - `endpoint` — request pathname (no host, no query). Stable enough to
@@ -406,14 +406,14 @@ Every `FcApiError` exposes:
 
 | Error | Cause |
 | --- | --- |
-| `FcAuthError` | 401 — missing / invalid API key |
-| `FcPermissionError` | 403 |
-| `FcNotFoundError` | 404 |
-| `FcValidationError` | 400 / 409 / 422 |
-| `FcRateLimitError` | 429 — exposes `retryAfterSeconds` |
-| `FcServerError` | 5xx |
-| `FcConnectionError` | network failure, no response |
-| `FcTimeoutError` | request or `waitUntil*` deadline exceeded |
+| `CreateosSandboxAuthError` | 401 — missing / invalid API key |
+| `CreateosSandboxPermissionError` | 403 |
+| `CreateosSandboxNotFoundError` | 404 |
+| `CreateosSandboxValidationError` | 400 / 409 / 422 |
+| `CreateosSandboxRateLimitError` | 429 — exposes `retryAfterSeconds` |
+| `CreateosSandboxServerError` | 5xx |
+| `CreateosSandboxConnectionError` | network failure, no response |
+| `CreateosSandboxTimeoutError` | request or `waitUntil*` deadline exceeded |
 
 ## Observability
 
@@ -422,8 +422,8 @@ your structured logger, or a metrics sink — the SDK does not pull any
 runtime dependency for this.
 
 ```ts
-const fc = new FcClient({
-  apiKey: process.env.FC_API_KEY,
+const fc = new CreateosSandboxClient({
+  apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
   hooks: {
     onRequest: (ctx) => log.debug("→", ctx.method, ctx.url, `try ${ctx.attempt}`),
     onResponse: (ctx) =>
@@ -456,7 +456,7 @@ network errors and `408/500/502/503/504`; non-idempotent methods retry
 only on `429/503`, where the server demonstrably did not act.
 
 ```ts
-const fc = new FcClient({ retry: { maxRetries: 4, baseDelayMs: 250 } });
+const fc = new CreateosSandboxClient({ retry: { maxRetries: 4, baseDelayMs: 250 } });
 
 await fc.whoami({ retry: false });               // disable for one call
 await fc.createSandbox(req, { timeoutMs: 120_000 });
@@ -516,8 +516,8 @@ command, destroy.
 ## 1. Install
 
 ```sh
-npm install fc-sandbox-sdk
-# or: bun add fc-sandbox-sdk
+npm install createos-sandbox-sdk
+# or: bun add createos-sandbox-sdk
 ```
 
 > Not yet published to npm — until the first release, install from a local
@@ -528,7 +528,7 @@ Bun, Deno, Cloudflare Workers, Vercel Edge, and the browser.
 
 ## 2. Get an API key
 
-Provision one through your fc-spawn control plane (`fcctl token create`
+Provision one through your createos-sandbox control plane (`fcctl token create`
 or the operator's identity portal). The key is per-user; treat it like
 a database password.
 
@@ -539,16 +539,16 @@ client throws without it) — and give it an API key. The simplest path is
 two environment variables:
 
 ```sh
-export FC_BASE_URL="https://your-fc-spawn-control-plane"
-export FC_API_KEY="sk_…"
+export CREATEOS_SANDBOX_BASE_URL="https://your-createos-sandbox-control-plane"
+export CREATEOS_SANDBOX_API_KEY="sk_…"
 ```
 
 ```ts
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new FcClient(); // reads FC_BASE_URL + FC_API_KEY from the env
+const fc = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY from the env
 // or pass them explicitly:
-// new FcClient({ baseUrl: "https://…", apiKey: "sk_…" })
+// new CreateosSandboxClient({ baseUrl: "https://…", apiKey: "sk_…" })
 ```
 
 ## 4. Spawn a sandbox
@@ -586,14 +586,14 @@ if you need to be sure the row is reclaimed before continuing.
 
 ## Troubleshooting
 
-- **`FcAuthError` on the first call**: the API key is missing or wrong.
+- **`CreateosSandboxAuthError` on the first call**: the API key is missing or wrong.
   Verify with `await fc.whoami()`.
-- **`FcConnectionError`**: the control plane is unreachable. Check
-  `FC_BASE_URL` and any corporate proxy / firewall.
-- **`FcTimeoutError` from `createSandbox`**: the sandbox never reached
+- **`CreateosSandboxConnectionError`**: the control plane is unreachable. Check
+  `CREATEOS_SANDBOX_BASE_URL` and any corporate proxy / firewall.
+- **`CreateosSandboxTimeoutError` from `createSandbox`**: the sandbox never reached
   `running` before the wait budget elapsed. Increase `waitTimeoutMs`,
   or pass `{ wait: false }` and poll yourself.
-- **`FcServerError` with status 503**: the host pool is saturated.
+- **`CreateosSandboxServerError` with status 503**: the host pool is saturated.
   Retry after the suggested `Retry-After` window.
 
 ## Next steps
@@ -666,7 +666,7 @@ proxies), use `http.stream<ExecStreamFrame>` directly on the low-level
 transport:
 
 ```ts
-import type { ExecStreamFrame } from "fc-sandbox-sdk";
+import type { ExecStreamFrame } from "createos-sandbox-sdk";
 
 for await (const frame of fc.http.stream<ExecStreamFrame>("POST", `/v1/sandboxes/${id}/exec`, {
   query: { stream: true },
@@ -699,41 +699,41 @@ Catch by class, never by string. Every failure throws one of:
 
 | Class | Trigger |
 | --- | --- |
-| `FcAuthError` | HTTP 401 |
-| `FcPermissionError` | HTTP 403 |
-| `FcNotFoundError` | HTTP 404 |
-| `FcValidationError` | HTTP 400 / 409 / 422 |
-| `FcRateLimitError` | HTTP 429 (carries `retryAfterSeconds`) |
-| `FcServerError` | HTTP 5xx |
-| `FcConnectionError` | DNS, TCP, socket reset — no response |
-| `FcTimeoutError` | per-request timeout or `waitUntil*` deadline |
+| `CreateosSandboxAuthError` | HTTP 401 |
+| `CreateosSandboxPermissionError` | HTTP 403 |
+| `CreateosSandboxNotFoundError` | HTTP 404 |
+| `CreateosSandboxValidationError` | HTTP 400 / 409 / 422 |
+| `CreateosSandboxRateLimitError` | HTTP 429 (carries `retryAfterSeconds`) |
+| `CreateosSandboxServerError` | HTTP 5xx |
+| `CreateosSandboxConnectionError` | DNS, TCP, socket reset — no response |
+| `CreateosSandboxTimeoutError` | per-request timeout or `waitUntil*` deadline |
 
 ```ts
 import {
-  FcNotFoundError,
-  FcRateLimitError,
-  FcValidationError,
-} from "fc-sandbox-sdk";
+  CreateosSandboxNotFoundError,
+  CreateosSandboxRateLimitError,
+  CreateosSandboxValidationError,
+} from "createos-sandbox-sdk";
 
 try {
   await fc.getSandbox("sb-might-be-gone");
 } catch (err) {
-  if (err instanceof FcNotFoundError) {
+  if (err instanceof CreateosSandboxNotFoundError) {
     // Caller-controlled fallback.
     return null;
   }
-  if (err instanceof FcRateLimitError) {
+  if (err instanceof CreateosSandboxRateLimitError) {
     await new Promise((r) => setTimeout(r, (err.retryAfterSeconds ?? 1) * 1000));
     return null;
   }
-  if (err instanceof FcValidationError) {
+  if (err instanceof CreateosSandboxValidationError) {
     console.error("bad request:", err.envelope?.data);
   }
   throw err;
 }
 ```
 
-## What every `FcApiError` carries
+## What every `CreateosSandboxApiError` carries
 
 ```ts
 err.statusCode      // 404
@@ -769,7 +769,7 @@ without bolting an extra HTTP wrapper on top of the SDK.
 
 ## Solution
 
-`FcClient` accepts an optional `hooks` bag. Three best-effort observers
+`CreateosSandboxClient` accepts an optional `hooks` bag. Three best-effort observers
 fire on every request lifecycle:
 
 | Hook | When |
@@ -784,10 +784,10 @@ hook. A throw inside a hook is caught and warned, never propagated.
 ### Minimal logger
 
 ```ts
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new FcClient({
-  apiKey: process.env.FC_API_KEY,
+const fc = new CreateosSandboxClient({
+  apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
   hooks: {
     onRequest: (ctx) =>
       console.debug(`→ ${ctx.method} ${ctx.url} try=${ctx.attempt}`),
@@ -808,14 +808,14 @@ const fc = new FcClient({
 ```ts
 import { trace } from "@opentelemetry/api";
 
-const tracer = trace.getTracer("fc-sandbox-sdk");
+const tracer = trace.getTracer("createos-sandbox-sdk");
 const spans = new Map<string, ReturnType<(typeof tracer)["startSpan"]>>();
 
-const fc = new FcClient({
+const fc = new CreateosSandboxClient({
   hooks: {
     onRequest: (ctx) => {
       const key = `${ctx.method} ${ctx.url} ${ctx.attempt}`;
-      spans.set(key, tracer.startSpan(`fc-spawn ${ctx.method}`, {
+      spans.set(key, tracer.startSpan(`createos-sandbox ${ctx.method}`, {
         attributes: { "http.method": ctx.method, "http.url": ctx.url, attempt: ctx.attempt },
       }));
     },
@@ -848,7 +848,7 @@ remain greppable but contain no live credentials.
 
 `Sandbox.streamCommand` and `TemplatesApi.followLogs` open a single
 NDJSON connection and consume it as an async iterator. They take the
-fast path through `FcHttp.stream` rather than the retry loop, so hooks
+fast path through `CreateosSandboxHttp.stream` rather than the retry loop, so hooks
 do **not** fire for them. The intent is that streams are owned by your
 loop end-to-end — there is no retry to observe, and `onResponse` would
 need an artificial "done" point. Wrap your `for await` in your own log
@@ -865,9 +865,9 @@ or metric if you need per-stream tracing.
 
 ---
 
-# fc-sandbox-sdk
+# createos-sandbox-sdk
 
-> TypeScript SDK for the fc-spawn microVM sandbox control plane.
+> TypeScript SDK for the createos-sandbox microVM sandbox control plane.
 > Zero runtime dependencies. ESM-only. Node 20+ / Bun / Deno / edge / browser.
 > Hand-written HTTP client around `fetch`. Retries, typed errors, NDJSON
 > streaming, runtime detection, header/URL redaction, lifecycle hooks.
@@ -875,12 +875,12 @@ or metric if you need per-stream tracing.
 ## Install
 
 ```
-npm install fc-sandbox-sdk
+npm install createos-sandbox-sdk
 ```
 
 Not yet published to npm — until the first release, install from a local
-checkout. The control plane is configured with `FC_BASE_URL` (required) and
-`FC_API_KEY`.
+checkout. The control plane is configured with `CREATEOS_SANDBOX_BASE_URL` (required) and
+`CREATEOS_SANDBOX_API_KEY`.
 
 ## Docs
 
@@ -948,16 +948,16 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 
 ## Surface highlights
 
-- `FcClient` — entry point (catalog, identity, sandbox factory, templates, networks, disks).
+- `CreateosSandboxClient` — entry point (catalog, identity, sandbox factory, templates, networks, disks).
 - `Sandbox` — stateful handle (lifecycle, commands, files, ingress, network attach/detach).
-- `FcError` hierarchy — `FcAuthError`, `FcPermissionError`, `FcNotFoundError`,
-  `FcValidationError`, `FcRateLimitError`, `FcServerError`, `FcConnectionError`, `FcTimeoutError`.
+- `CreateosSandboxError` hierarchy — `CreateosSandboxAuthError`, `CreateosSandboxPermissionError`, `CreateosSandboxNotFoundError`,
+  `CreateosSandboxValidationError`, `CreateosSandboxRateLimitError`, `CreateosSandboxServerError`, `CreateosSandboxConnectionError`, `CreateosSandboxTimeoutError`.
 - `ClientHooks` — `onRequest`, `onResponse`, `onRetry` with pre-redacted payloads.
 - `ExecStreamEvent` — discriminated union from `streamCommand`.
 
 ## Source
 
 Public surface lives in `src/index.ts`. The wire types in `src/types.ts`
-mirror the fc-spawn control plane's JSON HTTP API and are the source of truth
+mirror the createos-sandbox control plane's JSON HTTP API and are the source of truth
 for the request/response shapes.
 

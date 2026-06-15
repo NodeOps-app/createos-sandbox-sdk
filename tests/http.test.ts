@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-  FcClient,
-  FcConnectionError,
-  FcError,
-  FcRateLimitError,
-  FcServerError,
-  FcTimeoutError,
+  CreateosSandboxClient,
+  CreateosSandboxConnectionError,
+  CreateosSandboxError,
+  CreateosSandboxRateLimitError,
+  CreateosSandboxServerError,
+  CreateosSandboxTimeoutError,
   VERSION,
 } from "../src/index.ts";
 import { parseRetryAfterSeconds } from "../src/errors.ts";
@@ -41,7 +41,7 @@ function createSandboxBody(): Record<string, unknown> {
   };
 }
 
-const TRACKED_ENV_KEYS = ["FC_API_KEY", "FC_BASE_URL"] as const;
+const TRACKED_ENV_KEYS = ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"] as const;
 let savedEnv: Record<string, string | undefined>;
 
 beforeEach(() => {
@@ -84,7 +84,7 @@ describe("retry policy", () => {
       },
       { retry: FAST_RETRY },
     );
-    await expect(client.whoami()).rejects.toBeInstanceOf(FcServerError);
+    await expect(client.whoami()).rejects.toBeInstanceOf(CreateosSandboxServerError);
     expect(attempts).toBe(3); // initial + 2 retries
   });
 
@@ -97,7 +97,9 @@ describe("retry policy", () => {
       },
       { retry: { maxRetries: 3, baseDelayMs: 1, maxDelayMs: 5 } },
     );
-    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(FcServerError);
+    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(
+      CreateosSandboxServerError,
+    );
     expect(attempts).toBe(1);
   });
 
@@ -110,7 +112,9 @@ describe("retry policy", () => {
       },
       { retry: FAST_RETRY },
     );
-    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(FcServerError);
+    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(
+      CreateosSandboxServerError,
+    );
     expect(attempts).toBe(3);
   });
 
@@ -158,7 +162,9 @@ describe("retry policy", () => {
       },
       { retry: FAST_RETRY },
     );
-    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(FcRateLimitError);
+    await expect(client.createSandbox({ shape: "s" })).rejects.toBeInstanceOf(
+      CreateosSandboxRateLimitError,
+    );
     expect(attempts).toBe(3);
   });
 
@@ -176,7 +182,7 @@ describe("retry policy", () => {
         expect(event).toBeDefined();
       }
     });
-    expect(err).toBeInstanceOf(FcServerError);
+    expect(err).toBeInstanceOf(CreateosSandboxServerError);
     expect(attempts).toBe(1);
   });
 });
@@ -206,7 +212,7 @@ describe("parseRetryAfterSeconds", () => {
 });
 
 describe("timeouts and cancellation", () => {
-  test("a fired timeout surfaces as FcTimeoutError", async () => {
+  test("a fired timeout surfaces as CreateosSandboxTimeoutError", async () => {
     const client = makeClient(
       (_url, init) =>
         new Promise((_resolve, reject) => {
@@ -216,7 +222,7 @@ describe("timeouts and cancellation", () => {
         }),
       { retry: false, timeoutMs: 5 },
     );
-    await expect(client.whoami()).rejects.toBeInstanceOf(FcTimeoutError);
+    await expect(client.whoami()).rejects.toBeInstanceOf(CreateosSandboxTimeoutError);
   });
 
   test("user-supplied AbortSignal cancellation propagates the original abort", async () => {
@@ -234,9 +240,9 @@ describe("timeouts and cancellation", () => {
     expect(err.name).toBe("AbortError");
   });
 
-  test("a non-abort fetch rejection becomes FcConnectionError", async () => {
+  test("a non-abort fetch rejection becomes CreateosSandboxConnectionError", async () => {
     const client = makeClient(() => Promise.reject(new TypeError("dns")), { retry: false });
-    await expect(client.whoami()).rejects.toBeInstanceOf(FcConnectionError);
+    await expect(client.whoami()).rejects.toBeInstanceOf(CreateosSandboxConnectionError);
   });
 });
 
@@ -292,7 +298,7 @@ describe("auth headers", () => {
 
   test("authHeaders mode replaces credentials and drops the rest", async () => {
     let headers: Headers | undefined;
-    const client = new FcClient({
+    const client = new CreateosSandboxClient({
       baseUrl: BASE,
       authHeaders: { "X-Custom-Auth": "tok" },
       fetch: ((_url: string, init: RequestInit) => {
@@ -322,7 +328,7 @@ describe("auth headers", () => {
 
   test("authHeaders are also stripped on auth:false probes", async () => {
     let headers: Headers | undefined;
-    const client = new FcClient({
+    const client = new CreateosSandboxClient({
       baseUrl: BASE,
       authHeaders: { "X-Custom-Auth": "tok" },
       fetch: ((_url: string, init: RequestInit) => {
@@ -335,20 +341,20 @@ describe("auth headers", () => {
   });
 
   test("requires an apiKey (or authHeaders) for authenticated requests", async () => {
-    const client = new FcClient({
+    const client = new CreateosSandboxClient({
       baseUrl: BASE,
       fetch: (() => Promise.resolve(success(WHOAMI_OK))) as unknown as typeof fetch,
       retry: false,
     });
-    await expect(client.whoami()).rejects.toBeInstanceOf(FcError);
+    await expect(client.whoami()).rejects.toBeInstanceOf(CreateosSandboxError);
   });
 
   test("reads apiKey and baseUrl from environment variables", async () => {
-    process.env.FC_API_KEY = "sk_env";
-    process.env.FC_BASE_URL = "https://env.test";
+    process.env.CREATEOS_SANDBOX_API_KEY = "sk_env";
+    process.env.CREATEOS_SANDBOX_BASE_URL = "https://env.test";
     let seenUrl = "";
     let seenKey: string | null | undefined;
-    const client = new FcClient({
+    const client = new CreateosSandboxClient({
       fetch: ((url: string, init: RequestInit) => {
         seenUrl = String(url);
         seenKey = (init.headers as Headers).get("x-api-key");
@@ -369,7 +375,7 @@ describe("auth headers", () => {
       return Promise.resolve(success({ up: true }));
     });
     await client.healthz();
-    expect(ua.startsWith(`fc-sandbox-sdk/${VERSION} `)).toBe(true);
+    expect(ua.startsWith(`createos-sandbox-sdk/${VERSION} `)).toBe(true);
     expect(runtime.length).toBeGreaterThan(0);
   });
 });
@@ -391,7 +397,7 @@ describe("URL building", () => {
   test("refuses to dispatch to a non-base origin (credential exfiltration guard)", async () => {
     const client = makeClient(() => Promise.resolve(success({})));
     await expect(client.http.request("GET", "https://evil.test/steal", {})).rejects.toBeInstanceOf(
-      FcError,
+      CreateosSandboxError,
     );
   });
 });
@@ -481,7 +487,7 @@ describe("observability hooks", () => {
 
   test("hook url payload strips userinfo from the base URL", async () => {
     let url = "";
-    const client = new FcClient({
+    const client = new CreateosSandboxClient({
       apiKey: "sk",
       baseUrl: "https://user:pass@redacted.test",
       retry: false,

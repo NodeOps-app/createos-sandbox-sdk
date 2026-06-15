@@ -9,7 +9,7 @@ prompt. The LLM provider is the OpenAI-compatible gateway supplied via
 ## Run
 
 ```sh
-cp .env.example .env        # populate FC_BASE_URL, FC_API_KEY, OPENAI_* vars
+cp .env.example .env        # populate CREATEOS_SANDBOX_BASE_URL, CREATEOS_SANDBOX_API_KEY, OPENAI_* vars
 # or: the shared examples/.env is already symlinked / present
 bun index.ts
 ```

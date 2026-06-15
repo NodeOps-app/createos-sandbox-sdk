@@ -16,24 +16,28 @@
  * field (e.g. "Chrome/148…"), confirming remote debugging is live.
  *
  * Run:   bun 30-headless-chromium-devtools/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). Ingress is provisioned
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). Ingress is provisioned
  *        per-sandbox by the control plane — no gateway/tunnel host required.
  */
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-2gb";
 const ROOTFS = "devbox:1";
 const CDP_PORT = 9222;
 const PROXY_PORT = 8080;
 
-// exactOptionalPropertyTypes: narrow to string before passing to FcClient.
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+// exactOptionalPropertyTypes: narrow to string before passing to CreateosSandboxClient.
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create with ingress_enabled so previewUrl(8080) resolves to a public URL.
 //    DEBIAN_FRONTEND=noninteractive stops apt blocking on debconf prompts.
@@ -175,7 +179,7 @@ try {
       timeoutMs: 60_000,
     });
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     const chromeLog = await sandbox
       .sh("tail -40 /tmp/chrome.log", { label: "log-chrome" })
       .then((r) => r.result.stdout)

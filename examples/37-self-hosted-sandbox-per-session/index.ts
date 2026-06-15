@@ -12,14 +12,14 @@
  * startup latency.
  *
  * Run:   bun 37-self-hosted-sandbox-per-session/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (the repo symlinks .env -> ../.env), plus a
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (the repo symlinks .env -> ../.env), plus a
  *        gitignored .env.ant holding ANTHROPIC_API_KEY (org key, Managed Agents
  *        beta), ANTHROPIC_ENVIRONMENT_ID, and ANTHROPIC_ENVIRONMENT_KEY for a
  *        self_hosted environment (see .env.example).
  */
 import { readFileSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // Keep in sync with examples/3{6,7}/index.ts — paired teaching example.
 // The credential loader, create-retry wrapper, constants, and PROMPT below are

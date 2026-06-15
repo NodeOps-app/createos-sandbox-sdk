@@ -11,12 +11,12 @@
  * the route has propagated and the model finished loading.
  *
  * Run:   bun 18-text-embeddings-server/index.ts
- * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). Requires FC
+ * Needs: CREATEOS_SANDBOX_API_KEY (CREATEOS_SANDBOX_BASE_URL defaults; see .env.example). Requires FC
  *        ingress — the sandbox is created with ingress_enabled. No other services.
  */
 
 import { readFile } from "node:fs/promises";
-import { FcClient, FcValidationError } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
@@ -33,7 +33,7 @@ const SAMPLE_TEXTS = [
 
 const serverSrc = await readFile(new URL("./server.py", import.meta.url));
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 async function createWithRetry() {
   const name = `embed-${Date.now().toString(36).slice(-6)}`;
@@ -58,7 +58,7 @@ async function createWithRetry() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;
@@ -144,12 +144,24 @@ try {
   // devbox:1 has no systemd — daemonise with nohup/setsid. The server
   // downloads the model on first start, so the boot is not instant; the
   // model download happens while the process is detached.
-  await sandbox.sh(
-    "rm -f /root/server.log; " +
-      "nohup setsid python3 /root/server.py >/root/server.log 2>&1 </dev/null & " +
-      "sleep 1; echo launched",
-    { label: "boot-server" },
-  );
+  // The detached launcher can return a spurious non-zero from the exec
+  // reaper ("waitid: no child processes") even when the process started
+  // fine; readiness is proven by waitForPortReady below, so treat the
+  // launch as best-effort and let the port probe be the source of truth.
+  try {
+    await sandbox.sh(
+      "rm -f /root/server.log; " +
+        "nohup setsid python3 /root/server.py >/root/server.log 2>&1 </dev/null & " +
+        "sleep 1; echo launched",
+      { label: "boot-server" },
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/no child processes|exited -1/i.test(msg)) throw err;
+    console.warn(
+      `      boot launcher returned a transient reaper error (${msg.slice(0, 80)}); relying on port probe`,
+    );
+  }
 
   console.log(`[3/5] waiting for the model to load + port ${PORT} to listen…`);
   // Model load on CPU can take a while; give the port probe a generous

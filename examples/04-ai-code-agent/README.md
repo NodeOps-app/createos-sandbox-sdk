@@ -19,7 +19,7 @@ bun index.ts
 
 | Variable            | Required | Description                                       |
 | ------------------- | -------- | ------------------------------------------------- |
-| `FC_BASE_URL`       | yes      | Your fc-spawn control-plane URL                   |
-| `FC_API_KEY`        | yes      | FC control-plane API key                          |
+| `CREATEOS_SANDBOX_BASE_URL`       | yes      | Your createos-sandbox control-plane URL                   |
+| `CREATEOS_SANDBOX_API_KEY`        | yes      | FC control-plane API key                          |
 | `ANTHROPIC_API_KEY` | yes      | Anthropic API key for the Claude agent loop       |
 | `ANTHROPIC_MODEL`   | no       | Override the model (default: `claude-sonnet-4-6`) |

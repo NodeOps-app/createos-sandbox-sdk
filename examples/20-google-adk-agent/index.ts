@@ -3,7 +3,7 @@
  *
  * A Google Agent Development Kit (ADK) agent runs on the host in Python; its
  * tools execute inside an FC microVM. This thin TypeScript entry owns the
- * sandbox lifecycle: it creates one sandbox with `fc-sandbox-sdk`, then spawns
+ * sandbox lifecycle: it creates one sandbox with `createos-sandbox-sdk`, then spawns
  * the Python ADK driver (`adk_agent.py`) as a child process, handing it the
  * sandbox id plus the FC connection creds via env. The driver's tools call the
  * FC HTTP API directly (runCommand / files) so the agent's reasoning steps land
@@ -11,7 +11,7 @@
  * the Python child never tears it down, only this file does.
  *
  * Run:   bun 20-google-adk-agent/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_URL / OPENAI_API_KEY /
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus OPENAI_API_URL / OPENAI_API_KEY /
  *        OPENAI_MODEL (the LLM ADK drives, via a LiteLLM OpenAI-compatible
  *        proxy). Requires python3 on the host PATH; the venv with google-adk
  *        + litellm is auto-created on first run inside this directory.
@@ -21,7 +21,7 @@ import { spawn } from "node:child_process";
 import { access, constants } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -29,14 +29,14 @@ const SHAPE = "s-2vcpu-2gb"; // agent workloads need real RAM
 const ROOTFS = "devbox:1";
 
 // Base URL for the control plane, also handed to the Python child.
-const FC_BASE_URL = process.env.FC_BASE_URL;
-if (!FC_BASE_URL) {
-  console.error("FC_BASE_URL must be set (see .env.example).");
+const CREATEOS_SANDBOX_BASE_URL = process.env.CREATEOS_SANDBOX_BASE_URL;
+if (!CREATEOS_SANDBOX_BASE_URL) {
+  console.error("CREATEOS_SANDBOX_BASE_URL must be set (see .env.example).");
   process.exit(1);
 }
-const FC_API_KEY = process.env.FC_API_KEY;
-if (!FC_API_KEY) {
-  console.error("FC_API_KEY must be set (see .env.example).");
+const CREATEOS_SANDBOX_API_KEY = process.env.CREATEOS_SANDBOX_API_KEY;
+if (!CREATEOS_SANDBOX_API_KEY) {
+  console.error("CREATEOS_SANDBOX_API_KEY must be set (see .env.example).");
   process.exit(1);
 }
 
@@ -97,7 +97,10 @@ try {
   }
 }
 
-const fc = new FcClient({ apiKey: FC_API_KEY, baseUrl: FC_BASE_URL });
+const fc = new CreateosSandboxClient({
+  apiKey: CREATEOS_SANDBOX_API_KEY,
+  baseUrl: CREATEOS_SANDBOX_BASE_URL,
+});
 
 // 1. Create the sandbox the agent's tools will act on.
 console.log(`[1/3] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
@@ -121,8 +124,8 @@ try {
         ...process.env,
         // Hand the child exactly what it needs to reach FC + the LLM proxy.
         FC_SANDBOX_ID: sandbox.id,
-        FC_BASE_URL,
-        FC_API_KEY,
+        CREATEOS_SANDBOX_BASE_URL,
+        CREATEOS_SANDBOX_API_KEY,
         OPENAI_API_URL,
         OPENAI_API_KEY,
         OPENAI_MODEL,

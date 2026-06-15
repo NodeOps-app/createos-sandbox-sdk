@@ -8,23 +8,27 @@
  * URL via `sandbox.previewUrl(port)` — no SSH tunnel, no port mapping.
  *
  * Run:   bun 28-code-server-vscode/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). Ingress is provisioned
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). Ingress is provisioned
  *        per-sandbox by the control plane — no gateway/tunnel host required.
  */
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 const PORT = 8080;
 
-// exactOptionalPropertyTypes: narrow env vars before passing to FcClient.
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+// exactOptionalPropertyTypes: narrow env vars before passing to CreateosSandboxClient.
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox with ingress_enabled — this is what allocates the
 //    public URL; without it previewUrl() would point at nothing routable.
@@ -115,7 +119,7 @@ try {
       timeoutMs: 90_000,
     });
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     // Fetch the log for diagnostics before throwing.
     const log = await sandbox
       .sh("tail -40 /tmp/code-server.log", { label: "log" })

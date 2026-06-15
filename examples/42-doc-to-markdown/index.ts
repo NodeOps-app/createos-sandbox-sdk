@@ -4,16 +4,16 @@
  * download the output, and print the resulting Markdown to stdout.
  *
  * Run:   bun 42-doc-to-markdown/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external API keys.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external API keys.
  */
 import { readFile } from "node:fs/promises";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
-// Bridge the shared-env variable name to what the SDK reads (FC_BASE_URL).
+// Bridge the shared-env variable name to what the SDK reads (CREATEOS_SANDBOX_BASE_URL).
 // bun auto-loads .env from the example dir so FCSPAWN_URL is already in
 // process.env when this runs if the caller uses the FCSPAWN_URL convention.
-if (!process.env.FC_BASE_URL && process.env.FCSPAWN_URL) {
-  process.env.FC_BASE_URL = process.env.FCSPAWN_URL;
+if (!process.env.CREATEOS_SANDBOX_BASE_URL && process.env.FCSPAWN_URL) {
+  process.env.CREATEOS_SANDBOX_BASE_URL = process.env.FCSPAWN_URL;
 }
 
 const INPUT_LOCAL = new URL("./sample.html", import.meta.url).pathname;

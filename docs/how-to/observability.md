@@ -7,7 +7,7 @@ without bolting an extra HTTP wrapper on top of the SDK.
 
 ## Solution
 
-`FcClient` accepts an optional `hooks` bag. Three best-effort observers
+`CreateosSandboxClient` accepts an optional `hooks` bag. Three best-effort observers
 fire on every request lifecycle:
 
 | Hook | When |
@@ -22,10 +22,10 @@ hook. A throw inside a hook is caught and warned, never propagated.
 ### Minimal logger
 
 ```ts
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new FcClient({
-  apiKey: process.env.FC_API_KEY,
+const fc = new CreateosSandboxClient({
+  apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
   hooks: {
     onRequest: (ctx) =>
       console.debug(`→ ${ctx.method} ${ctx.url} try=${ctx.attempt}`),
@@ -46,14 +46,14 @@ const fc = new FcClient({
 ```ts
 import { trace } from "@opentelemetry/api";
 
-const tracer = trace.getTracer("fc-sandbox-sdk");
+const tracer = trace.getTracer("createos-sandbox-sdk");
 const spans = new Map<string, ReturnType<(typeof tracer)["startSpan"]>>();
 
-const fc = new FcClient({
+const fc = new CreateosSandboxClient({
   hooks: {
     onRequest: (ctx) => {
       const key = `${ctx.method} ${ctx.url} ${ctx.attempt}`;
-      spans.set(key, tracer.startSpan(`fc-spawn ${ctx.method}`, {
+      spans.set(key, tracer.startSpan(`createos-sandbox ${ctx.method}`, {
         attributes: { "http.method": ctx.method, "http.url": ctx.url, attempt: ctx.attempt },
       }));
     },
@@ -86,7 +86,7 @@ remain greppable but contain no live credentials.
 
 `Sandbox.streamCommand` and `TemplatesApi.followLogs` open a single
 NDJSON connection and consume it as an async iterator. They take the
-fast path through `FcHttp.stream` rather than the retry loop, so hooks
+fast path through `CreateosSandboxHttp.stream` rather than the retry loop, so hooks
 do **not** fire for them. The intent is that streams are owned by your
 loop end-to-end — there is no retry to observe, and `onResponse` would
 need an artificial "done" point. Wrap your `for await` in your own log

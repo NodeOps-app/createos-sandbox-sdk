@@ -14,14 +14,19 @@
  * run created and leak-checks that none survive.
  *
  * Run:   bun 19-batch-inference-fanout/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (both required; see .env.example). No other
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (both required; see .env.example). No other
  *        external services — the model is pulled from HuggingFace inside each VM.
  */
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FcClient, FcPaymentRequiredError, FcValidationError, type Sandbox } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxPaymentRequiredError,
+  CreateosSandboxValidationError,
+  type Sandbox,
+} from "createos-sandbox-sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -32,18 +37,21 @@ const SHARD_COUNT = 4; // <= MAX_CONCURRENCY so the whole batch runs in one wave
 const MAX_CONCURRENCY = 4; // hard ceiling: shared 5/5 cap, leave one slot of headroom
 
 // Base URL for the control plane.
-const FC_BASE_URL = process.env.FC_BASE_URL;
-if (!FC_BASE_URL) {
-  console.error("FC_BASE_URL must be set (see .env.example).");
+const CREATEOS_SANDBOX_BASE_URL = process.env.CREATEOS_SANDBOX_BASE_URL;
+if (!CREATEOS_SANDBOX_BASE_URL) {
+  console.error("CREATEOS_SANDBOX_BASE_URL must be set (see .env.example).");
   process.exit(1);
 }
-const FC_API_KEY = process.env.FC_API_KEY;
-if (!FC_API_KEY) {
-  console.error("FC_API_KEY must be set (see .env.example).");
+const CREATEOS_SANDBOX_API_KEY = process.env.CREATEOS_SANDBOX_API_KEY;
+if (!CREATEOS_SANDBOX_API_KEY) {
+  console.error("CREATEOS_SANDBOX_API_KEY must be set (see .env.example).");
   process.exit(1);
 }
 
-const fc = new FcClient({ apiKey: FC_API_KEY, baseUrl: FC_BASE_URL });
+const fc = new CreateosSandboxClient({
+  apiKey: CREATEOS_SANDBOX_API_KEY,
+  baseUrl: CREATEOS_SANDBOX_BASE_URL,
+});
 
 interface Review {
   id: number;
@@ -95,14 +103,14 @@ async function createWithRetry(name: string): Promise<Sandbox> {
       // Out of credit is a hard stop, not a transient cap — waiting will not
       // fix it, and a 402 message can contain "limit"/"quota" that the retriable
       // regex below would otherwise match and retry pointlessly. Fail fast.
-      if (err instanceof FcPaymentRequiredError) {
+      if (err instanceof CreateosSandboxPaymentRequiredError) {
         throw new Error(`out of credit creating ${name} — top up the account, then retry`, {
           cause: err,
         });
       }
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;

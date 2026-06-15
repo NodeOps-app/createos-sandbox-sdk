@@ -11,19 +11,19 @@
  * lifetime spans the whole graph, and teardown happens in the outer finally.
  *
  * Run:   bun 32-langgraph-sandbox-orchestrator/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_KEY (+ optional OPENAI_MODEL,
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus OPENAI_API_KEY (+ optional OPENAI_MODEL,
  *        OPENAI_BASE_URL/OPENAI_API_URL for an OpenAI-compatible endpoint). See
  *        .env.example. Reads the parent ../.env as a fallback (loadParentEnvFallback).
  */
 import { existsSync, readFileSync } from "node:fs";
 import OpenAI from "openai";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
-import { FcClient, type Sandbox } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, type Sandbox } from "createos-sandbox-sdk";
 
 loadParentEnvFallback();
 
-if (!process.env.FC_BASE_URL || !process.env.FC_API_KEY) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+if (!process.env.CREATEOS_SANDBOX_BASE_URL || !process.env.CREATEOS_SANDBOX_API_KEY) {
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 if (!process.env.OPENAI_API_KEY) {
   throw new Error("set OPENAI_API_KEY (see .env.example)");
@@ -44,7 +44,7 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_BASE_URL ?? process.env.OPENAI_API_URL ?? undefined,
 });
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // ── Graph state ───────────────────────────────────────────────────────────────
 

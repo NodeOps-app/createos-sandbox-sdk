@@ -4,10 +4,10 @@
  * then download the resulting JSON back to the host.
  *
  * Run:   bun 41-python-pdf-extractor/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
 import { readFile, writeFile } from "node:fs/promises";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // PyMuPDF (pymupdf) needs ~150 MB of disk and a modest amount of RAM.
 // 2 GB covers pip install + import overhead comfortably.
@@ -36,10 +36,12 @@ doc.close()
 print(json.dumps(fields, ensure_ascii=False))
 `;
 
-// bridge FCSPAWN_URL -> baseUrl when set; fall back to FC_BASE_URL
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.FC_BASE_URL;
+// bridge FCSPAWN_URL -> baseUrl when set; fall back to CREATEOS_SANDBOX_BASE_URL
+const baseUrl = process.env.FCSPAWN_URL ?? process.env.CREATEOS_SANDBOX_BASE_URL;
 if (!baseUrl) {
-  process.stderr.write("FC_BASE_URL (or FCSPAWN_URL) is required — see .env.example\n");
+  process.stderr.write(
+    "CREATEOS_SANDBOX_BASE_URL (or FCSPAWN_URL) is required — see .env.example\n",
+  );
   process.exit(1);
 }
 

@@ -4,18 +4,18 @@
  * into a CHANGELOG.md, download it, and print to stdout.
  *
  * Run:   bun 44-claude-changelog-generator/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY plus ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN +
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY plus ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN +
  *        ANTHROPIC_MODEL (the proxy triple from ../.env). The sandbox receives
  *        these as ANTHROPIC_* env vars so the Anthropic SDK inside the VM reaches
  *        the same proxy.
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // Bridge host env -> sandbox env.  Fail fast if FC creds are missing.
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.FC_BASE_URL;
-if (!baseUrl) throw new Error("FCSPAWN_URL (or FC_BASE_URL) is required");
-const apiKey = process.env.FC_API_KEY;
-if (!apiKey) throw new Error("FC_API_KEY is required");
+const baseUrl = process.env.FCSPAWN_URL ?? process.env.CREATEOS_SANDBOX_BASE_URL;
+if (!baseUrl) throw new Error("FCSPAWN_URL (or CREATEOS_SANDBOX_BASE_URL) is required");
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
+if (!apiKey) throw new Error("CREATEOS_SANDBOX_API_KEY is required");
 
 const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL;
 const anthropicAuthToken = process.env.ANTHROPIC_AUTH_TOKEN;
@@ -47,7 +47,7 @@ const sandboxEnvs: Record<string, string> = {
     : {}),
 };
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS, envs: sandboxEnvs });
@@ -139,20 +139,30 @@ const systemPrompt =
 const userPrompt =
   "Generate a CHANGELOG.md from these git commits:\\n\\n" + commitLog;
 
-const response = await client.messages.create({
-  model: ${JSON.stringify(model)},
-  max_tokens: 1024,
-  system: systemPrompt,
-  messages: [{ role: "user", content: userPrompt }],
-});
+// Extended-thinking model tiers occasionally return end_turn with only a
+// thinking block and no text content; retry a few times before giving up.
+async function generate() {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const response = await client.messages.create({
+      model: ${JSON.stringify(model)},
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const text = response.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("\\n")
+      .trim();
+    if (text) return text;
+    console.error(
+      "attempt " + attempt + "/3: empty content (stop_reason=" + response.stop_reason + "), retrying...",
+    );
+  }
+  throw new Error("Claude returned empty content after 3 attempts");
+}
 
-const text = response.content
-  .filter((b) => b.type === "text")
-  .map((b) => b.text)
-  .join("\\n")
-  .trim();
-
-if (!text) throw new Error("Claude returned empty content — stop_reason: " + response.stop_reason);
+const text = await generate();
 
 writeFileSync("/tmp/gen/CHANGELOG.md", text + "\\n");
 console.log("CHANGELOG.md written (" + text.split("\\n").length + " lines)");

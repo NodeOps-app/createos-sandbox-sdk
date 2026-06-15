@@ -7,9 +7,9 @@
  * each side — the fork and its parent diverge from the snapshot onward.
  *
  * Run:   bun 05-filesystem-snapshots/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 const STAMP = new Date().toISOString();
 const BASE_PATH = "/root/seed.txt";
@@ -23,8 +23,8 @@ async function readFile(sb: Sandbox, path: string) {
   return result.stdout.trim();
 }
 
-// Sandbox.create is the client-less factory — it builds the FcClient from
-// FC_BASE_URL / FC_API_KEY and blocks until the VM is `running`.
+// Sandbox.create is the client-less factory — it builds the CreateosSandboxClient from
+// CREATEOS_SANDBOX_BASE_URL / CREATEOS_SANDBOX_API_KEY and blocks until the VM is `running`.
 // tiny shape on purpose — this smoke test only reads/writes small files
 const base = await Sandbox.create({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
 console.log(`base created: ${base.id}`);

@@ -5,11 +5,11 @@
  * until Claude stops asking for tools. The canonical "LLM with a code sandbox" pattern.
  *
  * Run:   bun 04-ai-code-agent/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus ANTHROPIC_API_KEY for the Claude calls
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus ANTHROPIC_API_KEY for the Claude calls
  *        (external service: the Anthropic API). ANTHROPIC_MODEL is optional.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 const TASK =
   "Write Python code to find all prime Fibonacci numbers among the first 20 " +

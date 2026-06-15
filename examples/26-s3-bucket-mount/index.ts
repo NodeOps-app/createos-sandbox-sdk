@@ -10,12 +10,12 @@
  * FC primitives: createSandbox, files.upload / files.download, runCommand, destroy
  *
  * Run:   bun 26-s3-bucket-mount/index.ts
- * Needs: FC_API_KEY (FC_BASE_URL optional — overrides the default control plane).
+ * Needs: CREATEOS_SANDBOX_API_KEY (CREATEOS_SANDBOX_BASE_URL optional — overrides the default control plane).
  *        Reads the public NOAA GHCN bucket over the network; no AWS creds.
  */
 
 import { writeFileSync } from "node:fs";
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // NOAA GHCN open data — publicly readable, no AWS credentials required.
 const S3_BUCKET = "noaa-ghcn-pds";
@@ -28,11 +28,12 @@ const DUCKDB_VERSION = "v1.5.3";
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 
-if (!process.env.FC_API_KEY) throw new Error("set FC_API_KEY (see .env.example)");
+if (!process.env.CREATEOS_SANDBOX_API_KEY)
+  throw new Error("set CREATEOS_SANDBOX_API_KEY (see .env.example)");
 
-const baseUrl = process.env.FC_BASE_URL;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
 const fcOptions = baseUrl ? { baseUrl } : {};
-const fc = new FcClient(fcOptions);
+const fc = new CreateosSandboxClient(fcOptions);
 
 // 1. Create the sandbox. No ingress needed — this example only reaches outward.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);

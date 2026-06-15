@@ -17,7 +17,7 @@ inside an FC sandbox, expose it via HTTP ingress, and print the live preview URL
 
 ## Prerequisites
 
-- `FC_API_KEY` in your environment (see `.env.example`).
+- `CREATEOS_SANDBOX_API_KEY` in your environment (see `.env.example`).
 - `bun` installed.
 - Dependencies installed: run `bun install` once from `examples/`.
 
@@ -25,7 +25,7 @@ inside an FC sandbox, expose it via HTTP ingress, and print the live preview URL
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY
+# fill in CREATEOS_SANDBOX_API_KEY
 source .env
 bun index.ts
 ```
@@ -34,7 +34,7 @@ Expected output (timings vary):
 
 ```
 [1/5] sandbox: sb-<id>
-      preview URL: https://<id>-3000.fc-spawn.example.com
+      preview URL: https://<id>-3000.createos-sandbox.example.com
 [2/5] cloning next.js hello-world example...
 [3/5] installing dependencies...
 [4/5] starting next dev on port 3000...
@@ -43,7 +43,7 @@ Expected output (timings vary):
       server ready — HTTP 200
       response preview: <!DOCTYPE html>...
 
-live preview: https://<id>-3000.fc-spawn.example.com
+live preview: https://<id>-3000.createos-sandbox.example.com
 destroyed: sb-<id>
 ```
 

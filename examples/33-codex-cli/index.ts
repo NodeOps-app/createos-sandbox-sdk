@@ -10,19 +10,19 @@
  * disposable microVM that gets destroyed in the finally block.
  *
  * Run:   bun 33-codex-cli/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL (the
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL (the
  *        provider base_url), and OPENAI_MODEL — all required (see .env.example).
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const FC_BASE_URL = process.env.FC_BASE_URL;
-const FC_API_KEY = process.env.FC_API_KEY;
+const CREATEOS_SANDBOX_BASE_URL = process.env.CREATEOS_SANDBOX_BASE_URL;
+const CREATEOS_SANDBOX_API_KEY = process.env.CREATEOS_SANDBOX_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_API_URL = process.env.OPENAI_API_URL; // gateway base url
 const OPENAI_MODEL = process.env.OPENAI_MODEL;
 
-if (!FC_BASE_URL) throw new Error("FC_BASE_URL is not set");
-if (!FC_API_KEY) throw new Error("FC_API_KEY is not set");
+if (!CREATEOS_SANDBOX_BASE_URL) throw new Error("CREATEOS_SANDBOX_BASE_URL is not set");
+if (!CREATEOS_SANDBOX_API_KEY) throw new Error("CREATEOS_SANDBOX_API_KEY is not set");
 if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 if (!OPENAI_API_URL) throw new Error("OPENAI_API_URL is not set");
 if (!OPENAI_MODEL) throw new Error("OPENAI_MODEL is not set");
@@ -38,7 +38,10 @@ const CODEX_TASK =
   "The script must also print the result of calling fizzbuzz with 15 when run directly. " +
   "After writing fizzbuzz.py run it with python3 fizzbuzz.py to confirm it produces output.";
 
-const fc = new FcClient({ baseUrl: FC_BASE_URL, apiKey: FC_API_KEY });
+const fc = new CreateosSandboxClient({
+  baseUrl: CREATEOS_SANDBOX_BASE_URL,
+  apiKey: CREATEOS_SANDBOX_API_KEY,
+});
 
 // 1. Create the sandbox. envs are injected into the VM's environment so the
 //    Codex CLI (which reads OPENAI_API_KEY for auth) sees the key without us

@@ -1,6 +1,6 @@
-# fc-sandbox-sdk
+# createos-sandbox-sdk
 
-> TypeScript SDK for the fc-spawn microVM sandbox control plane.
+> TypeScript SDK for the createos-sandbox microVM sandbox control plane.
 > Zero runtime dependencies. ESM-only. Node 20+ / Bun / Deno / edge / browser.
 > Hand-written HTTP client around `fetch`. Retries, typed errors, NDJSON
 > streaming, runtime detection, header/URL redaction, lifecycle hooks.
@@ -8,12 +8,12 @@
 ## Install
 
 ```
-npm install fc-sandbox-sdk
+npm install createos-sandbox-sdk
 ```
 
 Not yet published to npm — until the first release, install from a local
-checkout. The control plane is configured with `FC_BASE_URL` (required) and
-`FC_API_KEY`.
+checkout. The control plane is configured with `CREATEOS_SANDBOX_BASE_URL` (required) and
+`CREATEOS_SANDBOX_API_KEY`.
 
 ## Docs
 
@@ -81,15 +81,15 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 
 ## Surface highlights
 
-- `FcClient` — entry point (catalog, identity, sandbox factory, templates, networks, disks).
+- `CreateosSandboxClient` — entry point (catalog, identity, sandbox factory, templates, networks, disks).
 - `Sandbox` — stateful handle (lifecycle, commands, files, ingress, network attach/detach).
-- `FcError` hierarchy — `FcAuthError`, `FcPermissionError`, `FcNotFoundError`,
-  `FcValidationError`, `FcRateLimitError`, `FcServerError`, `FcConnectionError`, `FcTimeoutError`.
+- `CreateosSandboxError` hierarchy — `CreateosSandboxAuthError`, `CreateosSandboxPermissionError`, `CreateosSandboxNotFoundError`,
+  `CreateosSandboxValidationError`, `CreateosSandboxRateLimitError`, `CreateosSandboxServerError`, `CreateosSandboxConnectionError`, `CreateosSandboxTimeoutError`.
 - `ClientHooks` — `onRequest`, `onResponse`, `onRetry` with pre-redacted payloads.
 - `ExecStreamEvent` — discriminated union from `streamCommand`.
 
 ## Source
 
 Public surface lives in `src/index.ts`. The wire types in `src/types.ts`
-mirror the fc-spawn control plane's JSON HTTP API and are the source of truth
+mirror the createos-sandbox control plane's JSON HTTP API and are the source of truth
 for the request/response shapes.

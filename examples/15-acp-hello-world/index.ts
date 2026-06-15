@@ -12,11 +12,11 @@
  * JSON-RPC conversation happens inside the VM, so the host never speaks ACP.
  *
  * Run:   bun 15-acp-hello-world/index.ts
- * Needs: FC_API_KEY (FC_BASE_URL defaults; see .env.example). No external services.
+ * Needs: CREATEOS_SANDBOX_API_KEY (CREATEOS_SANDBOX_BASE_URL defaults; see .env.example). No external services.
  */
 
 import { readFile } from "node:fs/promises";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 const SHAPE = "s-1vcpu-256mb";
 const ROOTFS = "devbox:1";

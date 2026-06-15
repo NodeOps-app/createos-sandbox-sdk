@@ -13,7 +13,7 @@ cp .env.example .env  # fill in values (the shared ../.env is already symlinked)
 bun index.ts
 ```
 
-bun auto-loads `.env` from this dir. Required vars: `FC_API_KEY`,
+bun auto-loads `.env` from this dir. Required vars: `CREATEOS_SANDBOX_API_KEY`,
 `OPENAI_API_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL` — see `.env.example`.
 
 ## What it does
@@ -22,7 +22,7 @@ bun auto-loads `.env` from this dir. Required vars: `FC_API_KEY`,
 2. Installs CPU-only `torch`, `llama-index-core`, the HuggingFace embedding
    binding, and the OpenAI-like LLM binding via `pip3`.
 3. Pre-pulls `all-MiniLM-L6-v2` so the first query doesn't pay the download.
-4. Uploads `corpus/*.md` (4 short docs about fc-spawn) and the Python
+4. Uploads `corpus/*.md` (4 short docs about createos-sandbox) and the Python
    indexer + query scripts via `sandbox.files.upload()`.
 5. Runs `indexer.py` — chunks the corpus, embeds locally, and persists the
    index to `/root/storage/`.

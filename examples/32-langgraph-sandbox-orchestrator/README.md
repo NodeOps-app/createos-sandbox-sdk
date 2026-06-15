@@ -8,7 +8,7 @@ read output, summarise — driven by an OpenAI LLM.
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY and OPENAI_API_KEY
+# fill in CREATEOS_SANDBOX_API_KEY and OPENAI_API_KEY
 bun index.ts
 ```
 
@@ -18,7 +18,7 @@ across examples.
 
 ## What it does
 
-1. Reads `FC_BASE_URL` from the environment so the SDK finds the control plane.
+1. Reads `CREATEOS_SANDBOX_BASE_URL` from the environment so the SDK finds the control plane.
 2. Defines a four-node LangGraph `StateGraph`: `create_sandbox` →
    `generate_code` → `run_in_sandbox` → `summarise`.
 3. `create_sandbox` — calls `fc.createSandbox()` and seeds a workspace directory.

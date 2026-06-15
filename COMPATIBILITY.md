@@ -1,6 +1,6 @@
 # Compatibility checkpoint
 
-This file records the `fc-spawn` control-plane version this SDK has been
+This file records the `createos-sandbox` control-plane version this SDK has been
 reconciled against, and the known wire gaps at that point. The control
 plane is a separate service; its published OpenAPI spec is stale, so this
 checkpoint is verified against the live server behavior, never the spec.
@@ -11,7 +11,7 @@ See `AGENTS.md` → "Wire types — source of truth".
 | | |
 | --- | --- |
 | SDK version | `0.6.0` |
-| fc-spawn branch | `main` |
+| createos-sandbox branch | `main` |
 | Audited | 2026-06-12 (live-behavior audit; no wire change since the prior pass) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
@@ -51,7 +51,7 @@ tracked here.
 - **Ownership checks return 404, not 402.** `PUT .../egress`,
   `POST .../bandwidth/recharge`, and the file upload / download routes
   return `404 "sandbox not found"` (JSend `fail`) for a sandbox the
-  caller does not own. The SDK maps 404 → `FcNotFoundError`. On
+  caller does not own. The SDK maps 404 → `CreateosSandboxNotFoundError`. On
   `recharge`, the owner check precedes the credit gate, so a non-owned id
   yields 404 rather than 402.
 - **Idle auto-pause.** `auto_pause_after_seconds` (`*int`, `omitempty` →
@@ -64,7 +64,7 @@ tracked here.
 - **Credit gating (402).** Cost-incurring endpoints (sandbox create /
   resume / fork, bandwidth recharge, disk / network / template create)
   return `402 Payment Required` (JSend `fail`) when the account has no
-  credit. SDK: `errorFromResponse` maps 402 → `FcPaymentRequiredError`.
+  credit. SDK: `errorFromResponse` maps 402 → `CreateosSandboxPaymentRequiredError`.
   402 is not a retry status in either retry class — correct, since
   retrying without topping up cannot succeed.
 
@@ -79,7 +79,7 @@ SDK surfaces to callers:
   `{ status, data: { data: [...], pagination: { total, limit, offset,
   count } } }`. The legacy `{ <key>: [...] }` wrappers are deprecated
   server-side. The SDK's list methods now auto-loop every page
-  (`FcHttp.fetchAllPages`, accepts paginated / legacy / bare-array
+  (`CreateosSandboxHttp.fetchAllPages`, accepts paginated / legacy / bare-array
   shapes) and return the full result set. The server clamps `limit` to
   **500**; paging advances by the actual item count, not the requested
   size. `listSandboxes({ limit })` treats `limit` as a cap on handles
@@ -147,7 +147,7 @@ it changes.
 
 ## Updating this checkpoint
 
-1. Identify the current `fc-spawn` `main` and review the wire surface
+1. Identify the current `createos-sandbox` `main` and review the wire surface
    (request / response types, routes, handlers) changed since the last
    audit.
 2. Reconcile `src/types.ts` (and any new method) against the live server

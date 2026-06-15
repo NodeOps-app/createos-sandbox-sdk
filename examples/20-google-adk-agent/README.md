@@ -21,13 +21,13 @@ python3 -m venv .venv
 bun index.ts
 ```
 
-bun auto-loads `.env`. Required vars: `FC_API_KEY`, the LLM proxy trio
+bun auto-loads `.env`. Required vars: `CREATEOS_SANDBOX_API_KEY`, the LLM proxy trio
 `OPENAI_API_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL`, and optionally
-`FC_BASE_URL` (defaults to the production control plane). See `.env.example`.
+`CREATEOS_SANDBOX_BASE_URL` (defaults to the production control plane). See `.env.example`.
 
 ## What it does
 
-1. `index.ts` creates one `devbox:1` sandbox with `fc-sandbox-sdk` and owns
+1. `index.ts` creates one `devbox:1` sandbox with `createos-sandbox-sdk` and owns
    its lifecycle.
 2. It spawns `adk_agent.py` as a child process, passing the sandbox id and the
    FC + LLM credentials via environment variables.
@@ -50,7 +50,7 @@ The thin `index.ts` owns the FC sandbox (create → spawn driver → destroy),
 mirroring examples 13/14/15 where a TS entry sequences Python payload files.
 The ADK driver runs on the host (not inside the sandbox) so the agent's tools
 treat the sandbox as a remote execution target reached over the FC HTTP API
-with the same `FC_API_KEY` — exactly how a production agent would.
+with the same `CREATEOS_SANDBOX_API_KEY` — exactly how a production agent would.
 
 The LLM defaults in ADK target Google Gemini. This example points ADK at the
 OpenAI-compatible proxy instead via `LiteLlm(model="openai/<model>", api_base,

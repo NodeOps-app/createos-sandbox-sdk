@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createClient, FcClient, Sandbox } from "../src/index.ts";
+import { createClient, CreateosSandboxClient, Sandbox } from "../src/index.ts";
 import { BASE, CREATE_RESPONSE, RUNNING_VIEW, success } from "./helpers.ts";
 
 const fetchView = ((_url: string, init: RequestInit) =>
@@ -8,9 +8,9 @@ const fetchView = ((_url: string, init: RequestInit) =>
   )) as unknown as typeof fetch;
 
 describe("createClient", () => {
-  test("returns a configured FcClient", () => {
+  test("returns a configured CreateosSandboxClient", () => {
     const client = createClient({ apiKey: "sk", baseUrl: BASE, fetch: fetchView });
-    expect(client).toBeInstanceOf(FcClient);
+    expect(client).toBeInstanceOf(CreateosSandboxClient);
     expect(client.baseUrl).toBe(BASE);
   });
 });

@@ -6,12 +6,16 @@
  * the public ingress URL, and verifies the rendered HTML over that URL.
  *
  * Run:   bun 21-astro-sandbox/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY. The control plane must
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY. The control plane must
  *        grant ingress for previewUrl() to resolve.
  */
 
 import { readFile } from "node:fs/promises";
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb"; // astro/vite install + dev compile want real RAM
 const ROOTFS = "devbox:1"; // ships Node 24 + npm — above Astro's engine floor
@@ -21,13 +25,13 @@ const MARKER = "astro-on-fc-ok"; // emitted by src/pages/index.astro
 
 // exactOptionalPropertyTypes: narrow env vars to strings before constructing
 // the client, so no possibly-undefined value reaches an optional field.
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // The Astro project lives in ./site (committed alongside this example); we read
 // its three source files here and re-upload them into the sandbox below.
@@ -119,7 +123,7 @@ try {
       timeoutMs: 120_000,
     });
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     const log = (await sandbox.sh(`tail -40 ${APP_DIR}/astro.log`, { label: "astro-log" })).result
       .stdout;
     throw new Error(

@@ -9,10 +9,10 @@
  * on the full result instead (see the note at the call site).
  *
  * Run:   bun 09-mcp-claude-code/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus ANTHROPIC_API_KEY (or the proxy pair
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus ANTHROPIC_API_KEY (or the proxy pair
  *        ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL). See .env.example.
  */
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 import { existsSync, readFileSync } from "node:fs";
 
 loadParentEnvFallback();

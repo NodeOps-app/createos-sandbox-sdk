@@ -13,12 +13,16 @@
  * resolves a name (attach accepts either). See the DISK_ID note below.
  *
  * Run:   bun 38-s3-disk-ffmpeg-transcode/index.ts
- * Needs: FC_API_KEY + FC_BASE_URL, and an S3-compatible bucket
+ * Needs: CREATEOS_SANDBOX_API_KEY + CREATEOS_SANDBOX_BASE_URL, and an S3-compatible bucket
  *        reachable from BOTH this machine and the FC agent — S3_BUCKET,
  *        S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY (AWS S3 / R2 / MinIO; set
  *        S3_USE_PATH_STYLE=1 for MinIO). See .env.example for tuning vars.
  */
-import { FcClient, FcNotFoundError, type Sandbox } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxNotFoundError,
+  type Sandbox,
+} from "createos-sandbox-sdk";
 
 // ── config ──────────────────────────────────────────────────────────────
 const S3 = {
@@ -56,7 +60,7 @@ const s3 = new Bun.S3Client({
   virtualHostedStyle: !S3.usePathStyle,
 });
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // ── 1. self-seed a sample clip so the watcher always has work ────────────
 const seedKey = `${INPUT_PREFIX}seed-${rand()}.mp4`;
@@ -67,7 +71,7 @@ await s3.file(seedKey).write(Bun.file(new URL("./sample.mp4", import.meta.url)))
 let createdDisk = false;
 console.log(`[disk] registering S3 disk "${DISK_NAME}" (bucket=${S3.bucket})`);
 let disk = await fc.disks.get(DISK_NAME).catch((e) => {
-  if (e instanceof FcNotFoundError) return null;
+  if (e instanceof CreateosSandboxNotFoundError) return null;
   throw e;
 });
 if (!disk) {

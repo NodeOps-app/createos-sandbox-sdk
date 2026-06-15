@@ -16,7 +16,7 @@ cp .env.example .env  # fill in values (the shared ../.env is already symlinked)
 bun index.ts
 ```
 
-bun auto-loads `.env` from this dir. Required: `FC_API_KEY` and an Anthropic
+bun auto-loads `.env` from this dir. Required: `CREATEOS_SANDBOX_API_KEY` and an Anthropic
 endpoint (`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`). `FIRECRAWL_API_KEY`
 is optional — without it the example falls back to the bundled fixture.
 

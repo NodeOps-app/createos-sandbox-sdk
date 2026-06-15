@@ -12,7 +12,7 @@ cp .env.example .env  # fill in values
 bun index.ts
 ```
 
-bun auto-loads `.env`. Only `FC_API_KEY` is required — the ACP agent is a
+bun auto-loads `.env`. Only `CREATEOS_SANDBOX_API_KEY` is required — the ACP agent is a
 self-contained Python echo implementation, so no LLM provider key is needed.
 
 ## What it does

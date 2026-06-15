@@ -8,7 +8,7 @@ by hitting `GET /global/health`.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL, FC_API_KEY, and ANTHROPIC_* vars
+# fill in CREATEOS_SANDBOX_BASE_URL, CREATEOS_SANDBOX_API_KEY, and ANTHROPIC_* vars
 bun index.ts
 ```
 

@@ -10,12 +10,12 @@ from inside the sandbox — capturing real LSP responses for `initialize`,
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL and FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env` from the working directory. `FC_API_KEY` and
-`FC_BASE_URL` is the required variable.
+bun auto-loads `.env` from the working directory. `CREATEOS_SANDBOX_API_KEY` and
+`CREATEOS_SANDBOX_BASE_URL` is the required variable.
 
 ## What it does
 

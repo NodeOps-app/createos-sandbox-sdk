@@ -7,7 +7,7 @@ fully-functional VS Code IDE through the sandbox's public ingress URL.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL and FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 

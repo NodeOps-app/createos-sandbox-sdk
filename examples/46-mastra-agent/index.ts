@@ -6,23 +6,24 @@
  * gateway without secrets being written to disk.
  *
  * Run:   bun index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL, and
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL, and
  *        OPENAI_MODEL (see .env.example). The sandbox installs Mastra from npm,
  *        so outbound network access from the VM is required.
  */
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-// Bridge FCSPAWN_URL -> FC_BASE_URL for operators who set the alternate name.
-const baseUrl = process.env.FC_BASE_URL ?? process.env.FCSPAWN_URL;
-const apiKey = process.env.FC_API_KEY;
+// Bridge FCSPAWN_URL -> CREATEOS_SANDBOX_BASE_URL for operators who set the alternate name.
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL ?? process.env.FCSPAWN_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 const openaiApiKey = process.env.OPENAI_API_KEY;
 // OPENAI_API_URL is the gateway base URL (e.g. https://…/v1).
 // Map it to OPENAI_BASE_URL which the @ai-sdk/openai provider reads natively.
 const openaiBaseUrl = process.env.OPENAI_API_URL ?? process.env.OPENAI_BASE_URL;
 const openaiModel = process.env.OPENAI_MODEL;
 
-if (!baseUrl) throw new Error("FC_BASE_URL (or FCSPAWN_URL) is not set — see .env.example");
-if (!apiKey) throw new Error("FC_API_KEY is not set — see .env.example");
+if (!baseUrl)
+  throw new Error("CREATEOS_SANDBOX_BASE_URL (or FCSPAWN_URL) is not set — see .env.example");
+if (!apiKey) throw new Error("CREATEOS_SANDBOX_API_KEY is not set — see .env.example");
 if (!openaiApiKey) throw new Error("OPENAI_API_KEY is not set — see .env.example");
 if (!openaiBaseUrl) throw new Error("OPENAI_API_URL is not set — see .env.example");
 if (!openaiModel) throw new Error("OPENAI_MODEL is not set — see .env.example");
@@ -64,7 +65,7 @@ console.log(\`Agent response: \${text}\`);
 process.exit(0);
 `.trimStart();
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 console.log(`[1/5] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({

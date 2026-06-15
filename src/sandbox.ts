@@ -1,10 +1,10 @@
-// The Sandbox handle: a stateful object returned by FcClient that owns a
+// The Sandbox handle: a stateful object returned by CreateosSandboxClient that owns a
 // sandbox id and exposes lifecycle, command, file and network operations.
 
 import { createClient } from "./client.js";
 import { DEFAULT_WAIT_MS } from "./config.js";
-import { FcError, FcTimeoutError } from "./errors.js";
-import { encodePath, type FcHttp } from "./http.js";
+import { CreateosSandboxError, CreateosSandboxTimeoutError } from "./errors.js";
+import { encodePath, type CreateosSandboxHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
 import type {
   AddSSHPubkeysResponse,
@@ -20,7 +20,7 @@ import type {
   ExecResponse,
   ExecStreamEvent,
   ExecStreamFrame,
-  FcClientOptions,
+  CreateosSandboxClientOptions,
   ForkSandboxRequest,
   OKResponse,
   PatchSandboxRequest,
@@ -44,21 +44,21 @@ const PORT_READY_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.\-:]{0,253}[A-Za-z0-9])?$/
 
 function assertValidPort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new FcError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
+    throw new CreateosSandboxError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
   }
 }
 
 /**
  * File transfer scoped to one sandbox. Reached via `sandbox.files`.
  *
- * Every method also throws {@link FcServerError} on a 5xx response and
- * {@link FcConnectionError} on network failure.
+ * Every method also throws {@link CreateosSandboxServerError} on a 5xx response and
+ * {@link CreateosSandboxConnectionError} on network failure.
  */
 export class SandboxFiles {
-  readonly #http: FcHttp;
+  readonly #http: CreateosSandboxHttp;
   readonly #sandboxId: string;
 
-  constructor(http: FcHttp, sandboxId: string) {
+  constructor(http: CreateosSandboxHttp, sandboxId: string) {
     this.#http = http;
     this.#sandboxId = sandboxId;
   }
@@ -66,11 +66,11 @@ export class SandboxFiles {
   /**
    * Uploads raw bytes to an absolute path inside the sandbox.
    *
-   * @throws {FcValidationError} when the path is invalid or the body is rejected.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the path is invalid or the body is rejected.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.files.upload("/srv/index.html", "<h1>Hello</h1>");
@@ -87,11 +87,11 @@ export class SandboxFiles {
   /**
    * Downloads a file from the sandbox as raw bytes.
    *
-   * @throws {FcNotFoundError} when the sandbox or the path does not exist.
-   * @throws {FcValidationError} when the path is invalid.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox or the path does not exist.
+   * @throws {CreateosSandboxValidationError} when the path is invalid.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const buf = await sandbox.files.download("/etc/os-release");
@@ -111,15 +111,15 @@ export class SandboxFiles {
 }
 
 /**
- * A stateful handle to one sandbox, returned by the `FcClient` factory
+ * A stateful handle to one sandbox, returned by the `CreateosSandboxClient` factory
  * methods. Owns a sandbox id and exposes lifecycle (pause / resume / fork /
  * destroy), command execution, file transfer (`files`), egress / bandwidth,
  * network and disk operations, and the `waitUntil*` pollers. Mutating calls
  * refresh the cached projection in place; read it via `data` or the
  * `id` / `status` / `ip` / `name` getters.
  *
- * Every method that reaches the control plane also throws {@link FcServerError}
- * on a 5xx response and {@link FcConnectionError} on network failure; per-method
+ * Every method that reaches the control plane also throws {@link CreateosSandboxServerError}
+ * on a 5xx response and {@link CreateosSandboxConnectionError} on network failure; per-method
  * `@throws` tags list only the conditions specific to that call.
  *
  * @example
@@ -131,10 +131,10 @@ export class Sandbox {
   /** File transfer namespace. */
   readonly files: SandboxFiles;
 
-  readonly #http: FcHttp;
+  readonly #http: CreateosSandboxHttp;
   #data: SandboxView;
 
-  constructor(http: FcHttp, view: SandboxView) {
+  constructor(http: CreateosSandboxHttp, view: SandboxView) {
     this.#http = http;
     this.#data = view;
     this.files = new SandboxFiles(http, view.id);
@@ -143,16 +143,16 @@ export class Sandbox {
   // ── static factories ──────────────────────────────────────────────────
 
   /**
-   * Creates a sandbox without first constructing an `FcClient`. Equivalent
-   * to `new FcClient(clientOpts).createSandbox(request, createOpts)`.
+   * Creates a sandbox without first constructing an `CreateosSandboxClient`. Equivalent
+   * to `new CreateosSandboxClient(clientOpts).createSandbox(request, createOpts)`.
    *
-   * @throws {FcValidationError} when shape or rootfs are unknown.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout or wait budget elapses.
+   * @throws {CreateosSandboxValidationError} when shape or rootfs are unknown.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout or wait budget elapses.
    *
    * @example
-   * import { Sandbox } from "fc-sandbox-sdk";
+   * import { Sandbox } from "createos-sandbox-sdk";
    * const sandbox = await Sandbox.create({
    *   shape: "s-1vcpu-256mb",
    *   rootfs: "devbox:1",
@@ -161,7 +161,7 @@ export class Sandbox {
    */
   static async create(
     request: CreateSandboxRequest,
-    options: FcClientOptions & CreateSandboxOptions = {},
+    options: CreateosSandboxClientOptions & CreateSandboxOptions = {},
   ): Promise<Sandbox> {
     const createOpts: CreateSandboxOptions = pickRequestOpts(options);
     if (options.wait !== undefined) createOpts.wait = options.wait;
@@ -171,21 +171,21 @@ export class Sandbox {
 
   /**
    * Connects to an existing sandbox by id without first constructing an
-   * `FcClient`. Equivalent to `new FcClient(clientOpts).getSandbox(id, opts)`.
+   * `CreateosSandboxClient`. Equivalent to `new CreateosSandboxClient(clientOpts).getSandbox(id, opts)`.
    *
-   * @throws {FcNotFoundError} when no sandbox with that id exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when no sandbox with that id exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * import { Sandbox } from "fc-sandbox-sdk";
+   * import { Sandbox } from "createos-sandbox-sdk";
    * const sandbox = await Sandbox.connect("sb_01h…");
    * console.log(sandbox.status);
    */
   static async connect(
     id: string,
-    options: FcClientOptions & RequestOptions = {},
+    options: CreateosSandboxClientOptions & RequestOptions = {},
   ): Promise<Sandbox> {
     return createClient(options).getSandbox(id, pickRequestOpts(options));
   }
@@ -233,10 +233,10 @@ export class Sandbox {
   /**
    * Re-fetches the sandbox projection and updates this handle in place.
    *
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.refresh();
@@ -252,11 +252,11 @@ export class Sandbox {
   /**
    * Runs a command to completion and returns its buffered output.
    *
-   * @throws {FcValidationError} when the command shape is rejected.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the command shape is rejected.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const out = await sandbox.runCommand("uname", ["-a"]);
@@ -278,11 +278,11 @@ export class Sandbox {
    * arrive. Switch on `event.type` to handle each kind — see
    * {@link ExecStreamEvent} for the payload shape.
    *
-   * @throws {FcValidationError} when the command shape is rejected.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the command shape is rejected.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * for await (const event of sandbox.streamCommand("tail", ["-f", "/var/log/syslog"])) {
@@ -317,7 +317,7 @@ export class Sandbox {
    * buffered output, throwing if it exits non-zero. The throw-on-failure
    * counterpart to {@link Sandbox.runCommand}: use it when a non-zero exit
    * should abort the caller instead of being inspected by hand. The thrown
-   * `FcError` carries the optional `label`, the exit code, the run duration
+   * `CreateosSandboxError` carries the optional `label`, the exit code, the run duration
    * and the tail of stdout/stderr.
    *
    * @param script - Shell script passed to `bash -lc`; pipes, redirection,
@@ -326,13 +326,13 @@ export class Sandbox {
    *   {@link ExecOptions} (`timeoutMs`, `signal`, `headers`, `retry`) pass
    *   through to the underlying exec.
    *
-   * @throws {FcError} when the command exits non-zero or the agent reports a
+   * @throws {CreateosSandboxError} when the command exits non-zero or the agent reports a
    *   start failure.
-   * @throws {FcValidationError} when the command shape is rejected.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the command shape is rejected.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.sh("apt-get update -qq && apt-get install -y curl", {
@@ -352,7 +352,7 @@ export class Sandbox {
       if (result.error) parts.push(`error: ${result.error}`);
       if (result.stdout) parts.push(`stdout: ${result.stdout.slice(-2000)}`);
       if (result.stderr) parts.push(`stderr: ${result.stderr.slice(-2000)}`);
-      throw new FcError(parts.join("\n"));
+      throw new CreateosSandboxError(parts.join("\n"));
     }
     return response;
   }
@@ -362,11 +362,11 @@ export class Sandbox {
   /**
    * Snapshots the sandbox to storage. The handle is updated to the pausing/paused view.
    *
-   * @throws {FcValidationError} when the sandbox is in an invalid state for pause.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is in an invalid state for pause.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.pause();
@@ -380,11 +380,11 @@ export class Sandbox {
   /**
    * Restores a paused sandbox. The handle is updated to the resuming/running view.
    *
-   * @throws {FcValidationError} when the sandbox is not in a resumable state.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is not in a resumable state.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.resume();
@@ -398,11 +398,11 @@ export class Sandbox {
   /**
    * Clones a paused sandbox into a new independent sandbox.
    *
-   * @throws {FcValidationError} when the source sandbox is not in a forkable state.
-   * @throws {FcNotFoundError} when the source sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the source sandbox is not in a forkable state.
+   * @throws {CreateosSandboxNotFoundError} when the source sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.pause();
@@ -423,10 +423,10 @@ export class Sandbox {
    * the host could reclaim it inline). Use `waitUntilDestroyed` to wait
    * for full reclamation.
    *
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.destroy();
@@ -443,11 +443,11 @@ export class Sandbox {
    *
    * @param diskMib - New disk size in MiB. Must exceed the current size.
    *
-   * @throws {FcValidationError} when `diskMib` is invalid or below the current size.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when `diskMib` is invalid or below the current size.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.resize(4096);
@@ -464,11 +464,11 @@ export class Sandbox {
   /**
    * Toggles HTTP ingress. The handle is updated to the patched view.
    *
-   * @throws {FcValidationError} when the sandbox is in an invalid state for the patch.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is in an invalid state for the patch.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.setIngress(true);
@@ -493,11 +493,11 @@ export class Sandbox {
    * @param seconds - Idle timeout in seconds, 60–86400 (1 min – 24 h), or
    *   `null` to disable auto-pause.
    *
-   * @throws {FcValidationError} when `seconds` is outside 60–86400.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when `seconds` is outside 60–86400.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.setAutoPause(600); // pause after 10 min idle
@@ -519,11 +519,11 @@ export class Sandbox {
    * count after the add. Unlike `createSandbox({ ssh_pubkeys })`, this works
    * on a live sandbox.
    *
-   * @throws {FcValidationError} when a key is not a valid OpenSSH public key.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when a key is not a valid OpenSSH public key.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const { count } = await sandbox.addSSHPubkeys([pubkey]);
@@ -542,11 +542,11 @@ export class Sandbox {
    * including `destroying`/`destroyed` (a parallel destroy will never
    * resume into running).
    *
-   * @throws {FcError} when the sandbox enters a terminal failure state.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the wait budget elapses.
+   * @throws {CreateosSandboxError} when the sandbox enters a terminal failure state.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the wait budget elapses.
    *
    * @example
    * await sandbox.waitUntilRunning({ timeoutMs: 60_000 });
@@ -564,11 +564,11 @@ export class Sandbox {
    * Polls until the sandbox is `paused`. Aborts on terminal failure states
    * including `destroying`/`destroyed`.
    *
-   * @throws {FcError} when the sandbox enters a terminal failure state.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the wait budget elapses.
+   * @throws {CreateosSandboxError} when the sandbox enters a terminal failure state.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the wait budget elapses.
    *
    * @example
    * await sandbox.pause();
@@ -587,10 +587,10 @@ export class Sandbox {
    * Polls until the sandbox is `destroyed`. `destroying` is an intermediate
    * step on the way to destroyed and must not abort the wait.
    *
-   * @throws {FcError} when the sandbox enters a non-destroy terminal failure state.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the wait budget elapses.
+   * @throws {CreateosSandboxError} when the sandbox enters a non-destroy terminal failure state.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the wait budget elapses.
    *
    * @example
    * await sandbox.destroy();
@@ -632,10 +632,10 @@ export class Sandbox {
   /**
    * Returns the current egress allowlist and counters.
    *
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const egress = await sandbox.getEgress();
@@ -650,11 +650,11 @@ export class Sandbox {
    *
    * @param rules - `host:port` allow rules, or `null` / `[]` to allow all egress.
    *
-   * @throws {FcValidationError} when a rule is malformed.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when a rule is malformed.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.setEgress(["api.openai.com:443", "registry.npmjs.org:443"]);
@@ -669,10 +669,10 @@ export class Sandbox {
   /**
    * Returns the current bandwidth quota and usage.
    *
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const bw = await sandbox.getBandwidth();
@@ -687,11 +687,11 @@ export class Sandbox {
    *
    * @param addBytes - Bytes to add to the quota.
    *
-   * @throws {FcValidationError} when `addBytes` is invalid.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when `addBytes` is invalid.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant or the caller hits a quota.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.rechargeBandwidth(10 * 1024 * 1024 * 1024); // +10 GiB
@@ -708,11 +708,11 @@ export class Sandbox {
   /**
    * Attaches this sandbox to an overlay network.
    *
-   * @throws {FcValidationError} when the sandbox is in an invalid state.
-   * @throws {FcNotFoundError} when the sandbox or network does not exist.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is in an invalid state.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox or network does not exist.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the network belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.attachNetwork("net_01h…");
@@ -727,10 +727,10 @@ export class Sandbox {
   /**
    * Detaches this sandbox from an overlay network.
    *
-   * @throws {FcNotFoundError} when the sandbox or attachment does not exist.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the network belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox or attachment does not exist.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the network belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.detachNetwork("net_01h…");
@@ -748,10 +748,10 @@ export class Sandbox {
   /**
    * Lists disks attached to this sandbox with per-attachment mount status.
    *
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const disks = await sandbox.listDisks();
@@ -782,11 +782,11 @@ export class Sandbox {
    * pick up new mounts on resume via `CreateSandboxRequest.disks` at
    * create or fork time.
    *
-   * @throws {FcValidationError} when the sandbox is not running or the mount path collides.
-   * @throws {FcNotFoundError} when the sandbox or disk no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is not running or the mount path collides.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox or disk no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the disk belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.attachDisk({
@@ -811,11 +811,11 @@ export class Sandbox {
    * same disk may be mounted at multiple paths — the composite key is
    * (sandbox, disk, mountPath). Bucket contents are untouched.
    *
-   * @throws {FcValidationError} when the sandbox is in an invalid state for detach.
-   * @throws {FcNotFoundError} when the sandbox, disk, or attachment does not exist.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the disk belongs to another tenant.
-   * @throws {FcTimeoutError} when the per-request timeout elapses.
+   * @throws {CreateosSandboxValidationError} when the sandbox is in an invalid state for detach.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox, disk, or attachment does not exist.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the disk belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * await sandbox.detachDisk({
@@ -836,16 +836,16 @@ export class Sandbox {
   /**
    * Polls a TCP port from inside the sandbox until something is listening,
    * using `bash`'s `/dev/tcp` shim. Requires `bash` and GNU `timeout` in
-   * the rootfs (both are present in the fc-spawn default rootfs).
+   * the rootfs (both are present in the createos-sandbox default rootfs).
    *
    * Resolves to `this` once the port accepts a connection; throws
-   * `FcTimeoutError` if the port is still closed when the budget runs out.
+   * `CreateosSandboxTimeoutError` if the port is still closed when the budget runs out.
    *
-   * @throws {FcError} when `port` or `host` are invalid.
-   * @throws {FcNotFoundError} when the sandbox no longer exists.
-   * @throws {FcAuthError} when the API key is missing or revoked.
-   * @throws {FcPermissionError} when the sandbox belongs to another tenant.
-   * @throws {FcTimeoutError} when the wait budget elapses without the port opening.
+   * @throws {CreateosSandboxError} when `port` or `host` are invalid.
+   * @throws {CreateosSandboxNotFoundError} when the sandbox no longer exists.
+   * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
+   * @throws {CreateosSandboxPermissionError} when the sandbox belongs to another tenant.
+   * @throws {CreateosSandboxTimeoutError} when the wait budget elapses without the port opening.
    *
    * @example
    * await sandbox.runCommand("sh", ["-c", "python3 -m http.server 8080 &"]);
@@ -858,7 +858,7 @@ export class Sandbox {
     assertValidPort(port);
     const host = options.host ?? "127.0.0.1";
     if (!PORT_READY_HOST_RE.test(host)) {
-      throw new FcError(
+      throw new CreateosSandboxError(
         `Invalid host: ${JSON.stringify(host)}. Must be an IPv4/IPv6 literal or DNS hostname.`,
       );
     }
@@ -876,7 +876,7 @@ export class Sandbox {
     }
     const result = await this.runCommand("bash", ["-c", script], execOptions);
     if (result.result.exit_code !== 0) {
-      throw new FcTimeoutError(
+      throw new CreateosSandboxTimeoutError(
         `Port ${port} did not become ready on sandbox ${this.id} within ${timeoutSec}s.`,
       );
     }
@@ -894,7 +894,7 @@ export class Sandbox {
    *   Pass `"http"` when the ingress TLS certificate is not yet provisioned
    *   for the sandbox's hostname.
    *
-   * @throws {FcError} when `port` is invalid or ingress is not enabled
+   * @throws {CreateosSandboxError} when `port` is invalid or ingress is not enabled
    *   for this sandbox.
    *
    * @example
@@ -909,7 +909,7 @@ export class Sandbox {
     // ingress was disabled must not hand back a dead URL.
     const template = this.#data.ingress_url_template;
     if (!this.#data.ingress_enabled || !template) {
-      throw new FcError(
+      throw new CreateosSandboxError(
         "No ingress URL is available. Create the sandbox with ingress_enabled: true.",
       );
     }
@@ -924,7 +924,7 @@ export class Sandbox {
 // while `headers`, `timeoutMs` and `retry` are ALSO applied to the
 // create/connect request itself, riding along via the picked RequestOptions.
 // For finer control of the two layers independently, construct
-// `new FcClient(clientOpts)` and call `.createSandbox(request, requestOpts)`.
+// `new CreateosSandboxClient(clientOpts)` and call `.createSandbox(request, requestOpts)`.
 function pickRequestOpts(options: RequestOptions): RequestOptions {
   const requestOpts: RequestOptions = {};
   if (options.signal !== undefined) requestOpts.signal = options.signal;

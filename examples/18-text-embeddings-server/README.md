@@ -10,11 +10,11 @@ script; here it's a network service you can call from anywhere.
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env`. `FC_API_KEY` is required; `FC_BASE_URL` defaults to
+bun auto-loads `.env`. `CREATEOS_SANDBOX_API_KEY` is required; `CREATEOS_SANDBOX_BASE_URL` defaults to
 the production control plane and only needs to be set to override. No
 external API key — the embedding model is public and runs on CPU inside
 the sandbox.

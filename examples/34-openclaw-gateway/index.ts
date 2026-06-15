@@ -9,16 +9,16 @@
  * running server you want reachable from outside the sandbox.
  *
  * Run:   bun 34-openclaw-gateway/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). OPENCLAW_GATEWAY_TOKEN
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). OPENCLAW_GATEWAY_TOKEN
  *        is optional — a built-in demo token is used when unset.
  */
-import { FcClient, type Sandbox } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, type Sandbox } from "createos-sandbox-sdk";
 
 const GATEWAY_PORT = 18789;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-token";
 
-const baseUrl = process.env.FC_BASE_URL;
-const fc = new FcClient(baseUrl ? { baseUrl } : {});
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const fc = new CreateosSandboxClient(baseUrl ? { baseUrl } : {});
 
 // Stream a long-running command and print live output.
 async function stream(

@@ -3,17 +3,17 @@
 Runs Postgres inside a single FC microVM, mounts that database as a
 filesystem with [TigerFS](https://tigerfs.io/docs), then reads and writes
 markdown notes from a plain Python script — proving that an off-the-shelf
-"filesystem-is-the-API" tool works end-to-end inside `fc-spawn` sandboxes.
+"filesystem-is-the-API" tool works end-to-end inside `createos-sandbox` sandboxes.
 
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_BASE_URL` and `FC_API_KEY`
-are the standard inputs `fc-sandbox-sdk` consumes. No other secrets are
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_BASE_URL` and `CREATEOS_SANDBOX_API_KEY`
+are the standard inputs `createos-sandbox-sdk` consumes. No other secrets are
 required — Postgres is provisioned inside the sandbox with a local-only
 demo user.
 

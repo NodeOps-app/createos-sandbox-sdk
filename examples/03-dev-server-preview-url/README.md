@@ -7,11 +7,11 @@ port-forward, no DNS setup.
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC_API_KEY
+cp .env.example .env  # fill in CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `FC_BASE_URL` defaults to the
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_BASE_URL` defaults to the
 production control plane and only needs to be set to override.
 
 > ℹ️ The example fetches the preview URL over `http://` (port 80). The
@@ -27,7 +27,7 @@ production control plane and only needs to be set to override.
 2. Launches `python3 -m http.server 8080 --bind 0.0.0.0` daemonised
    (devbox:1 has no systemd).
 3. Polls `waitForPortReady(8080)` until the server accepts connections.
-4. Derives the public URL: `http://<ulid>-8080.fc-spawn.example.com/` (the
+4. Derives the public URL: `http://<ulid>-8080.createos-sandbox.example.com/` (the
    `sb-` prefix is stripped from `sandbox.id`).
 5. `fetch`es the URL and prints the response body.
 6. Destroys the sandbox.

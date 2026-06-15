@@ -12,19 +12,19 @@
  * the showcase example — start here to see what a sandbox can do.
  *
  * Run:   bun 35-aio-sandbox/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, and ANTHROPIC_BASE_URL +
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, and ANTHROPIC_BASE_URL +
  *        ANTHROPIC_AUTH_TOKEN (+ optional ANTHROPIC_MODEL) for the page
  *        generation (see .env.example).
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
 const PORT = 8000;
 
-const fc = new FcClient({
-  baseUrl: process.env.FC_BASE_URL,
+const fc = new CreateosSandboxClient({
+  baseUrl: process.env.CREATEOS_SANDBOX_BASE_URL,
 });
 
 const anthropic = new Anthropic({

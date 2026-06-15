@@ -21,7 +21,7 @@ EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 def main() -> int:
-    question = sys.argv[1] if len(sys.argv) > 1 else "What is fc-spawn?"
+    question = sys.argv[1] if len(sys.argv) > 1 else "What is createos-sandbox?"
 
     api_base = os.environ["OPENAI_API_URL"]
     api_key = os.environ["OPENAI_API_KEY"]

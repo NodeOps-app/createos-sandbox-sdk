@@ -10,13 +10,13 @@
  * introspect any path inside the clone without network access.
  *
  * Run:   bun 45-claude-github-wiki/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY, plus ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN
  *        / ANTHROPIC_MODEL (or standard ANTHROPIC_API_KEY) for the Claude calls.
  *        No external paid repos — clones github.com/bun-community/create-templates,
  *        a small public repo (~300 KB).
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // Small public repo: bun starter templates, <350 KB total.
 const REPO_URL = "https://github.com/bun-community/create-templates.git";
@@ -66,8 +66,8 @@ const TOOLS: Anthropic.Tool[] = [
 const anthropic = new Anthropic();
 const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 
-const fc = new FcClient({
-  baseUrl: process.env.FC_BASE_URL,
+const fc = new CreateosSandboxClient({
+  baseUrl: process.env.CREATEOS_SANDBOX_BASE_URL,
 });
 
 console.log(`[1/4] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);

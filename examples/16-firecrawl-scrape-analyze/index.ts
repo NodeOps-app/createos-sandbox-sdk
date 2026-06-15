@@ -11,13 +11,13 @@
  * still runs. The chosen data source is reported in the output and the summary.
  *
  * Run:   bun 16-firecrawl-scrape-analyze/index.ts
- * Needs: FC_API_KEY + ANTHROPIC_AUTH_TOKEN/ANTHROPIC_BASE_URL (Claude writes the
+ * Needs: CREATEOS_SANDBOX_API_KEY + ANTHROPIC_AUTH_TOKEN/ANTHROPIC_BASE_URL (Claude writes the
  *        code). FIRECRAWL_API_KEY optional — falls back to a bundled fixture.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import Anthropic from "@anthropic-ai/sdk";
-import { FcClient, FcValidationError } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb";
 const ROOTFS = "devbox:1";
@@ -47,7 +47,7 @@ interface Listing {
 }
 
 const anthropic = new Anthropic();
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 // ── 1. Acquire listings ────────────────────────────────────────────────
 //
@@ -187,7 +187,7 @@ async function createWithRetry() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;

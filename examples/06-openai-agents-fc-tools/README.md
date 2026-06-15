@@ -13,8 +13,8 @@ bun index.ts
 
 bun auto-loads `.env` from the example dir. The script also fills missing
 values from `../.env`, which is convenient when sharing credentials across
-these examples. `FC_BASE_URL` and `FC_API_KEY` are the standard inputs
-`fc-sandbox-sdk` consumes. Set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a
+these examples. `CREATEOS_SANDBOX_BASE_URL` and `CREATEOS_SANDBOX_API_KEY` are the standard inputs
+`createos-sandbox-sdk` consumes. Set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a
 live OpenAI model; `OPENAI_API_URL` or `OPENAI_BASE_URL` can point at an
 OpenAI-compatible endpoint. Without an OpenAI key, the example uses a
 deterministic local model through the Agents SDK runner so the FC tool path

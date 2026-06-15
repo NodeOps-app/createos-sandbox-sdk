@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "fc-sandbox-sdk",
+      "name": "createos-sandbox-sdk",
       "devDependencies": {
         "@types/bun": "1.3.14",
         "oxfmt": "^0.54.0",

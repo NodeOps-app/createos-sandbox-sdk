@@ -8,11 +8,11 @@ OpenAI-compatible `/v1/models` endpoint are reachable through the public preview
 
 ```sh
 cp .env.example .env
-# fill in FC_API_KEY and optionally OPENCLAW_GATEWAY_TOKEN
+# fill in CREATEOS_SANDBOX_API_KEY and optionally OPENCLAW_GATEWAY_TOKEN
 bun index.ts
 ```
 
-Bun auto-loads `.env` from the working directory. `FC_API_KEY` is the only required
+Bun auto-loads `.env` from the working directory. `CREATEOS_SANDBOX_API_KEY` is the only required
 key; `OPENCLAW_GATEWAY_TOKEN` defaults to a built-in demo value if omitted.
 
 Expected run time: ~90 seconds (install 372 packages + gateway startup).

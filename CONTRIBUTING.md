@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in `fc-sandbox-sdk`. This document covers local
+Thanks for your interest in `createos-sandbox-sdk`. This document covers local
 setup, the dev workflow, and the conventions the project enforces.
 
 By participating you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
@@ -11,7 +11,7 @@ The toolchain is [Bun](https://bun.sh)-first. Install Bun, then:
 
 ```sh
 git clone <REPO_URL>
-cd fc-sandbox-sdk
+cd createos-sandbox-sdk
 bun install
 pre-commit install
 ```

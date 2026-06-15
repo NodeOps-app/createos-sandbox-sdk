@@ -8,19 +8,20 @@
  * top-k retrieved chunks land on the host.
  *
  * Run:   bun 13-llamaindex-rag/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY and an OpenAI-compatible endpoint
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY and an OpenAI-compatible endpoint
  *        (OPENAI_API_KEY + OPENAI_API_URL, optional OPENAI_MODEL). The sandbox
  *        needs outbound network to install packages and pull the embed model.
  *        See .env.example.
  */
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { FcClient, FcValidationError } from "fc-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 const SHAPE = "s-4vcpu-4gb";
 const ROOTFS = "devbox:1";
 const CORPUS_DIR = new URL("./corpus/", import.meta.url).pathname;
 const OUTPUT_DIR = new URL("./output/", import.meta.url).pathname;
-const QUESTION = "What states does an fc-spawn sandbox move through, and which one is terminal?";
+const QUESTION =
+  "What states does an createos-sandbox sandbox move through, and which one is terminal?";
 
 const OPENAI_API_URL = process.env.OPENAI_API_URL ?? process.env.OPENAI_BASE_URL;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -30,7 +31,7 @@ if (!OPENAI_API_URL || !OPENAI_API_KEY) {
   process.exit(1);
 }
 
-const fc = new FcClient();
+const fc = new CreateosSandboxClient();
 
 async function createWithRetry() {
   const name = `llamaidx-${Date.now().toString(36).slice(-6)}`;
@@ -55,7 +56,7 @@ async function createWithRetry() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =
-        err instanceof FcValidationError ||
+        err instanceof CreateosSandboxValidationError ||
         /cap|quota|limit|too many|capacity|unavailable|503|502/i.test(msg);
       if (!retriable || i === maxAttempts) throw err;
       const wait = 30_000 * i;

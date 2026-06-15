@@ -8,11 +8,11 @@
  * inside the sandbox and is torn down when done.
  *
  * Run:   bun 43-crawl4ai-crawler/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (see .env.example). The crawl runs entirely
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). The crawl runs entirely
  *        inside the VM, so no ingress is involved.
  */
 import { writeFile } from "node:fs/promises";
-import { FcClient } from "fc-sandbox-sdk";
+import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // Crawl4AI + Chromium need headroom: 4 GB keeps the install + browser
 // process comfortable and avoids OOM during `playwright install --with-deps`.
@@ -22,13 +22,13 @@ const TARGET_URL = process.env.CRAWL_URL ?? "https://example.com";
 const OUTPUT_PATH = "/tmp/crawl_output.md";
 const APP_DIR = "/app";
 
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
 const sandbox = await fc.createSandbox({

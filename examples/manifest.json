@@ -9,7 +9,7 @@
       "summary": "Smoke test: create a sandbox, run one buffered command, destroy it.",
       "primitives": ["createSandbox", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -22,7 +22,7 @@
       "summary": "Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "streamCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable",
@@ -36,7 +36,7 @@
       "summary": "Bind an HTTP server and reach it via a per-sandbox ingress preview URL.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable",
@@ -50,7 +50,7 @@
       "summary": "Use a sandbox as the code-execution environment for a Claude agent.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "ANTHROPIC_API_KEY"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -71,7 +71,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -84,7 +84,12 @@
       "summary": "Expose sandbox operations as tools to the OpenAI Agents SDK.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": ["@openai/agents", "zod"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -104,7 +109,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -117,7 +122,7 @@
       "summary": "Clone a repo, start a dev server, expose it via a live ingress URL.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -130,7 +135,7 @@
       "summary": "Run the Claude Code CLI inside a sandbox.",
       "primitives": ["createSandbox", "runCommand", "streamCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "ANTHROPIC_API_KEY"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -144,8 +149,8 @@
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_API_KEY",
         "BROWSERBASE_API_KEY",
         "BROWSERBASE_PROJECT_ID"
@@ -163,7 +168,7 @@
       "summary": "Run PostgreSQL on a TigerFS filesystem layer in one microVM.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -184,7 +189,12 @@
         "destroy"
       ],
       "deps": ["@anthropic-ai/sdk"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -205,7 +215,13 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -226,7 +242,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable",
@@ -240,7 +256,7 @@
       "summary": "Run an Agent Client Protocol agent in a sandbox over JSON-RPC.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -254,8 +270,8 @@
       "primitives": ["createSandbox", "files.upload", "files.download", "runCommand", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "FIRECRAWL_API_KEY",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
@@ -274,8 +290,8 @@
       "primitives": ["createSandbox", "files.upload", "files.download", "runCommand", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -299,7 +315,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -312,7 +328,7 @@
       "summary": "Shard a classification job across many sandboxes in parallel.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "listSandboxes", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -325,7 +341,13 @@
       "summary": "Drive a Google ADK agent whose tools run inside a microVM.",
       "primitives": ["createSandbox", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -345,7 +367,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -366,8 +388,8 @@
       ],
       "deps": [],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -384,7 +406,7 @@
       "summary": "Run a Prometheus Pushgateway, push a metric, scrape it via ingress.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -397,7 +419,7 @@
       "summary": "Query a public S3 bucket via DuckDB httpfs inside a sandbox.",
       "primitives": ["createSandbox", "files.upload", "files.download", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -417,7 +439,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -430,7 +452,7 @@
       "summary": "Run code-server (VS Code in the browser) over ingress.",
       "primitives": ["createSandbox", "runCommand", "waitForPortReady", "previewUrl", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -443,7 +465,7 @@
       "summary": "Run Playwright + headless Chromium to scrape and extract the DOM.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -463,7 +485,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -476,7 +498,7 @@
       "summary": "Clone a TS repo and drive typescript-language-server over stdio.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -489,7 +511,12 @@
       "summary": "Model sandbox operations as LangGraph nodes with an OpenAI LLM.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": ["openai", "@langchain/langgraph"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -502,7 +529,13 @@
       "summary": "Run the OpenAI Codex CLI in a sandbox to execute a task.",
       "primitives": ["createSandbox", "files.upload", "files.download", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -522,7 +555,7 @@
         "destroy"
       ],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENCLAW_GATEWAY_TOKEN"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "OPENCLAW_GATEWAY_TOKEN"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -545,8 +578,8 @@
       ],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -563,7 +596,7 @@
       "summary": "Back a Claude Managed Agent with one persistent microVM for tool execution.",
       "primitives": ["createSandbox", "runCommand", "files.download", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "ANTHROPIC_API_KEY"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
       "entry": "index.ts",
       "ci": false,
       "status": "requires-extra-setup",
@@ -577,7 +610,7 @@
       "summary": "Back a Claude Managed Agent with a fresh microVM per session.",
       "primitives": ["createSandbox", "runCommand", "files.download", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "ANTHROPIC_API_KEY"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
       "entry": "index.ts",
       "ci": false,
       "status": "requires-extra-setup",
@@ -603,8 +636,8 @@
       ],
       "deps": [],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "S3_BUCKET",
         "S3_ENDPOINT",
         "S3_REGION",
@@ -624,7 +657,7 @@
       "summary": "Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes).",
       "primitives": ["createSandbox", "getBandwidth", "rechargeBandwidth", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -637,7 +670,7 @@
       "summary": "Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.",
       "primitives": ["createSandbox", "setAutoPause", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -650,7 +683,7 @@
       "summary": "Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -663,7 +696,7 @@
       "summary": "Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "files.download", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
@@ -676,7 +709,7 @@
       "summary": "Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "files.download", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": false,
       "status": "stable",
@@ -698,8 +731,8 @@
       ],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -718,8 +751,8 @@
       "primitives": ["createSandbox", "runCommand", "destroy"],
       "deps": ["@anthropic-ai/sdk"],
       "env": [
-        "FC_API_KEY",
-        "FC_BASE_URL",
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
         "ANTHROPIC_AUTH_TOKEN",
         "ANTHROPIC_BASE_URL",
         "ANTHROPIC_MODEL"
@@ -736,7 +769,13 @@
       "summary": "Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.",
       "primitives": ["createSandbox", "sh", "files.upload", "destroy"],
       "deps": [],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": false,
       "status": "stable",
@@ -750,7 +789,13 @@
       "summary": "Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "sh", "destroy"],
       "deps": ["ai", "@ai-sdk/openai"],
-      "env": ["FC_API_KEY", "FC_BASE_URL", "OPENAI_API_KEY", "OPENAI_API_URL", "OPENAI_MODEL"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY",
+        "OPENAI_API_URL",
+        "OPENAI_MODEL"
+      ],
       "entry": "index.ts",
       "ci": false,
       "status": "stable",

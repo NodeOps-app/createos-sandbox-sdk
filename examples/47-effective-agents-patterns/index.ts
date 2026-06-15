@@ -6,10 +6,10 @@
  * environment.
  *
  * Run:   bun 47-effective-agents-patterns/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY + OPENAI_API_KEY + OPENAI_API_URL + OPENAI_MODEL
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY + OPENAI_API_KEY + OPENAI_API_URL + OPENAI_MODEL
  */
 import { readFileSync } from "node:fs";
-import { Sandbox } from "fc-sandbox-sdk";
+import { Sandbox } from "createos-sandbox-sdk";
 
 // Bridge host env vars into the sandbox so the agent code can reach the LLM proxy.
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

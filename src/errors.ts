@@ -1,25 +1,25 @@
-// Typed error hierarchy for the fc-spawn SDK.
+// Typed error hierarchy for the createos-sandbox SDK.
 //
-//   FcError                      base — every SDK error
-//   ├─ FcApiError                non-2xx HTTP response
-//   │  ├─ FcAuthError            401
-//   │  ├─ FcPermissionError      403
-//   │  ├─ FcNotFoundError        404
-//   │  ├─ FcValidationError      400 / 409 / 422
-//   │  ├─ FcRateLimitError       429
-//   │  └─ FcServerError          5xx
-//   ├─ FcConnectionError         network failure (no response)
-//   └─ FcTimeoutError            request or wait deadline exceeded
+//   CreateosSandboxError                      base — every SDK error
+//   ├─ CreateosSandboxApiError                non-2xx HTTP response
+//   │  ├─ CreateosSandboxAuthError            401
+//   │  ├─ CreateosSandboxPermissionError      403
+//   │  ├─ CreateosSandboxNotFoundError        404
+//   │  ├─ CreateosSandboxValidationError      400 / 409 / 422
+//   │  ├─ CreateosSandboxRateLimitError       429
+//   │  └─ CreateosSandboxServerError          5xx
+//   ├─ CreateosSandboxConnectionError         network failure (no response)
+//   └─ CreateosSandboxTimeoutError            request or wait deadline exceeded
 
 import type { ErrorEnvelope, FailEnvelope, JSendEnvelope } from "./types.js";
 
 /**
  * Base class for every error the SDK throws. Catch this to handle all SDK
  * failures uniformly; narrow with `instanceof` to a subclass for HTTP-status
- * (`FcApiError` and friends) or transport (`FcConnectionError`,
- * `FcTimeoutError`) handling.
+ * (`CreateosSandboxApiError` and friends) or transport (`CreateosSandboxConnectionError`,
+ * `CreateosSandboxTimeoutError`) handling.
  */
-export class FcError extends Error {
+export class CreateosSandboxError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     // Subclasses inherit this constructor; `new.target` resolves to the class
@@ -31,7 +31,7 @@ export class FcError extends Error {
   }
 }
 
-/** Optional request context attached to every {@link FcApiError}. */
+/** Optional request context attached to every {@link CreateosSandboxApiError}. */
 export interface ErrorRequestContext {
   /** URL pathname of the request that produced this error (no host or query). */
   endpoint?: string | undefined;
@@ -40,7 +40,7 @@ export interface ErrorRequestContext {
 }
 
 /** Thrown for any non-2xx response from the control plane. */
-export class FcApiError extends FcError {
+export class CreateosSandboxApiError extends CreateosSandboxError {
   readonly statusCode: number;
   readonly response: Response;
   readonly envelope: FailEnvelope | ErrorEnvelope | undefined;
@@ -68,6 +68,7 @@ export class FcApiError extends FcError {
     this.envelope = envelope;
     this.requestId =
       response.headers.get("x-request-id") ?? response.headers.get("x-fc-request-id") ?? undefined;
+
     this.resourceId = resourceId;
     this.code = extractCode(envelope);
     this.endpoint = context?.endpoint;
@@ -88,19 +89,19 @@ function extractCode(envelope?: FailEnvelope | ErrorEnvelope): string | undefine
  * Thrown for `401 Unauthorized` responses — the API key is missing,
  * revoked, or otherwise rejected by the control plane.
  */
-export class FcAuthError extends FcApiError {}
+export class CreateosSandboxAuthError extends CreateosSandboxApiError {}
 
 /**
  * Thrown for `403 Forbidden` responses — the API key authenticated but is
  * not authorized to access the resource (quota, ACL, or tenant mismatch).
  */
-export class FcPermissionError extends FcApiError {}
+export class CreateosSandboxPermissionError extends CreateosSandboxApiError {}
 
 /**
  * Thrown for `404 Not Found` responses — the sandbox, template, network,
  * or disk id does not resolve to an existing resource in this tenant.
  */
-export class FcNotFoundError extends FcApiError {}
+export class CreateosSandboxNotFoundError extends CreateosSandboxApiError {}
 
 /**
  * Thrown for `400 Bad Request`, `409 Conflict`, and `422 Unprocessable
@@ -108,7 +109,7 @@ export class FcNotFoundError extends FcApiError {}
  * makes the operation invalid (unknown shape, invalid state transition,
  * field validation failure).
  */
-export class FcValidationError extends FcApiError {}
+export class CreateosSandboxValidationError extends CreateosSandboxApiError {}
 
 /**
  * Thrown for `402 Payment Required` responses — the account is out of
@@ -117,14 +118,14 @@ export class FcValidationError extends FcApiError {}
  * positive credit balance. Top up to continue; retrying without doing so
  * returns the same error.
  */
-export class FcPaymentRequiredError extends FcApiError {}
+export class CreateosSandboxPaymentRequiredError extends CreateosSandboxApiError {}
 
 /**
  * Thrown for `429 Too Many Requests` responses — the caller exceeded the
  * rate limit. {@link retryAfterSeconds} carries the parsed `Retry-After`
  * delay when the server provided one.
  */
-export class FcRateLimitError extends FcApiError {
+export class CreateosSandboxRateLimitError extends CreateosSandboxApiError {
   /** Seconds to wait before retrying, parsed from the Retry-After header. */
   readonly retryAfterSeconds: number | undefined;
 
@@ -145,13 +146,13 @@ export class FcRateLimitError extends FcApiError {
  * but failed to fulfil it (host capacity exhausted, internal error, or
  * upstream component unavailable).
  */
-export class FcServerError extends FcApiError {}
+export class CreateosSandboxServerError extends CreateosSandboxApiError {}
 
 /** The request never reached the server (DNS, connection refused, socket reset). */
-export class FcConnectionError extends FcError {}
+export class CreateosSandboxConnectionError extends CreateosSandboxError {}
 
 /** A request or a `waitUntil*` poll exceeded its deadline. */
-export class FcTimeoutError extends FcError {}
+export class CreateosSandboxTimeoutError extends CreateosSandboxError {}
 
 /** Parses a Retry-After header value (delta-seconds or HTTP-date) to seconds. */
 export function parseRetryAfterSeconds(value: string | null): number | undefined {
@@ -170,7 +171,7 @@ export function parseRetryAfterSeconds(value: string | null): number | undefined
 }
 
 /**
- * Builds the right FcApiError subclass for a non-2xx response. The envelope,
+ * Builds the right CreateosSandboxApiError subclass for a non-2xx response. The envelope,
  * when present, is the parsed JSend `fail` / `error` body. `context.endpoint`
  * lets the error carry the request pathname (also drives resource-id parsing);
  * `context.method` records the HTTP method used.
@@ -179,7 +180,7 @@ export function errorFromResponse(
   response: Response,
   envelope?: JSendEnvelope<unknown>,
   context?: ErrorRequestContext,
-): FcApiError {
+): CreateosSandboxApiError {
   const typed =
     envelope?.status === "fail" || envelope?.status === "error"
       ? (envelope as FailEnvelope | ErrorEnvelope)
@@ -190,24 +191,24 @@ export function errorFromResponse(
 
   switch (response.status) {
     case 401:
-      return new FcAuthError(message, response, typed, resourceId, context);
+      return new CreateosSandboxAuthError(message, response, typed, resourceId, context);
     case 403:
-      return new FcPermissionError(message, response, typed, resourceId, context);
+      return new CreateosSandboxPermissionError(message, response, typed, resourceId, context);
     case 404:
-      return new FcNotFoundError(message, response, typed, resourceId, context);
+      return new CreateosSandboxNotFoundError(message, response, typed, resourceId, context);
     case 400:
     case 409:
     case 422:
-      return new FcValidationError(message, response, typed, resourceId, context);
+      return new CreateosSandboxValidationError(message, response, typed, resourceId, context);
     case 402:
-      return new FcPaymentRequiredError(message, response, typed, resourceId, context);
+      return new CreateosSandboxPaymentRequiredError(message, response, typed, resourceId, context);
     case 429:
-      return new FcRateLimitError(message, response, typed, resourceId, context);
+      return new CreateosSandboxRateLimitError(message, response, typed, resourceId, context);
     default:
       if (response.status >= 500) {
-        return new FcServerError(message, response, typed, resourceId, context);
+        return new CreateosSandboxServerError(message, response, typed, resourceId, context);
       }
-      return new FcApiError(message, response, typed, resourceId, context);
+      return new CreateosSandboxApiError(message, response, typed, resourceId, context);
   }
 }
 
@@ -232,7 +233,7 @@ function buildMessage(status: number, envelope?: FailEnvelope | ErrorEnvelope): 
     const data = envelope.data;
     if (typeof data === "string") {
       if (data) {
-        return `fc-spawn request failed (${status}): ${data}`;
+        return `createos-sandbox request failed (${status}): ${data}`;
       }
     } else if (data && typeof data === "object") {
       // data may be null despite the FailEnvelope type — the control plane
@@ -241,14 +242,14 @@ function buildMessage(status: number, envelope?: FailEnvelope | ErrorEnvelope): 
         .map(([key, value]) => `${key}: ${String(value)}`)
         .join(", ");
       if (fields) {
-        return `fc-spawn request failed (${status}): ${fields}`;
+        return `createos-sandbox request failed (${status}): ${fields}`;
       }
     }
   }
 
   switch (status) {
     case 401:
-      return "Unauthorized (401): missing or invalid API key. Set FC_API_KEY or pass apiKey.";
+      return "Unauthorized (401): missing or invalid API key. Set CREATEOS_SANDBOX_API_KEY or pass apiKey.";
     case 403:
       return "Forbidden (403): the API key cannot access this resource.";
     case 404:
@@ -260,6 +261,6 @@ function buildMessage(status: number, envelope?: FailEnvelope | ErrorEnvelope): 
     case 503:
       return "Service unavailable (503): no host with capacity. Retry shortly.";
     default:
-      return `fc-spawn request failed with ${status}.`;
+      return `createos-sandbox request failed with ${status}.`;
   }
 }

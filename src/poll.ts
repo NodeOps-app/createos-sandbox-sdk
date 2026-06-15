@@ -1,6 +1,6 @@
 // Polling primitives for the waitUntil* lifecycle helpers.
 
-import { FcError, FcTimeoutError } from "./errors.js";
+import { CreateosSandboxError, CreateosSandboxTimeoutError } from "./errors.js";
 
 /** Resolves after `ms`, or early if `signal` aborts. Never rejects. */
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -56,7 +56,7 @@ export async function pollUntil<T>(options: PollOptions<T>): Promise<T> {
 
   for (;;) {
     if (options.signal?.aborted) {
-      throw new FcError("Wait aborted.");
+      throw new CreateosSandboxError("Wait aborted.");
     }
 
     const value = await options.poll();
@@ -66,11 +66,11 @@ export async function pollUntil<T>(options: PollOptions<T>): Promise<T> {
 
     const failure = options.failed?.(value);
     if (failure !== undefined) {
-      throw new FcError(failure);
+      throw new CreateosSandboxError(failure);
     }
 
     if (Date.now() >= deadline) {
-      throw new FcTimeoutError(
+      throw new CreateosSandboxTimeoutError(
         `Timed out after ${options.timeoutMs}ms waiting for the expected state.`,
       );
     }

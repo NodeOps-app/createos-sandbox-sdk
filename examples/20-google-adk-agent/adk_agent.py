@@ -4,8 +4,8 @@ Runs on the host (this process). The FC sandbox is created and owned by the
 TypeScript entry (index.ts); its id and the FC connection creds arrive via env:
 
     FC_SANDBOX_ID  — the sandbox this agent drives
-    FC_BASE_URL    — control-plane base URL
-    FC_API_KEY     — sent as the X-Api-Key header
+    CREATEOS_SANDBOX_BASE_URL    — control-plane base URL
+    CREATEOS_SANDBOX_API_KEY     — sent as the X-Api-Key header
 
 Three ADK tools wrap the FC HTTP API so the agent reasons over a small coding
 task and every step lands as a real sandbox operation:
@@ -39,25 +39,25 @@ APP_NAME = "fc-adk-agent"
 WORKDIR = "/root/adk-workspace"
 
 SANDBOX_ID = os.environ["FC_SANDBOX_ID"]
-FC_BASE_URL = os.environ["FC_BASE_URL"].rstrip("/")
-FC_API_KEY = os.environ["FC_API_KEY"]
+CREATEOS_SANDBOX_BASE_URL = os.environ["CREATEOS_SANDBOX_BASE_URL"].rstrip("/")
+CREATEOS_SANDBOX_API_KEY = os.environ["CREATEOS_SANDBOX_API_KEY"]
 
 
 # ── FC HTTP client (stdlib only) ──────────────────────────────────────────
 
 
-class FcError(RuntimeError):
+class CreateosSandboxError(RuntimeError):
     pass
 
 
 def _request(method, path, *, query=None, json_body=None, raw_body=None,
              content_type=None, expect_json=True):
-    url = f"{FC_BASE_URL}{path}"
+    url = f"{CREATEOS_SANDBOX_BASE_URL}{path}"
     if query:
         url += "?" + urllib.parse.urlencode(query)
 
     data = raw_body
-    headers = {"X-Api-Key": FC_API_KEY, "Accept": "application/json"}
+    headers = {"X-Api-Key": CREATEOS_SANDBOX_API_KEY, "Accept": "application/json"}
     if json_body is not None:
         data = json.dumps(json_body).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -70,9 +70,9 @@ def _request(method, path, *, query=None, json_body=None, raw_body=None,
             payload = resp.read()
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:400]
-        raise FcError(f"{method} {path} -> HTTP {e.code}: {body}") from e
+        raise CreateosSandboxError(f"{method} {path} -> HTTP {e.code}: {body}") from e
     except urllib.error.URLError as e:
-        raise FcError(f"{method} {path} -> connection error: {e.reason}") from e
+        raise CreateosSandboxError(f"{method} {path} -> connection error: {e.reason}") from e
 
     if not expect_json:
         return payload
@@ -80,7 +80,7 @@ def _request(method, path, *, query=None, json_body=None, raw_body=None,
     # JSend envelope: { "status": "success", "data": <T> }. Unwrap to data.
     envelope = json.loads(payload.decode("utf-8"))
     if envelope.get("status") != "success":
-        raise FcError(f"{method} {path} -> non-success envelope: {envelope}")
+        raise CreateosSandboxError(f"{method} {path} -> non-success envelope: {envelope}")
     return envelope.get("data")
 
 
@@ -172,7 +172,7 @@ def read_file(path: str) -> dict:
     print(f"\n[tool] read_file: {abs_path}", flush=True)
     try:
         content = fc_download(abs_path).decode("utf-8", "replace")
-    except FcError as e:
+    except CreateosSandboxError as e:
         return {"error": str(e)}
     print(f"       -> {content[:200]!r}", flush=True)
     return {"path": abs_path, "content": content}

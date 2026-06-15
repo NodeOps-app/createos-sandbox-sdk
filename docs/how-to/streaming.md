@@ -57,7 +57,7 @@ proxies), use `http.stream<ExecStreamFrame>` directly on the low-level
 transport:
 
 ```ts
-import type { ExecStreamFrame } from "fc-sandbox-sdk";
+import type { ExecStreamFrame } from "createos-sandbox-sdk";
 
 for await (const frame of fc.http.stream<ExecStreamFrame>("POST", `/v1/sandboxes/${id}/exec`, {
   query: { stream: true },

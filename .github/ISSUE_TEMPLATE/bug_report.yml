@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a defect in fc-sandbox-sdk
+description: Report a defect in createos-sandbox-sdk
 labels: ["bug"]
 body:
   - type: markdown
@@ -33,7 +33,7 @@ body:
     id: sdk-version
     attributes:
       label: SDK version
-      description: The `fc-sandbox-sdk` version (e.g. 0.3.0).
+      description: The `createos-sandbox-sdk` version (e.g. 0.3.0).
     validations:
       required: true
   - type: dropdown

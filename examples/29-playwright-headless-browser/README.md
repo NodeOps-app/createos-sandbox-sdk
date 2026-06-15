@@ -7,7 +7,7 @@ public web page, and extract structured content via the DOM.
 
 ```sh
 cp .env.example .env
-# fill in FC_BASE_URL + FC_API_KEY
+# fill in CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY
 bun index.ts
 ```
 

@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a new capability or change for fc-sandbox-sdk
+description: Propose a new capability or change for createos-sandbox-sdk
 labels: ["enhancement"]
 body:
   - type: textarea

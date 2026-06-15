@@ -6,23 +6,27 @@
  * verifies the server is live by hitting GET /global/health.
  *
  * Run:   bun 22-opencode-server/index.ts
- * Needs: FC_BASE_URL + FC_API_KEY (ingress must be granted
+ * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (ingress must be granted
  *        for previewUrl() to resolve), plus ANTHROPIC_AUTH_TOKEN /
  *        ANTHROPIC_BASE_URL / ANTHROPIC_MODEL — written into opencode's
  *        provider config so the in-VM server can reach an LLM.
  */
 
-import { FcClient, FcTimeoutError, pollUntil } from "fc-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxTimeoutError,
+  pollUntil,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-2vcpu-2gb"; // opencode + npm install need real RAM
 const ROOTFS = "devbox:1"; // ships Node 24 + npm
 const PORT = 4096; // opencode serve default port
 const APP_DIR = "/root/workspace"; // working directory for opencode
 
-const baseUrl = process.env.FC_BASE_URL;
-const apiKey = process.env.FC_API_KEY;
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!baseUrl || !apiKey) {
-  throw new Error("set FC_BASE_URL and FC_API_KEY (see .env.example)");
+  throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
 // The available env has ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL.
@@ -33,7 +37,7 @@ const anthropicAuthToken = process.env.ANTHROPIC_AUTH_TOKEN ?? "";
 const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
 const anthropicModel = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
 
-const fc = new FcClient({ baseUrl, apiKey });
+const fc = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // opencode.json configures the Anthropic provider with API key + base URL.
 // The {env:...} interpolation is resolved by opencode at startup from the
@@ -139,7 +143,7 @@ try {
     console.log(`  version: ${health?.version ?? "(not reported)"}`);
     console.log(`  body:    ${lastBody.trim()}`);
   } catch (err) {
-    if (!(err instanceof FcTimeoutError)) throw err;
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
     const log = await sandbox
       .sh(`tail -60 ${APP_DIR}/opencode.log`, { label: "opencode-log" })
       .then((r) => r.result.stdout)

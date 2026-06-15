@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcError, FcTimeoutError, Sandbox } from "../src/index.ts";
+import { CreateosSandboxError, CreateosSandboxTimeoutError, Sandbox } from "../src/index.ts";
 import {
   catchErr,
   CREATE_RESPONSE,
@@ -84,7 +84,7 @@ describe("commands", () => {
       ),
     );
     const err = await catchErr(() => sandbox.sh("false", { label: "apt" }));
-    expect(err).toBeInstanceOf(FcError);
+    expect(err).toBeInstanceOf(CreateosSandboxError);
     expect(err.message).toContain("apt: command exited 2");
     expect(err.message).toContain("boom");
   });
@@ -99,7 +99,7 @@ describe("commands", () => {
       ),
     );
     const err = await catchErr(() => sandbox.sh("./broken"));
-    expect(err).toBeInstanceOf(FcError);
+    expect(err).toBeInstanceOf(CreateosSandboxError);
     expect(err.message).toContain("exec format error");
   });
 
@@ -278,7 +278,7 @@ describe("ingress", () => {
 
   test("previewUrl throws when ingress is not enabled", async () => {
     const sandbox = await connect(() => Promise.resolve(success(RUNNING_VIEW)));
-    expect(() => sandbox.previewUrl(8080)).toThrow(FcError);
+    expect(() => sandbox.previewUrl(8080)).toThrow(CreateosSandboxError);
   });
 
   test("setIngress(false) invalidates the preview URL template", async () => {
@@ -298,12 +298,12 @@ describe("ingress", () => {
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
     expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.fc.test");
     await sandbox.setIngress(false);
-    expect(() => sandbox.previewUrl(8080)).toThrow(FcError);
+    expect(() => sandbox.previewUrl(8080)).toThrow(CreateosSandboxError);
   });
 
   test("previewUrl rejects an out-of-range port", async () => {
     const sandbox = await connect(() => Promise.resolve(success(RUNNING_VIEW)));
-    expect(() => sandbox.previewUrl(0)).toThrow(FcError);
+    expect(() => sandbox.previewUrl(0)).toThrow(CreateosSandboxError);
   });
 });
 
@@ -423,7 +423,7 @@ describe("waitUntil* helpers", () => {
     );
     const sandbox = await client.getSandbox("sb_1");
     const err = await catchErr(() => sandbox.waitUntilRunning({ timeoutMs: 5000 }));
-    expect(err).toBeInstanceOf(FcError);
+    expect(err).toBeInstanceOf(CreateosSandboxError);
     expect(err.message).toMatch(/destroying/);
   });
 
@@ -463,24 +463,24 @@ describe("waitForPortReady", () => {
     expect(script).toMatch(/\/dev\/tcp\/0\.0\.0\.0\/3000/);
   });
 
-  test("throws FcTimeoutError when the probe exits non-zero", async () => {
+  test("throws CreateosSandboxTimeoutError when the probe exits non-zero", async () => {
     const sandbox = await connect(() =>
       Promise.resolve(success({ result: { stdout: "", stderr: "", exit_code: 1 }, exec_ms: 1 })),
     );
     await expect(sandbox.waitForPortReady(8080, { timeoutMs: 1000 })).rejects.toBeInstanceOf(
-      FcTimeoutError,
+      CreateosSandboxTimeoutError,
     );
   });
 
   test("rejects an out-of-range port before issuing any request", async () => {
     const sandbox = await connect(() => Promise.resolve(success(RUNNING_VIEW)));
-    await expect(sandbox.waitForPortReady(70_000)).rejects.toBeInstanceOf(FcError);
+    await expect(sandbox.waitForPortReady(70_000)).rejects.toBeInstanceOf(CreateosSandboxError);
   });
 
   test("rejects a host containing shell metacharacters (injection guard)", async () => {
     const sandbox = await connect(() => Promise.resolve(success(RUNNING_VIEW)));
     await expect(
       sandbox.waitForPortReady(8080, { host: "127.0.0.1; rm -rf /" }),
-    ).rejects.toBeInstanceOf(FcError);
+    ).rejects.toBeInstanceOf(CreateosSandboxError);
   });
 });

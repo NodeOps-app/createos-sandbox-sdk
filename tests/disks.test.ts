@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { FcServerError } from "../src/index.ts";
+import { CreateosSandboxServerError } from "../src/index.ts";
 import { catchErr, errorEnvelope, makeClient, RUNNING_VIEW, success } from "./helpers.ts";
 
 const DISK_VIEW: Record<string, unknown> = {
@@ -60,7 +60,7 @@ describe("DisksApi", () => {
     ]);
   });
 
-  test("create surfaces a 503 'disks API not configured' as FcServerError", async () => {
+  test("create surfaces a 503 'disks API not configured' as CreateosSandboxServerError", async () => {
     const client = makeClient(
       () => Promise.resolve(errorEnvelope("disks API not configured", 0, 503)),
       {
@@ -68,7 +68,7 @@ describe("DisksApi", () => {
       },
     );
     const err = await catchErr(() => client.disks.create(S3_REQUEST));
-    expect(err).toBeInstanceOf(FcServerError);
+    expect(err).toBeInstanceOf(CreateosSandboxServerError);
     expect(err.statusCode).toBe(503);
   });
 
