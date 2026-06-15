@@ -71,12 +71,12 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [39-bandwidth-recharge](examples/39-bandwidth-recharge/) — Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes).
 - [40-idle-auto-pause](examples/40-idle-auto-pause/) — Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.
 - [41-python-pdf-extractor](examples/41-python-pdf-extractor/) — Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.
-- [42-doc-to-markdown](examples/42-doc-to-markdown/) — Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.
+- [42-doc-to-markdown](examples/42-doc-to-markdown/) — Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.
 - [43-crawl4ai-crawler](examples/43-crawl4ai-crawler/) — Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.
 - [44-claude-changelog-generator](examples/44-claude-changelog-generator/) — Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.
 - [45-claude-github-wiki](examples/45-claude-github-wiki/) — Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase.
-- [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
-- [47-effective-agents-patterns](examples/47-effective-agents-patterns/) — Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy.
+- [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside a createos-sandbox microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
+- [47-effective-agents-patterns](examples/47-effective-agents-patterns/) — Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

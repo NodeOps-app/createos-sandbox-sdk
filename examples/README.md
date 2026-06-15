@@ -65,12 +65,12 @@ bun 01-hello-world/index.ts
 | 39 | [39-bandwidth-recharge](39-bandwidth-recharge/) | Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes). | createSandbox, getBandwidth, rechargeBandwidth, destroy | — |
 | 40 | [40-idle-auto-pause](40-idle-auto-pause/) | Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing. | createSandbox, setAutoPause, destroy | — |
 | 41 | [41-python-pdf-extractor](41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | createSandbox, files.upload, runCommand, destroy | — |
-| 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
+| 42 | [42-doc-to-markdown](42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 | 43 | [43-crawl4ai-crawler](43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | createSandbox, files.upload, runCommand, files.download, destroy | — |
 | 44 | [44-claude-changelog-generator](44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | createSandbox, sh, runCommand, files.upload, files.download, destroy | extra |
 | 45 | [45-claude-github-wiki](45-claude-github-wiki/) | Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase. | createSandbox, runCommand, destroy | — |
-| 46 | [46-mastra-agent](46-mastra-agent/) | Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | createSandbox, sh, files.upload, destroy | — |
-| 47 | [47-effective-agents-patterns](47-effective-agents-patterns/) | Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy. | createSandbox, files.upload, runCommand, sh, destroy | — |
+| 46 | [46-mastra-agent](46-mastra-agent/) | Install the Mastra TypeScript agent framework inside a createos-sandbox microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | createSandbox, sh, files.upload, destroy | — |
+| 47 | [47-effective-agents-patterns](47-effective-agents-patterns/) | Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy. | createSandbox, files.upload, runCommand, sh, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -82,7 +82,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **14 jupyter-singleton** — Fork can occasionally stick in 'pausing' on the control plane.
 - **36 self-hosted-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **37 self-hosted-sandbox-per-session** — **needs extra setup** — Needs Anthropic managed-agents access.
-- **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the FC agent.
+- **38 s3-disk-ffmpeg-transcode** — **needs extra setup** — Needs an S3-compatible bucket reachable from the createos-sandbox agent.
 - **43 crawl4ai-crawler** — Heavy install step (~600 s); needs s-4vcpu-4gb for Chromium headroom.
 - **44 claude-changelog-generator** — **needs extra setup** — Needs ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL (or ANTHROPIC_API_KEY) for the Claude Messages API inside the sandbox.
 - **46 mastra-agent** — Requires an OpenAI-compatible provider (OPENAI_API_URL + OPENAI_API_KEY + OPENAI_MODEL). OTEL_SDK_DISABLED=true is injected into the sandbox to prevent Mastra's OpenTelemetry flush from blocking exit.

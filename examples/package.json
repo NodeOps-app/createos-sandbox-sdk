@@ -1,5 +1,5 @@
 {
-  "name": "fc-sdk-examples",
+  "name": "createos-sandbox-sdk-examples",
   "private": true,
   "type": "module",
   "dependencies": {

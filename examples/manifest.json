@@ -647,7 +647,7 @@
       "entry": "index.ts",
       "ci": false,
       "status": "requires-extra-setup",
-      "notes": "Needs an S3-compatible bucket reachable from the FC agent."
+      "notes": "Needs an S3-compatible bucket reachable from the createos-sandbox agent."
     },
     {
       "id": "39",
@@ -693,7 +693,7 @@
       "slug": "doc-to-markdown",
       "dir": "42-doc-to-markdown",
       "title": "Python doc to Markdown converter",
-      "summary": "Upload a local document (HTML, DOCX, PDF, …) into an FC sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.",
+      "summary": "Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "files.download", "destroy"],
       "deps": [],
       "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
@@ -766,7 +766,7 @@
       "slug": "mastra-agent",
       "dir": "46-mastra-agent",
       "title": "Mastra agent in a sandbox",
-      "summary": "Install the Mastra TypeScript agent framework inside an FC microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.",
+      "summary": "Install the Mastra TypeScript agent framework inside a createos-sandbox microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.",
       "primitives": ["createSandbox", "sh", "files.upload", "destroy"],
       "deps": [],
       "env": [
@@ -786,7 +786,7 @@
       "slug": "effective-agents-patterns",
       "dir": "47-effective-agents-patterns",
       "title": "Effective agent patterns",
-      "summary": "Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside an FC sandbox, with an OpenAI-compatible model proxy.",
+      "summary": "Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy.",
       "primitives": ["createSandbox", "files.upload", "runCommand", "sh", "destroy"],
       "deps": ["ai", "@ai-sdk/openai"],
       "env": [
