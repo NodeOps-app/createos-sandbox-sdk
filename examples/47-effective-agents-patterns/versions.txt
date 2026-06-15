@@ -1,5 +1,5 @@
 createos-sandbox-sdk: 0.6.0
-control-plane-url: https://createos-sandbox.bhautik.in
+control-plane-url: https://createos-sandbox.example.com
 region: default
 captured-date: 2026-05-29
 rootfs: devbox:1

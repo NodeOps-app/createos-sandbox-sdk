@@ -1,4 +1,4 @@
-"""ACP driver — runs inside the FC sandbox.
+"""ACP driver — runs inside the createos-sandbox.
 
 Spawns acp_agent.py as a subprocess and speaks JSON-RPC 2.0 over its stdio,
 walking the canonical ACP turn:
@@ -72,7 +72,7 @@ class AcpClient:
 
 
 def main() -> int:
-    prompt_text = sys.argv[1] if len(sys.argv) > 1 else "hello from FC"
+    prompt_text = sys.argv[1] if len(sys.argv) > 1 else "hello from createos-sandbox"
 
     proc = subprocess.Popen(
         ["python3", AGENT_PATH],
@@ -94,8 +94,8 @@ def main() -> int:
                     "terminal": False,
                 },
                 "clientInfo": {
-                    "name": "fc-acp-driver",
-                    "title": "FC ACP Driver",
+                    "name": "acp-driver",
+                    "title": "createos-sandbox ACP Driver",
                     "version": "0.1.0",
                 },
             },

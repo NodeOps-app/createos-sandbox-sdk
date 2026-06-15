@@ -1,13 +1,13 @@
-"""Google ADK agent whose tools execute inside an FC sandbox.
+"""Google ADK agent whose tools execute inside a createos-sandbox.
 
-Runs on the host (this process). The FC sandbox is created and owned by the
-TypeScript entry (index.ts); its id and the FC connection creds arrive via env:
+Runs on the host (this process). The createos-sandbox is created and owned by the
+TypeScript entry (index.ts); its id and the createos-sandbox connection creds arrive via env:
 
-    FC_SANDBOX_ID  — the sandbox this agent drives
+    CREATEOS_SANDBOX_ID  — the sandbox this agent drives
     CREATEOS_SANDBOX_BASE_URL    — control-plane base URL
     CREATEOS_SANDBOX_API_KEY     — sent as the X-Api-Key header
 
-Three ADK tools wrap the FC HTTP API so the agent reasons over a small coding
+Three ADK tools wrap the createos-sandbox HTTP API so the agent reasons over a small coding
 task and every step lands as a real sandbox operation:
 
     run_command  -> POST /v1/sandboxes/{id}/exec   (buffered command)
@@ -35,15 +35,15 @@ from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import InMemoryRunner
 from google.genai import types as genai_types
 
-APP_NAME = "fc-adk-agent"
+APP_NAME = "adk-agent"
 WORKDIR = "/root/adk-workspace"
 
-SANDBOX_ID = os.environ["FC_SANDBOX_ID"]
+SANDBOX_ID = os.environ["CREATEOS_SANDBOX_ID"]
 CREATEOS_SANDBOX_BASE_URL = os.environ["CREATEOS_SANDBOX_BASE_URL"].rstrip("/")
 CREATEOS_SANDBOX_API_KEY = os.environ["CREATEOS_SANDBOX_API_KEY"]
 
 
-# ── FC HTTP client (stdlib only) ──────────────────────────────────────────
+# ── createos-sandbox HTTP client (stdlib only) ──────────────────────────────────────────
 
 
 class CreateosSandboxError(RuntimeError):
@@ -111,11 +111,11 @@ def fc_download(path):
     )
 
 
-# ── ADK tools (each call hits the FC sandbox over HTTP) ────────────────────
+# ── ADK tools (each call hits the createos-sandbox over HTTP) ────────────────────
 
 
 def run_command(command: str) -> dict:
-    """Run a shell command inside the FC sandbox and return its output.
+    """Run a shell command inside the createos-sandbox and return its output.
 
     Use this to execute scripts, inspect the workspace, or run Python. The
     command runs through `bash -lc` so pipes and redirection work.
@@ -139,7 +139,7 @@ def run_command(command: str) -> dict:
 
 
 def write_file(path: str, content: str) -> dict:
-    """Write a UTF-8 text file into the FC sandbox workspace.
+    """Write a UTF-8 text file into the createos-sandbox workspace.
 
     Args:
         path: Path relative to the workspace (e.g. "compute.py").
@@ -158,7 +158,7 @@ def write_file(path: str, content: str) -> dict:
 
 
 def read_file(path: str) -> dict:
-    """Read a UTF-8 text file back from the FC sandbox workspace.
+    """Read a UTF-8 text file back from the createos-sandbox workspace.
 
     Args:
         path: Path relative to the workspace (e.g. "result.json").
@@ -190,9 +190,9 @@ def build_agent() -> Agent:
     return Agent(
         model=model,
         name="fc_sandbox_agent",
-        description="An agent that performs coding tasks inside an FC microVM sandbox.",
+        description="An agent that performs coding tasks inside a createos-sandbox microVM sandbox.",
         instruction=(
-            "You are a coding agent. Your tools run inside an isolated FC microVM "
+            "You are a coding agent. Your tools run inside an isolated createos-sandbox microVM "
             "sandbox: run_command executes shell commands, write_file writes files "
             "into the workspace, read_file reads them back. "
             "You MUST NOT compute or guess any result yourself. Every number you "

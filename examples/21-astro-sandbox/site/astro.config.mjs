@@ -1,6 +1,6 @@
 import { defineConfig } from "astro/config";
 
-// The dev server is reached through the FC ingress URL
+// The dev server is reached through the createos-sandbox ingress URL
 // (<ulid>-<port>.<region>.<domain>), whose Host header is not local. Vite's
 // dev server rejects non-local hosts with "Blocked request" unless they are
 // allow-listed. `allowedHosts: true` accepts the ingress host so the public

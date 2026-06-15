@@ -51,8 +51,8 @@ def handle(msg: dict) -> bool:
                     },
                 },
                 "agentInfo": {
-                    "name": "fc-acp-echo",
-                    "title": "FC ACP Echo Agent",
+                    "name": "acp-echo",
+                    "title": "createos-sandbox ACP Echo Agent",
                     "version": "0.1.0",
                 },
             },

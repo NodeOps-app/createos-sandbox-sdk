@@ -123,7 +123,7 @@ try {
       env: {
         ...process.env,
         // Hand the child exactly what it needs to reach createos-sandbox + the LLM proxy.
-        FC_SANDBOX_ID: sandbox.id,
+        CREATEOS_SANDBOX_ID: sandbox.id,
         CREATEOS_SANDBOX_BASE_URL,
         CREATEOS_SANDBOX_API_KEY,
         OPENAI_API_URL,

@@ -144,7 +144,7 @@ ant --version`,
 
   console.log("[4/6] creating agent + session bound to the self-hosted environment…");
   const agent = await anthropic.beta.agents.create({
-    name: `fc-self-hosted-worker-${Date.now() % 100000}`,
+    name: `createos-sandbox-worker-${Date.now() % 100000}`,
     model: AGENT_MODEL,
     system: `You are a terse assistant running inside a createos-sandbox microVM. Your working directory is ${WORKDIR}.`,
     tools: [{ type: "agent_toolset_20260401" }],
