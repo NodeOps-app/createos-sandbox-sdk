@@ -147,13 +147,13 @@ RAD_PASSPHRASE=${RAD_PASS} rad sync --announce || true
 
 // networks.create can transiently 503 under control-plane load; retry with backoff.
 async function createNetwork() {
-  const maxAttempts = 5;
+  const maxAttempts = 10;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
       return await box.networks.create({ name: `radicle-mesh-${Date.now()}` });
     } catch (err) {
       if (i === maxAttempts) throw err;
-      const wait = 5_000 * i;
+      const wait = Math.min(5_000 * i, 60_000);
       console.warn(
         `networks.create attempt ${i}/${maxAttempts} failed; retrying in ${wait / 1000}s…`,
       );
