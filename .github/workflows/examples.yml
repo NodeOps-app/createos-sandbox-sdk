@@ -87,17 +87,31 @@ jobs:
   run:
     needs: discover
     runs-on: arc-runner-set
-    timeout-minutes: 20
-    strategy:
-      # No max-parallel: intentionally run every example at once. This doubles
-      # as a load test of the createos-sandbox control plane — surfacing its
-      # behavior under a full parallel burst (503s, pause/resume latency, /exec
-      # blips) is a signal we want, not noise to suppress. Add a cap only if the
-      # goal shifts back to deterministic green CI.
-      fail-fast: false # one failing example must not cancel the others
-      matrix:
-        example: ${{ fromJson(needs.discover.outputs.examples) }}
-    name: ${{ matrix.example }}
+    # 5 concurrent waves × 20 min per example = up to 90 min worst-case
+    timeout-minutes: 90
+    env:
+      EXAMPLES_JSON: ${{ needs.discover.outputs.examples }}
+      # createos-sandbox control plane (read by the SDK + most examples)
+      CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
+      CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
+      # OpenAI / OpenAI-compatible
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_API_URL: ${{ secrets.OPENAI_API_URL }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      # Anthropic
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      # S3-compatible bucket (example 38)
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+      S3_REGION: ${{ secrets.S3_REGION }}
+      S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+      S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -133,65 +147,63 @@ jobs:
         working-directory: examples
         run: bun install
 
-      # example 20 creates a Python venv on first run; setup-python ensures
-      # venv support is present (plain python3 on Ubuntu lacks python3-venv).
-      - name: Set up Python (google-adk example)
-        if: matrix.example == '20-google-adk-agent'
+      # example 20 needs python3-venv; install once since the job runs all examples
+      - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      # example 38 mounts an S3 bucket as a disk; the script seeds + verifies
-      # objects but never creates the bucket. Backed by play.min.io, which
-      # purges buckets periodically — (re)create it before each run so a wipe
-      # between nightly runs can't fail the job on a missing bucket.
-      - name: Ensure S3 bucket (minio play, example 38)
-        if: matrix.example == '38-s3-disk-ffmpeg-transcode'
-        env:
-          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+      # example 38 mounts an S3 bucket; play.min.io purges buckets periodically
+      - name: Ensure S3 bucket (example 38)
         run: |
           curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
           chmod +x /tmp/mc
           /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
           /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
 
-      - name: Run ${{ matrix.example }}
-        working-directory: examples/${{ matrix.example }}
-        env:
-          # --- createos-sandbox control plane (read by the SDK + most examples) ---
-          CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
-          CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
-          # --- OpenAI / OpenAI-compatible ---
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_API_URL: ${{ secrets.OPENAI_API_URL }}
-          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
-          # OPENAI_USE_CHAT_COMPLETIONS: ${{ secrets.OPENAI_USE_CHAT_COMPLETIONS }}
-          # OPENAI_AGENTS_DISABLE_TRACING: ${{ secrets.OPENAI_AGENTS_DISABLE_TRACING }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          # --- Anthropic ---
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
-          # --- third-party integrations (per-example) ---
-          # BROWSERBASE_API_KEY: ${{ secrets.BROWSERBASE_API_KEY }}
-          # BROWSERBASE_PROJECT_ID: ${{ secrets.BROWSERBASE_PROJECT_ID }}
-          # FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-          # FIRECRAWL_API_URL: ${{ secrets.FIRECRAWL_API_URL }}
-          # OPENCLAW_GATEWAY_TOKEN: ${{ secrets.OPENCLAW_GATEWAY_TOKEN }}
-          # SCRAPE_URL: ${{ secrets.SCRAPE_URL }}
-          # --- S3-compatible bucket for example 38 (s3-disk-ffmpeg-transcode) ---
-          # Backed by the public MinIO Playground (play.min.io). The bucket is
-          # (re)created by the "Ensure S3 bucket" step above, since play purges
-          # buckets periodically and the example does not create one itself.
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-          S3_REGION: ${{ secrets.S3_REGION }}
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
-        run: bun index.ts
+      - name: Run examples (parallel, max 5)
+        run: |
+          mkdir -p /tmp/example-logs /tmp/example-fails
+          mapfile -t EXAMPLES < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
+
+          printf '%s\n' "${EXAMPLES[@]}" | xargs -n1 -P5 bash -c '
+            example="$1"
+            log="/tmp/example-logs/$example.log"
+            (cd "$GITHUB_WORKSPACE/examples/$example" && timeout 1200 bun index.ts) >"$log" 2>&1
+            rc=$?
+            [[ $rc -ne 0 ]] && echo "$rc" > "/tmp/example-fails/$example"
+            printf "[%s] %s\n" "$([ $rc -eq 0 ] && echo "OK  " || echo "FAIL")" "$example"
+            exit $rc
+          ' _ || true
+
+      - name: Report results
+        if: always()
+        run: |
+          mapfile -t EXAMPLES < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
+          mapfile -t FAILED < <(ls /tmp/example-fails/ 2>/dev/null | sort)
+          total=${#EXAMPLES[@]}
+          nfailed=${#FAILED[@]}
+
+          {
+            echo "## Examples: $(( total - nfailed ))/${total} passed"
+            echo ""
+            echo "| Example | Result |"
+            echo "| --- | --- |"
+            for ex in "${EXAMPLES[@]}"; do
+              if [[ -f "/tmp/example-fails/$ex" ]]; then
+                echo "| \`$ex\` | ❌ |"
+              else
+                echo "| \`$ex\` | ✅ |"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ $nfailed -gt 0 ]]; then
+            echo "::error::${nfailed} of ${total} example(s) failed: ${FAILED[*]}"
+            for ex in "${FAILED[@]}"; do
+              echo "::group::FAILED: $ex"
+              cat "/tmp/example-logs/$ex.log" || true
+              echo "::endgroup::"
+            done
+            exit 1
+          fi
