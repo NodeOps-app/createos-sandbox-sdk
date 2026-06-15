@@ -30,16 +30,22 @@ repos:
   # oxlint + oxfmt resolve from devDependencies via bunx.
   - repo: local
     hooks:
+      # integrations/ holds isolated nested packages (e.g. the ComputeSDK
+      # provider) with their own lint/format config and rulesets; the root
+      # SDK's oxlint/oxfmt must not govern them. They self-lint via their own
+      # `lint` script. gitleaks and the whitespace fixers stay repo-wide.
       - id: oxlint
         name: oxlint
         entry: bunx oxlint
         language: system
         files: '\.(ts|tsx|js|jsx|mjs|cjs)$'
+        exclude: "^integrations/"
       - id: oxfmt
         name: oxfmt
         entry: bunx oxfmt
         language: system
         files: '\.(ts|tsx|js|jsx|mjs|cjs|json)$'
+        exclude: "^integrations/"
       - id: typecheck
         name: tsc --noEmit
         entry: bunx tsc --noEmit
