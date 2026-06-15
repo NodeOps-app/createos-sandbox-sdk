@@ -5,7 +5,7 @@
  *  2. Routing        — classify first, then dispatch to a specialist prompt.
  *  3. Parallelization — fan out three independent sub-prompts concurrently.
  *
- * Runs inside an FC sandbox. Requires env: OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL.
+ * Runs inside a createos-sandbox sandbox. Requires env: OPENAI_API_KEY, OPENAI_API_URL, OPENAI_MODEL.
  */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";

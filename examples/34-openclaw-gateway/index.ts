@@ -15,7 +15,7 @@
 import { CreateosSandboxClient, type Sandbox } from "createos-sandbox-sdk";
 
 const GATEWAY_PORT = 18789;
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-token";
+const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "createos-sandbox-openclaw-demo-token";
 
 const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
 const box = new CreateosSandboxClient(baseUrl ? { baseUrl } : {});

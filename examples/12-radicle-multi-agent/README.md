@@ -26,26 +26,26 @@ in the shared `../.env`) is needed for the Claude calls.
 sequenceDiagram
     autonumber
     participant Host as Host (index.ts)
-    participant FC as createos-sandbox
+    participant Sandbox as createos-sandbox
     participant A as Sandbox A — coder
     participant B as Sandbox B — tester
     participant C as Sandbox C — docs
     participant CL as Claude API
 
-    Host->>FC: networks.create({ name })
-    FC-->>Host: network.id
+    Host->>Sandbox: networks.create({ name })
+    Sandbox-->>Host: network.id
 
     par parallel sandbox boot
-        Host->>FC: Sandbox.create({ shape, rootfs, networks:[id], envs:{ RAD_PASSPHRASE } })
-        FC-->>Host: A (running)
+        Host->>Sandbox: Sandbox.create({ shape, rootfs, networks:[id], envs:{ RAD_PASSPHRASE } })
+        Sandbox-->>Host: A (running)
     and
-        Host->>FC: Sandbox.create(...)
-        FC-->>Host: B (running)
+        Host->>Sandbox: Sandbox.create(...)
+        Sandbox-->>Host: B (running)
     and
-        Host->>FC: Sandbox.create(...)
-        FC-->>Host: C (running)
+        Host->>Sandbox: Sandbox.create(...)
+        Sandbox-->>Host: C (running)
     end
-    Host->>FC: networks.get(id) → members[].ip (overlay IPs)
+    Host->>Sandbox: networks.get(id) → members[].ip (overlay IPs)
 
     par install + bootstrap (parallel)
         Host->>A: runCommand(install rad + auth --alias coder + nohup rad node start -- --listen 0.0.0.0:8776)
@@ -120,7 +120,7 @@ sequenceDiagram
     end
 
     Host->>Host: write output/<role>/{repo.bundle, log.txt, refs.json, ls-remote.txt}
-    Host->>FC: sandbox.destroy() ×3 + networks.delete(id)
+    Host->>Sandbox: sandbox.destroy() ×3 + networks.delete(id)
 ```
 
 ## What it does

@@ -169,7 +169,7 @@ curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT
 
 console.log("[1/3] creating agent + 2 sessions on the self-hosted environment…");
 const agent = await anthropic.beta.agents.create({
-  name: `fc-per-session-${Date.now() % 100000}`,
+  name: `createos-sandbox-per-session-${Date.now() % 100000}`,
   model: AGENT_MODEL,
   system: `You are a terse assistant running inside a createos-sandbox microVM. Your working directory is ${WORKDIR}.`,
   tools: [{ type: "agent_toolset_20260401" }],

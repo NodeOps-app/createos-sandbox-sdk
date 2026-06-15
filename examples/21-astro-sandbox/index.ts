@@ -21,7 +21,7 @@ const SHAPE = "s-2vcpu-2gb"; // astro/vite install + dev compile want real RAM
 const ROOTFS = "devbox:1"; // ships Node 24 + npm — above Astro's engine floor
 const PORT = 4321; // astro dev's default port
 const APP_DIR = "/root/site";
-const MARKER = "astro-on-fc-ok"; // emitted by src/pages/index.astro
+const MARKER = "astro-on-createos-ok"; // emitted by src/pages/index.astro
 
 // exactOptionalPropertyTypes: narrow env vars to strings before constructing
 // the client, so no possibly-undefined value reaches an optional field.

@@ -2,7 +2,7 @@
 
 Loads a small sentence-transformers model and exposes a single
 `POST /embed` endpoint that turns a batch of texts into dense vectors.
-Bound on 0.0.0.0 so the FC ingress can forward to it. Stdlib HTTP
+Bound on 0.0.0.0 so the createos-sandbox ingress can forward to it. Stdlib HTTP
 server (http.server) keeps the surface tiny — the only third-party
 dependency is sentence-transformers (+ its torch CPU wheel).
 

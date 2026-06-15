@@ -12,8 +12,8 @@
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
 // Bridge host env -> sandbox env.  Fail fast if createos-sandbox creds are missing.
-const baseUrl = process.env.FCSPAWN_URL ?? process.env.CREATEOS_SANDBOX_BASE_URL;
-if (!baseUrl) throw new Error("FCSPAWN_URL (or CREATEOS_SANDBOX_BASE_URL) is required");
+const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
+if (!baseUrl) throw new Error("CREATEOS_SANDBOX_BASE_URL is required");
 const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
 if (!apiKey) throw new Error("CREATEOS_SANDBOX_API_KEY is required");
 
