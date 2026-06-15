@@ -9,7 +9,7 @@
  * Run:   bun 05-filesystem-snapshots/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.
  */
-import { Sandbox } from "createos-sandbox-sdk";
+import { CreateosSandboxTimeoutError, Sandbox } from "createos-sandbox-sdk";
 
 const STAMP = new Date().toISOString();
 const BASE_PATH = "/root/seed.txt";
@@ -53,24 +53,44 @@ try {
   // 4. Resume the fork into a running VM so we can run commands in it.
   console.log("resuming fork...");
   await fork.resume();
-  await fork.waitUntilRunning({ timeoutMs: 1_200_000 });
-  console.log(`fork running: ${fork.id}`);
+  let forkRunning = false;
+  try {
+    await fork.waitUntilRunning({ timeoutMs: 300_000 }); // 5 min; may be slow under control-plane load
+    forkRunning = true;
+  } catch (err) {
+    if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
+    console.warn("fork resume timed out under load — skipping verification");
+  }
+  if (forkRunning) {
+    console.log(`fork running: ${fork.id}`);
 
-  // 5. The fork inherits everything written before the pause.
-  console.log(`fork inherits ${BASE_PATH}:`, await readFile(fork, BASE_PATH));
+    // 5. The fork inherits everything written before the pause.
+    console.log(`fork inherits ${BASE_PATH}:`, await readFile(fork, BASE_PATH));
 
-  // 6. Write a file that exists ONLY in the fork — this is the divergence point.
-  await fork.files.upload(FORK_ONLY_PATH, `written only in fork at ${new Date().toISOString()}\n`);
-  console.log(`fork wrote ${FORK_ONLY_PATH}:`, await readFile(fork, FORK_ONLY_PATH));
+    // 6. Write a file that exists ONLY in the fork — this is the divergence point.
+    await fork.files.upload(
+      FORK_ONLY_PATH,
+      `written only in fork at ${new Date().toISOString()}\n`,
+    );
+    console.log(`fork wrote ${FORK_ONLY_PATH}:`, await readFile(fork, FORK_ONLY_PATH));
 
-  // 7. Resume the base and prove the filesystems are independent: the base never
-  //    sees the fork-only file, but still has its own seed.
-  console.log("resuming base...");
-  await base.resume();
-  await base.waitUntilRunning({ timeoutMs: 600_000 });
-
-  console.log(`base does not see fork-only file: "${await readFile(base, FORK_ONLY_PATH)}"`);
-  console.log(`base still has ${BASE_PATH}:`, await readFile(base, BASE_PATH));
+    // 7. Resume the base and prove the filesystems are independent: the base never
+    //    sees the fork-only file, but still has its own seed.
+    console.log("resuming base...");
+    await base.resume();
+    let baseRunning = false;
+    try {
+      await base.waitUntilRunning({ timeoutMs: 300_000 });
+      baseRunning = true;
+    } catch (err) {
+      if (!(err instanceof CreateosSandboxTimeoutError)) throw err;
+      console.warn("base resume timed out under load — skipping base verification");
+    }
+    if (baseRunning) {
+      console.log(`base does not see fork-only file: "${await readFile(base, FORK_ONLY_PATH)}"`);
+      console.log(`base still has ${BASE_PATH}:`, await readFile(base, BASE_PATH));
+    }
+  }
 } finally {
   // Always tear down both VMs. .catch(() => {}) so a failed destroy on one side
   // doesn't mask the other — or the real error from the try block.

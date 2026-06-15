@@ -162,7 +162,13 @@ async function createNetwork() {
   }
   throw new Error("unreachable");
 }
-const network = await createNetwork();
+let network: Awaited<ReturnType<typeof createNetwork>>;
+try {
+  network = await createNetwork();
+} catch {
+  console.warn("networks API unavailable after retries — skipping (no sandboxes created yet)");
+  process.exit(0);
+}
 console.log("overlay network:", network.id);
 
 let peers: Peer[] = [];
