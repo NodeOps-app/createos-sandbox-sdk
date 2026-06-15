@@ -15,14 +15,19 @@
  *    shape and honours an explicit provider-specific `shape` override.
  *  - The control plane drops per-exec env server-side (env is sandbox-level,
  *    set at create time), so per-command `env`/`cwd` are synthesised by
- *    wrapping the command in an inline `bash -lc` script.
+ *    wrapping the command in an inline `sh -c` script.
  *  - Snapshot semantics differ from running-snapshot providers (e2b/tensorlake):
  *    `snapshot.create` *pauses* the sandbox (the source VM stops), and the
  *    paused sandbox id IS the snapshot id. `create({ snapshotId })` forks that
  *    paused bundle into a fresh sandbox.
+ *
+ * Error policy: provider operations fail loudly when the provider boundary is
+ * broken. Only a genuine 404 (`CreateosSandboxNotFoundError`) is mapped to the
+ * idempotent "absent" outcome (`getById` → null, `destroy`/`delete` → no-op).
+ * Auth, network, validation, and server errors propagate.
  */
 
-import { CreateosSandboxClient, Sandbox } from "createos-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxNotFoundError, Sandbox } from "createos-sandbox-sdk";
 import type {
   CreateSandboxRequest,
   CreateosSandboxClientOptions,
@@ -54,6 +59,10 @@ const PROVIDER_NAME = "createos-sandbox";
  *  with at least this much RAM. Override per-create with `shape`/`config.shape`. */
 const DEFAULT_SHAPE_MIN_MIB = 1024;
 
+/** POSIX environment variable name. Keys are spliced into a shell `export`, so
+ *  anything outside this grammar is rejected rather than emitted (injection). */
+const ENV_KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 export interface CreateosConfig {
   /** createos-sandbox API key. Falls back to the CREATEOS_SANDBOX_API_KEY env var. */
   apiKey?: string;
@@ -65,6 +74,38 @@ export interface CreateosConfig {
   rootfs?: string;
   /** Reported `getInfo().timeout` in ms. Informational only. */
   timeout?: number;
+}
+
+/** ComputeSDK create options plus the createos-specific fields this provider
+ *  reads off the (otherwise open) options bag. Declaring them turns the cast-
+ *  heavy decode into a typed contract and makes unsupported fields obvious. */
+export interface CreateosCreateOptions extends CreateSandboxOptions {
+  /** Explicit shape id. Overrides cpus/memoryMb selection and skips the catalog fetch. */
+  shape?: string;
+  /** Rootfs catalog name or template id (alias of `runtime`). */
+  image?: string;
+  /** Rootfs catalog name or template id (alias of `image`). */
+  runtime?: string;
+  /** Requested RAM; mapped onto the smallest fitting shape. */
+  memoryMb?: number;
+  /** Requested vCPUs; mapped onto the smallest fitting shape. */
+  cpus?: number;
+  /** Overlay disk size (MiB). 0 / omitted = the shape's default disk. */
+  ephemeralDiskMb?: number;
+  /** Enable public ingress. Defaults to true. */
+  ingressEnabled?: boolean;
+  /** SSH public keys to inject at boot. */
+  sshPubkeys?: string[];
+  /** Egress allow-list. */
+  egress?: string[];
+}
+
+/** ComputeSDK template options plus createos-specific build inputs. */
+export interface CreateosTemplateOptions extends CreateTemplateOptions {
+  /** Dockerfile source for the build. Required by the control plane. */
+  dockerfile?: string;
+  /** Optional base image override. */
+  base?: string;
 }
 
 function env(key: string): string | undefined {
@@ -83,6 +124,12 @@ function resolveClient(config: CreateosConfig): CreateosSandboxClient {
   const opts: CreateosSandboxClientOptions = { apiKey };
   if (baseUrl) opts.baseUrl = baseUrl;
   return new CreateosSandboxClient(opts);
+}
+
+/** True only for a genuine "resource does not exist" (404). Everything else —
+ *  auth, network, validation, server, rate-limit — is a broken boundary. */
+function isNotFound(e: unknown): boolean {
+  return e instanceof CreateosSandboxNotFoundError;
 }
 
 /** Sort a catalog by ascending RAM then vCPU. Selection relies on this order;
@@ -115,15 +162,13 @@ export function defaultShape(shapes: Shape[]): string | undefined {
  *  `/v1/shapes` being reachable. */
 async function resolveShape(
   client: CreateosSandboxClient,
-  opts: Record<string, unknown>,
+  opts: CreateosCreateOptions,
   config: CreateosConfig,
 ): Promise<string> {
-  const explicit = (opts.shape as string | undefined) ?? config.shape;
+  const explicit = opts.shape ?? config.shape;
   if (explicit) return explicit;
   const shapes = await client.listShapes();
-  const picked =
-    pickShape(shapes, opts.memoryMb as number | undefined, opts.cpus as number | undefined) ??
-    defaultShape(shapes);
+  const picked = pickShape(shapes, opts.memoryMb, opts.cpus) ?? defaultShape(shapes);
   if (!picked) {
     throw new Error("CreateOS control plane returned an empty shape catalog.");
   }
@@ -137,13 +182,88 @@ export function mapStatus(status: SandboxStatus): SandboxInfo["status"] {
   return "stopped";
 }
 
-/** Wrap a command so per-call cwd/env/background work despite the server dropping exec env. */
+/** A non-empty env record from `envs` (preferred) or the legacy `env` alias. */
+function envsOf(opts: CreateosCreateOptions): Record<string, string> | undefined {
+  const envs = opts.envs ?? (opts as { env?: Record<string, string> }).env;
+  return envs && Object.keys(envs).length > 0 ? envs : undefined;
+}
+
+/** A string[] when the value is an array, else undefined. */
+function strArray(v: unknown): string[] | undefined {
+  return Array.isArray(v) ? (v as string[]) : undefined;
+}
+
+/** Pure map: ComputeSDK create options → createos-sandbox fork request body. */
+export function toForkRequest(opts: CreateosCreateOptions): ForkSandboxRequest {
+  const req: ForkSandboxRequest = {
+    ingress_enabled: opts.ingressEnabled !== undefined ? Boolean(opts.ingressEnabled) : true,
+  };
+  const ssh = strArray(opts.sshPubkeys);
+  if (ssh) req.ssh_pubkeys = ssh;
+  const egress = strArray(opts.egress);
+  if (egress) req.egress = egress;
+  const envs = envsOf(opts);
+  if (envs) req.envs = envs;
+  return req;
+}
+
+/** Pure map: ComputeSDK create options (+ resolved shape/rootfs) → create request. */
+export function toCreateRequest(
+  opts: CreateosCreateOptions,
+  shape: string,
+  rootfs?: string,
+): CreateSandboxRequest {
+  const req: CreateSandboxRequest = {
+    shape,
+    ingress_enabled: opts.ingressEnabled !== undefined ? Boolean(opts.ingressEnabled) : true,
+  };
+  if (rootfs) req.rootfs = rootfs;
+  if (opts.name) req.name = String(opts.name);
+  // Pass the requested overlay-disk size straight through; the control plane
+  // validates it (0 / omitted = shape default). No client-side menu.
+  if (typeof opts.ephemeralDiskMb === "number" && opts.ephemeralDiskMb > 0) {
+    req.disk_mib = opts.ephemeralDiskMb;
+  }
+  const envs = envsOf(opts);
+  if (envs) req.envs = envs;
+  const ssh = strArray(opts.sshPubkeys);
+  if (ssh) req.ssh_pubkeys = ssh;
+  const egress = strArray(opts.egress);
+  if (egress) req.egress = egress;
+  return req;
+}
+
+/** Pure map: ComputeSDK template options → createos-sandbox template build request.
+ *  Throws when no Dockerfile is supplied (the control plane requires one). */
+export function toTemplateCreateRequest(opts: CreateosTemplateOptions): TemplateCreateRequest {
+  if (!opts.dockerfile) {
+    throw new Error(
+      "CreateOS templates require a Dockerfile. Pass `dockerfile` in the " +
+        "template create options.",
+    );
+  }
+  const req: TemplateCreateRequest = { name: opts.name, dockerfile: opts.dockerfile };
+  if (opts.base) req.base = opts.base;
+  return req;
+}
+
+/** Wrap a command so per-call cwd/env/background work despite the server dropping
+ *  exec env. Env *keys* are validated before being spliced into `export` —
+ *  values are shell-escaped, but a malformed key would otherwise be raw shell. */
 export function buildScript(command: string, options?: RunCommandOptions): string {
   let script = command;
   if (options?.cwd) script = `cd ${escapeShellArg(options.cwd)} && ${script}`;
   if (options?.env && Object.keys(options.env).length > 0) {
     const exports = Object.entries(options.env)
-      .map(([k, v]) => `export ${k}=${escapeShellArg(String(v))}`)
+      .map(([k, v]) => {
+        if (!ENV_KEY_RE.test(k)) {
+          throw new Error(
+            `Invalid environment variable name ${JSON.stringify(k)}: ` +
+              `must match ${ENV_KEY_RE.source}.`,
+          );
+        }
+        return `export ${k}=${escapeShellArg(String(v))}`;
+      })
       .join("; ");
     script = `${exports}; ${script}`;
   }
@@ -171,10 +291,6 @@ export function parseLsOutput(stdout: string): FileEntry[] {
   return entries;
 }
 
-function errMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
 /** Poll a template build to a terminal state (ready/failed). ~10 min cap. */
 async function pollTemplate(client: CreateosSandboxClient, id: string): Promise<TemplateView> {
   let tpl = await client.templates.get(id);
@@ -191,44 +307,21 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
     sandbox: {
       create: async (config: CreateosConfig, options?: CreateSandboxOptions) => {
         const client = resolveClient(config);
-        const opts = (options ?? {}) as CreateSandboxOptions & Record<string, unknown>;
-
-        const ingressEnabled =
-          opts.ingressEnabled !== undefined ? Boolean(opts.ingressEnabled) : true;
+        const opts = (options ?? {}) as CreateosCreateOptions;
 
         // A snapshot id is a paused sandbox: fork it into a fresh sandbox.
-        const snapshotId = (opts.snapshotId as string | undefined) ?? undefined;
-        if (snapshotId) {
-          const source = await client.getSandbox(snapshotId);
-          const fork: ForkSandboxRequest = { ingress_enabled: ingressEnabled };
-          if (Array.isArray(opts.sshPubkeys)) fork.ssh_pubkeys = opts.sshPubkeys as string[];
-          if (Array.isArray(opts.egress)) fork.egress = opts.egress as string[];
-          const forkEnvs = (opts.envs ?? opts.env) as Record<string, string> | undefined;
-          if (forkEnvs && Object.keys(forkEnvs).length > 0) fork.envs = forkEnvs;
-          const forked = await source.fork(fork);
-          await forked.waitUntilRunning().catch(() => undefined);
+        if (opts.snapshotId) {
+          const source = await client.getSandbox(opts.snapshotId);
+          const forked = await source.fork(toForkRequest(opts));
+          // Surface lifecycle failures: a fork that never reaches "running"
+          // (or hits a terminal state) must not be reported as success.
+          await forked.waitUntilRunning();
           return { sandbox: forked, sandboxId: forked.id };
         }
 
         const shape = await resolveShape(client, opts, config);
-
-        const request: CreateSandboxRequest = { shape, ingress_enabled: ingressEnabled };
-        const rootfs =
-          (opts.image as string | undefined) ??
-          (opts.runtime as string | undefined) ??
-          config.rootfs;
-        if (rootfs) request.rootfs = rootfs;
-        if (opts.name) request.name = String(opts.name);
-        // Pass the requested overlay-disk size straight through; the control
-        // plane validates it (0 / omitted = shape default). No client-side menu.
-        const disk = opts.ephemeralDiskMb as number | undefined;
-        if (disk && disk > 0) request.disk_mib = disk;
-        const envs = (opts.envs ?? opts.env) as Record<string, string> | undefined;
-        if (envs && Object.keys(envs).length > 0) request.envs = envs;
-        if (Array.isArray(opts.sshPubkeys)) request.ssh_pubkeys = opts.sshPubkeys as string[];
-        if (Array.isArray(opts.egress)) request.egress = opts.egress as string[];
-
-        const sandbox = await client.createSandbox(request);
+        const rootfs = opts.image ?? opts.runtime ?? config.rootfs;
+        const sandbox = await client.createSandbox(toCreateRequest(opts, shape, rootfs));
         return { sandbox, sandboxId: sandbox.id };
       },
 
@@ -237,19 +330,17 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
         try {
           const sandbox = await client.getSandbox(sandboxId);
           return { sandbox, sandboxId: sandbox.id };
-        } catch {
-          return null;
+        } catch (e) {
+          if (isNotFound(e)) return null;
+          throw e;
         }
       },
 
       list: async (config: CreateosConfig) => {
         const client = resolveClient(config);
-        try {
-          const sandboxes = await client.listSandboxes({ limit: 100 });
-          return sandboxes.map((sandbox) => ({ sandbox, sandboxId: sandbox.id }));
-        } catch {
-          return [];
-        }
+        // No catch: a failed list is a broken boundary, not an empty account.
+        const sandboxes = await client.listSandboxes({ limit: 100 });
+        return sandboxes.map((sandbox) => ({ sandbox, sandboxId: sandbox.id }));
       },
 
       destroy: async (config: CreateosConfig, sandboxId: string) => {
@@ -257,8 +348,9 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
         try {
           const sandbox = await client.getSandbox(sandboxId);
           await sandbox.destroy();
-        } catch {
-          // Already gone; destroy is idempotent.
+        } catch (e) {
+          if (isNotFound(e)) return; // already gone; destroy is idempotent
+          throw e;
         }
       },
 
@@ -267,29 +359,20 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
         command: string,
         options?: RunCommandOptions,
       ): Promise<CommandResult> => {
-        const start = Date.now();
-        try {
-          // `sh -c` (not `bash -lc`): POSIX-portable so bare rootfses without
-          // bash still run. buildScript only emits POSIX constructs.
-          const { result, exec_ms } = await sandbox.runCommand("sh", [
-            "-c",
-            buildScript(command, options),
-          ]);
-          const stderr = result.error ? `${result.stderr}${result.error}` : result.stderr;
-          return {
-            stdout: result.stdout,
-            stderr,
-            exitCode: result.exit_code,
-            durationMs: exec_ms,
-          };
-        } catch (e) {
-          return {
-            stdout: "",
-            stderr: errMessage(e),
-            exitCode: 127,
-            durationMs: Date.now() - start,
-          };
-        }
+        // `sh -c` (not `bash -lc`): POSIX-portable so bare rootfses without
+        // bash still run. buildScript only emits POSIX constructs. Transport /
+        // auth errors propagate; a command that ran reports its own exit code.
+        const { result, exec_ms } = await sandbox.runCommand("sh", [
+          "-c",
+          buildScript(command, options),
+        ]);
+        const stderr = result.error ? `${result.stderr}${result.error}` : result.stderr;
+        return {
+          stdout: result.stdout,
+          stderr,
+          exitCode: result.exit_code,
+          durationMs: exec_ms,
+        };
       },
 
       getInfo: async (sandbox: Sandbox): Promise<SandboxInfo> => {
@@ -359,7 +442,9 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
         // createos-sandbox has no decoupled snapshot object: pausing IS the snapshot,
         // and the paused sandbox id is the snapshot id. This stops the source VM.
         await sandbox.pause();
-        await sandbox.waitUntilPaused().catch(() => undefined);
+        // The success claim is "it paused" — surface a pause that timed out or
+        // entered a terminal state rather than returning a phantom snapshot.
+        await sandbox.waitUntilPaused();
         return {
           id: sandboxId,
           provider: PROVIDER_NAME,
@@ -369,27 +454,24 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
       },
       list: async (config: CreateosConfig, _options?: ListSnapshotsOptions) => {
         const client = resolveClient(config);
-        try {
-          // The typed status filter excludes "paused", so list all and filter.
-          const all = await client.listSandboxes({ limit: 500 });
-          return all
-            .filter((s) => s.status === "paused")
-            .map((s) => ({
-              id: s.id,
-              provider: PROVIDER_NAME,
-              createdAt: new Date(s.data.paused_at ?? s.data.created_at),
-            }));
-        } catch {
-          return [];
-        }
+        // The typed status filter excludes "paused", so list all and filter.
+        const all = await client.listSandboxes({ limit: 500 });
+        return all
+          .filter((s) => s.status === "paused")
+          .map((s) => ({
+            id: s.id,
+            provider: PROVIDER_NAME,
+            createdAt: new Date(s.data.paused_at ?? s.data.created_at),
+          }));
       },
       delete: async (config: CreateosConfig, snapshotId: string) => {
         const client = resolveClient(config);
         try {
           const sandbox = await client.getSandbox(snapshotId);
           await sandbox.destroy();
-        } catch {
-          // Already gone.
+        } catch (e) {
+          if (isNotFound(e)) return; // already gone
+          throw e;
         }
       },
     },
@@ -397,36 +479,23 @@ export const createosSandbox = defineProvider<Sandbox, CreateosConfig>({
     template: {
       create: async (config: CreateosConfig, options: CreateTemplateOptions) => {
         const client = resolveClient(config);
-        const extra = options as CreateTemplateOptions & Record<string, unknown>;
-        const dockerfile = extra.dockerfile as string | undefined;
-        if (!dockerfile) {
-          throw new Error(
-            "CreateOS templates require a Dockerfile. Pass `dockerfile` in the " +
-              "template create options.",
-          );
-        }
-        const request: TemplateCreateRequest = { name: options.name, dockerfile };
-        const base = extra.base as string | undefined;
-        if (base) request.base = base;
+        const request = toTemplateCreateRequest(options as CreateosTemplateOptions);
         const created = await client.templates.create(request);
         // The build runs asynchronously in a k8s job; poll to a terminal state.
         return pollTemplate(client, created.id);
       },
       list: async (config: CreateosConfig, options?: ListTemplatesOptions) => {
         const client = resolveClient(config);
-        try {
-          const all = await client.templates.list();
-          return options?.limit ? all.slice(0, options.limit) : all;
-        } catch {
-          return [];
-        }
+        const all = await client.templates.list();
+        return options?.limit ? all.slice(0, options.limit) : all;
       },
       delete: async (config: CreateosConfig, templateId: string) => {
         const client = resolveClient(config);
         try {
           await client.templates.delete(templateId);
-        } catch {
-          // Already gone.
+        } catch (e) {
+          if (isNotFound(e)) return; // already gone
+          throw e;
         }
       },
     },

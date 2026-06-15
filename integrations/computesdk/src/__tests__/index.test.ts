@@ -7,6 +7,9 @@ import {
   mapStatus,
   parseLsOutput,
   pickShape,
+  toCreateRequest,
+  toForkRequest,
+  toTemplateCreateRequest,
 } from "../index.js";
 
 // Deliberately unsorted, to prove selection sorts the live catalog rather than
@@ -77,6 +80,32 @@ describe("buildScript", () => {
   it("wraps background commands in nohup", () => {
     expect(buildScript("server", { background: true })).toContain("nohup sh -c");
   });
+  it("escapes env values containing quotes and newlines", () => {
+    const script = buildScript("run", { env: { MSG: "a'b\nc \"d" } });
+    // The hostile value lands inside a single export assignment, fully quoted —
+    // it cannot terminate the statement or inject a second command.
+    expect(script.startsWith("export MSG=")).toBe(true);
+    expect(script.endsWith("; run")).toBe(true);
+    expect(script).not.toMatch(/;\s*c /); // newline did not split into a new statement
+  });
+  it("composes cwd + env + background together", () => {
+    const script = buildScript("serve", {
+      cwd: "/app",
+      env: { PORT: "8080" },
+      background: true,
+    });
+    expect(script).toContain("nohup sh -c");
+    expect(script).toContain("cd /app &&");
+    expect(script).toContain("export PORT=8080");
+  });
+  it("rejects malicious env keys instead of emitting raw shell", () => {
+    for (const bad of ["x; rm -rf /", "FOO=bar", "a b", "1FOO", "$(touch pwn)", ""]) {
+      expect(() => buildScript("run", { env: { [bad]: "v" } })).toThrow(/Invalid environment variable/);
+    }
+  });
+  it("accepts valid POSIX env keys", () => {
+    expect(buildScript("run", { env: { _A1: "v", FOO_BAR: "x" } })).toContain("export _A1=v");
+  });
 });
 
 describe("parseLsOutput", () => {
@@ -96,6 +125,65 @@ describe("parseLsOutput", () => {
   });
   it("returns an empty array for an empty directory", () => {
     expect(parseLsOutput("total 0\n")).toEqual([]);
+  });
+});
+
+describe("toCreateRequest", () => {
+  it("carries shape + defaults ingress on", () => {
+    const r = toCreateRequest({}, "s-1vcpu-1gb");
+    expect(r).toEqual({ shape: "s-1vcpu-1gb", ingress_enabled: true });
+  });
+  it("honours ingressEnabled:false", () => {
+    expect(toCreateRequest({ ingressEnabled: false }, "s").ingress_enabled).toBe(false);
+  });
+  it("maps rootfs, name, disk, envs, ssh, egress", () => {
+    const r = toCreateRequest(
+      {
+        name: "box",
+        ephemeralDiskMb: 2048,
+        envs: { A: "1" },
+        sshPubkeys: ["ssh-ed25519 k"],
+        egress: ["1.1.1.1"],
+      },
+      "s-1vcpu-1gb",
+      "devbox:1",
+    );
+    expect(r.rootfs).toBe("devbox:1");
+    expect(r.name).toBe("box");
+    expect(r.disk_mib).toBe(2048);
+    expect(r.envs).toEqual({ A: "1" });
+    expect(r.ssh_pubkeys).toEqual(["ssh-ed25519 k"]);
+    expect(r.egress).toEqual(["1.1.1.1"]);
+  });
+  it("omits empty/zero optionals", () => {
+    const r = toCreateRequest({ ephemeralDiskMb: 0, envs: {} }, "s");
+    expect(r.disk_mib).toBeUndefined();
+    expect(r.envs).toBeUndefined();
+    expect(r.rootfs).toBeUndefined();
+  });
+});
+
+describe("toForkRequest", () => {
+  it("defaults ingress on, passes ssh/egress/envs", () => {
+    const r = toForkRequest({ sshPubkeys: ["k"], egress: ["e"], envs: { A: "1" } });
+    expect(r.ingress_enabled).toBe(true);
+    expect(r.ssh_pubkeys).toEqual(["k"]);
+    expect(r.egress).toEqual(["e"]);
+    expect(r.envs).toEqual({ A: "1" });
+  });
+  it("honours ingressEnabled:false and omits empties", () => {
+    const r = toForkRequest({ ingressEnabled: false });
+    expect(r).toEqual({ ingress_enabled: false });
+  });
+});
+
+describe("toTemplateCreateRequest", () => {
+  it("throws without a dockerfile", () => {
+    expect(() => toTemplateCreateRequest({ name: "t" })).toThrow(/require a Dockerfile/);
+  });
+  it("maps name, dockerfile, base", () => {
+    const r = toTemplateCreateRequest({ name: "t", dockerfile: "FROM x", base: "b" });
+    expect(r).toEqual({ name: "t", dockerfile: "FROM x", base: "b" });
   });
 });
 
