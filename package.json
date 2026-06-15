@@ -10,15 +10,15 @@
     "sandbox",
     "sdk"
   ],
-  "homepage": "https://github.com/NodeOps-app/fc-sdk#readme",
+  "homepage": "https://github.com/NodeOps-app/createos-sandbox-sdk#readme",
   "bugs": {
-    "url": "https://github.com/NodeOps-app/fc-sdk/issues"
+    "url": "https://github.com/NodeOps-app/createos-sandbox-sdk/issues"
   },
   "license": "MIT",
   "author": "NodeOps Inc.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NodeOps-app/fc-sdk.git"
+    "url": "git+https://github.com/NodeOps-app/createos-sandbox-sdk.git"
   },
   "files": [
     "dist",

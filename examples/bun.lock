@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "fc-sdk-competitor-replications",
+      "name": "createos-sandbox-sdk-examples",
       "dependencies": {
         "@anthropic-ai/sdk": "0.98.0",
         "@openai/agents": "0.11.5",
