@@ -10,8 +10,16 @@
     "sandbox",
     "sdk"
   ],
+  "homepage": "https://github.com/NodeOps-app/fc-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/NodeOps-app/fc-sdk/issues"
+  },
   "license": "MIT",
   "author": "NodeOps Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NodeOps-app/fc-sdk.git"
+  },
   "files": [
     "dist",
     "README.md",
@@ -50,8 +58,8 @@
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
-    "oxfmt": "^0.52.0",
-    "oxlint": "^1.67.0",
+    "oxfmt": "^0.54.0",
+    "oxlint": "^1.69.0",
     "typedoc": "0.28.19",
     "typescript": "^6.0.3"
   },

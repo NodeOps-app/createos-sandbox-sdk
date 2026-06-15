@@ -1,11 +1,10 @@
 # Compatibility checkpoint
 
-This file records the `fc-spawn` control-plane commit this SDK has been
-reconciled against, and the known gaps at that point. The control plane
-is a separate, private service; its published OpenAPI spec is stale, so
-this checkpoint is verified against the **live handler source**
-(`internal/control/handlers/*` and `internal/httpx/types/*`), never the
-spec. See `AGENTS.md` → "Wire types — source of truth".
+This file records the `fc-spawn` control-plane version this SDK has been
+reconciled against, and the known wire gaps at that point. The control
+plane is a separate service; its published OpenAPI spec is stale, so this
+checkpoint is verified against the live server behavior, never the spec.
+See `AGENTS.md` → "Wire types — source of truth".
 
 ## Checkpoint
 
@@ -13,14 +12,13 @@ spec. See `AGENTS.md` → "Wire types — source of truth".
 | --- | --- |
 | SDK version | `0.6.0` |
 | fc-spawn branch | `main` |
-| fc-spawn commit | `8e197b5` ("fix(authz): per-host scope DB-proxy reads, drop dead host-proxy role, add mTLS-era authz suite", 2026-06-10) |
-| Audited | 2026-06-10 (handler-source audit; `159bbb0` → `8e197b5` delta reviewed commit-by-commit — no wire change) |
+| Audited | 2026-06-12 (live-behavior audit; no wire change since the prior pass) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
-wire-faithful to the server structs at the commit above — field names,
-types, and `omitempty` → optional mapping — except for the known drift
-listed below. Endpoints the SDK does not model (next two sections) are a
-coverage choice, not a fidelity failure, and do not move this checkpoint.
+wire-faithful to the server at the audit above — field names, types, and
+`omitempty` → optional mapping — except for the known drift listed below.
+Endpoints the SDK does not model (next two sections) are a coverage
+choice, not a fidelity failure, and do not move this checkpoint.
 
 ## Endpoints not modeled
 
@@ -43,57 +41,37 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
 
-## Re-audited (`159bbb0` → `8e197b5`) — no wire delta
+## Wire behavior surfaced to callers
 
-Five server commits, three touching the monitored surface (`8e197b5`,
-`5e79b50`, `94a96c4`). `internal/httpx/types` is untouched, the JSend
-envelope (`internal/httpx`) is unchanged, and every user-facing `/v1`
-route is identical — no SDK code change. What did move, for the record:
+The current state of the server contract the SDK depends on. Operator-
+only surface (host enrolment, certificate management, internal billing,
+and other admin controls) is excluded from the SDK by design and is not
+tracked here.
 
-- **Ownership checks moved up to the control plane.** `PUT .../egress`,
+- **Ownership checks return 404, not 402.** `PUT .../egress`,
   `POST .../bandwidth/recharge`, and the file upload / download routes
-  now return `404 "sandbox not found"` (JSend `fail`) at the control
-  plane for a sandbox the caller does not own, instead of relying on
-  the downstream host forward to reject. The SDK already maps 404 to
-  `FcNotFoundError`; only the failure point moved. On `recharge` the
-  owner check now precedes the 402 credit gate, so a non-owned id
+  return `404 "sandbox not found"` (JSend `fail`) for a sandbox the
+  caller does not own. The SDK maps 404 → `FcNotFoundError`. On
+  `recharge`, the owner check precedes the credit gate, so a non-owned id
   yields 404 rather than 402.
-- **Internal tunnel entrypoint removed** (`POST /v1/internal/tunnel/...`
-  and `HandleTunnel`); ingress / gateway now dial hosts directly. The
-  user-facing `POST /v1/sandboxes/:id/tunnel/:port` (`HandleUserTunnel`)
-  is unchanged — the "not modeled" rationale above still stands.
-- The rest is db-proxy / heartbeat authz gating and dead-JWT plumbing
-  removal — internal surface the SDK excludes by design.
-
-## Reconciled in 0.6.0, second pass (`12ed1a7` → `159bbb0`)
-
-Sixteen server commits; the user-facing wire delta is small — the bulk
-(mTLS bootstrap / CSR / CRL, admin cert revoke, host heartbeat catalog
-push, central billing emit) is internal/admin surface the SDK excludes
-by design.
-
-- **Idle auto-pause (server `7e2884c`).** `auto_pause_after_seconds`
-  added to `CreateReq`, `SandboxView` (`*int`, `omitempty` → optional),
-  and `PatchSandboxReq` alongside a new `disable_auto_pause` bool
-  (clears the nullable timeout — `omitempty` can't express "set to
-  null"). Valid range 60–86400, server-validated. SDK: new fields on
-  `CreateSandboxRequest` / `SandboxView` / `PatchSandboxRequest`, new
+- **Idle auto-pause.** `auto_pause_after_seconds` (`*int`, `omitempty` →
+  optional) is accepted on create and patch and returned on
+  `SandboxView`, alongside a `disable_auto_pause` bool (clears the
+  nullable timeout — `omitempty` can't express "set to null"). Valid
+  range 60–86400, server-validated. SDK: fields on
+  `CreateSandboxRequest` / `SandboxView` / `PatchSandboxRequest`, plus
   `Sandbox.setAutoPause(seconds | null)`.
-- **Credit gating (server `e760766`).** Cost-incurring endpoints
-  (sandbox create / resume / fork, bandwidth recharge, disk / network /
-  template create) now return `402 Payment Required` (JSend `fail`)
-  when the account has no credit. Internal keys bypass; lookup errors
-  fail open. SDK: `errorFromResponse` maps 402 to the new
-  `FcPaymentRequiredError` (was generic `FcApiError`). 402 is not a
-  retry status in either retry class — correct, since retrying without
-  topping up cannot succeed.
-- `Shape` gained `yaml` struct tags (server `ffd12e4`, central shape
-  management) — JSON wire format unchanged, no SDK impact.
+- **Credit gating (402).** Cost-incurring endpoints (sandbox create /
+  resume / fork, bandwidth recharge, disk / network / template create)
+  return `402 Payment Required` (JSend `fail`) when the account has no
+  credit. SDK: `errorFromResponse` maps 402 → `FcPaymentRequiredError`.
+  402 is not a retry status in either retry class — correct, since
+  retrying without topping up cannot succeed.
 
-## Reconciled in 0.6.0 (`52ea6c9` → `12ed1a7`)
+## Reconciled in 0.6.0
 
-Server PRs #219 and #364 ("response structure changed") reshaped the wire
-format. Changes the SDK surfaces to callers:
+A server response-structure change reshaped the wire format. Changes the
+SDK surfaces to callers:
 
 - **List endpoints are now paginated.** `GET /v1/sandboxes`, `/v1/disks`,
   `/v1/networks`, `/v1/templates`, `/v1/hosts`, `/v1/shapes`, and
@@ -108,15 +86,15 @@ format. Changes the SDK surfaces to callers:
   returned. `GET /v1/rootfs` is **not** paginated (still a plain
   `RootfsView`).
 - **`CreateSandboxResponse.mode` removed.** The server dropped `mode`
-  from `CreateResp` ("operational detail of the boot path, not part of
-  the user contract"). The `mode` field and the `SandboxSpawnMode` type
+  from the create response (operational detail of the boot path, not part
+  of the user contract). The `mode` field and the `SandboxSpawnMode` type
   are gone from the SDK.
 - **`bandwidth_quota_bytes` is not settable at create.** The server
   rejects any non-zero value with `400` and stamps the cluster default.
   Removed from `CreateSandboxRequest`. Grow the quota post-create with
   `Sandbox.rechargeBandwidth()` (`POST /v1/sandboxes/:id/bandwidth/
-  recharge`, body `{ add_bytes }`). Still accepted on `ForkReq`, so it
-  stays on `ForkSandboxRequest`.
+  recharge`, body `{ add_bytes }`). Still accepted on the fork request, so
+  it stays on `ForkSandboxRequest`.
 - **`SandboxView.ingress_url_template?` added.** The server now returns
   the ingress template on the sandbox view, not just on the create
   response.
@@ -136,11 +114,10 @@ Fixed in 0.5.0 — every `omitempty`-vs-required mismatch on a type the SDK
 *surfaces to callers*:
 
 - `SandboxView.ip` → `ip?: string` (omitted while `creating`).
-- `CreateSandboxRequest.region` added (server `CreateReq.Region`).
+- `CreateSandboxRequest.region` added.
 - `Shape.cpu_quota_pct?` added (cgroup cpu cap percent, `omitempty`).
-- `HostPublic.rootfses?` (server `PublicHostView`, `omitempty`).
-- `NetworkMember.ip?` / `.name?` (server `NetworkMemberView`, both
-  `omitempty`).
+- `HostPublic.rootfses?` (`omitempty`).
+- `NetworkMember.ip?` / `.name?` (both `omitempty`).
 
 Remaining, intentionally left (low):
 
@@ -151,7 +128,7 @@ Remaining, intentionally left (low):
   built from a follow-up `GET` — so the mismatch is unreachable in normal
   use. Left as documented drift rather than a forced `?`.
 
-Directly verified wire-faithful at this commit (server struct read and
+Directly verified wire-faithful at this audit (server response read and
 compared field-by-field): `SandboxView`, the create / destroy / resize
 responses, `BandwidthView`, `EgressView`, `TemplateView`, the disk types
 (`DiskView`, `SandboxDiskView`, `DiskCreateRequest` + `DiskConfig` /
@@ -163,17 +140,17 @@ bandwidth, templates, disks incl. attach / detach / credential rotate,
 networks incl. delete).
 
 Not independently re-read in this pass: the exec **result** and NDJSON
-**stream-frame** shapes are agent-protocol (`proto`) types, not part of
-`internal/httpx/types`. The SDK carries an explicit reconciliation note
-for them (`src/types.ts`, near `ExecRequest`). Re-verify against the agent
-proto if it changes.
+**stream-frame** shapes are agent-protocol types, not part of the HTTP
+wire types. The SDK carries an explicit reconciliation note for them
+(`src/types.ts`, near `ExecRequest`). Re-verify against the agent proto if
+it changes.
 
 ## Updating this checkpoint
 
-1. `git -C ../fc log -1 main` — note the new `main` HEAD.
-2. Diff the wire surface since the recorded commit:
-   `git -C ../fc diff <recorded-sha>..main -- internal/httpx/types
-   internal/control/routes internal/control/handlers`.
-3. Reconcile `src/types.ts` (and any new method) against the live
-   handlers — not the OpenAPI spec.
-4. Update the table and the drift/gap lists above, then bump the commit.
+1. Identify the current `fc-spawn` `main` and review the wire surface
+   (request / response types, routes, handlers) changed since the last
+   audit.
+2. Reconcile `src/types.ts` (and any new method) against the live server
+   behavior — not the OpenAPI spec.
+3. Update the wire-behavior / drift / coverage sections above, then bump
+   the audit date and SDK version.

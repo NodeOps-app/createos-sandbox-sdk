@@ -20,9 +20,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.6.0] — 2026-06-10
 
-Reconciled against the `fc-spawn` control plane at `main` `159bbb0`
-(two passes: `12ed1a7` response-structure changes, server PRs #219/#364,
-then idle auto-pause + credit gating) — see `COMPATIBILITY.md`.
+Reconciled against the `fc-spawn` control plane `main` — response-
+structure changes (paginated list envelope) plus idle auto-pause and
+credit gating. See `COMPATIBILITY.md`.
 
 ### Changed
 
@@ -87,8 +87,8 @@ then idle auto-pause + credit gating) — see `COMPATIBILITY.md`.
 
 ## [0.5.0] — 2026-06-03
 
-Reconciled against the `fc-spawn` control plane at `main` `52ea6c9` —
-see `COMPATIBILITY.md`.
+Reconciled against the `fc-spawn` control plane `main` — see
+`COMPATIBILITY.md`.
 
 ### Added
 

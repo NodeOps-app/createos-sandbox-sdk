@@ -6,7 +6,12 @@ name: examples
 # worked against production.
 #
 # Cost note: every run spawns real microVMs and makes paid LLM API calls.
-# Triggers are kept deliberate: nightly, manual, and on SDK source changes.
+# Triggers are kept deliberate: nightly, manual, and on push to main.
+#
+# No `pull_request` trigger by design. Examples run arbitrary `bun index.ts`
+# with real provider secrets on a self-hosted runner; firing that on PRs
+# would let any fork PR exfiltrate those secrets. Examples are verified on
+# push to main (post-merge) instead.
 
 on:
   workflow_dispatch:
@@ -14,11 +19,6 @@ on:
     - cron: "17 3 * * *" # nightly 03:17 UTC
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "examples/**"
-      - ".github/workflows/examples.yml"
-  pull_request:
     paths:
       - "src/**"
       - "examples/**"
