@@ -14,7 +14,11 @@
  *        See .env.example.
  */
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { CreateosSandboxClient, CreateosSandboxValidationError } from "createos-sandbox-sdk";
+import {
+  CreateosSandboxClient,
+  CreateosSandboxConnectionError,
+  CreateosSandboxValidationError,
+} from "createos-sandbox-sdk";
 
 const SHAPE = "s-4vcpu-4gb";
 const ROOTFS = "devbox:1";
@@ -71,6 +75,25 @@ async function createWithRetry() {
 
 const sandbox = await createWithRetry();
 console.log(`sandbox: ${sandbox.id}  ip: ${sandbox.ip}  shape: ${SHAPE}`);
+
+// A long single-shot /exec can hit a transient gateway/connection blip mid-run.
+// These python steps are idempotent (they overwrite their own output), so retry
+// the whole call on a network error. A timeout is left to propagate — that means
+// the work itself overran its budget, which is a real signal, not a blip.
+async function shRetry(cmd: string, opts: { label: string; timeoutMs?: number }, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await sandbox.sh(cmd, opts);
+    } catch (err) {
+      if (!(err instanceof CreateosSandboxConnectionError) || i === attempts) throw err;
+      console.log(
+        `      ${opts.label}: transient network error (attempt ${i}/${attempts}); retrying in ${5 * i}s…`,
+      );
+      await new Promise((r) => setTimeout(r, 5_000 * i));
+    }
+  }
+  throw new Error("unreachable");
+}
 
 try {
   console.log("[1/7] installing python3-pip + llama-index + sentence-transformers (background)…");
@@ -136,7 +159,7 @@ try {
   console.log("      pip install done");
 
   console.log("[2/7] pre-pulling the embedding model into the HF cache…");
-  await sandbox.sh(
+  await shRetry(
     'python3 -c "from sentence_transformers import SentenceTransformer; ' +
       "SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')\"",
     { label: "embed-warm", timeoutMs: 300_000 },
@@ -158,7 +181,7 @@ try {
 
   console.log("[4/7] building VectorStoreIndex (local MiniLM embeddings)…");
   const idxOut = (
-    await sandbox.sh("cd /root && python3 indexer.py", { label: "build-index", timeoutMs: 600_000 })
+    await shRetry("cd /root && python3 indexer.py", { label: "build-index", timeoutMs: 600_000 })
   ).result.stdout;
   console.log(
     idxOut
@@ -178,16 +201,18 @@ try {
 
   console.log("[5/7] pause/resume — snapshot the prepared sandbox…");
   await sandbox.pause();
-  await sandbox.waitUntilPaused({ timeoutMs: 60_000 });
+  // Snapshotting a VM with torch + the embed model resident is multi-GB and,
+  // under CI contention, routinely exceeds 60s — give the checkpoint room.
+  await sandbox.waitUntilPaused({ timeoutMs: 180_000 });
   console.log(`      paused (status=${sandbox.status})`);
   await sandbox.resume();
-  await sandbox.waitUntilRunning({ timeoutMs: 60_000 });
+  await sandbox.waitUntilRunning({ timeoutMs: 180_000 });
   console.log(`      resumed (status=${sandbox.status})`);
 
   console.log(`[6/7] querying against the persisted index…`);
   console.log(`      question: ${QUESTION}`);
   const qOut = (
-    await sandbox.sh(`cd /root && python3 query.py ${JSON.stringify(QUESTION)}`, {
+    await shRetry(`cd /root && python3 query.py ${JSON.stringify(QUESTION)}`, {
       label: "query",
       timeoutMs: 300_000,
     })
