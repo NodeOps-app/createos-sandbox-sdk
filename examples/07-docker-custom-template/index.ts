@@ -6,7 +6,7 @@
  *
  * Run:   bun 07-docker-custom-template/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). The DOCKERFILE below uses
- *        the createos-sandbox debian base image (bhautikchudasama/fc-base:debian-1). The
+ *        the allowlisted createos-sandbox debian base image (nodeops/sandbox:debian). The
  *        in-VM `docker run` steps also need network egress to pull images.
  */
 import { CreateosSandboxClient, pollUntil } from "createos-sandbox-sdk";
@@ -18,7 +18,7 @@ const SHAPE = "s-1vcpu-1gb";
 // Installs Docker CE via the official convenience script.
 // createos-sandbox v1 Dockerfile rules: single FROM (createos-sandbox-allowed base only), no COPY/ADD.
 // Uses the createos-sandbox debian base (apt-based, required for Docker CE install).
-const DOCKERFILE = `FROM bhautikchudasama/fc-base:debian-1
+const DOCKERFILE = `FROM nodeops/sandbox:debian
 
 RUN apt-get update -qq \\
  && apt-get install -y --no-install-recommends curl ca-certificates \\
