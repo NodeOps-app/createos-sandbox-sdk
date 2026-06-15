@@ -1,7 +1,7 @@
 # 47 — Effective Agent Patterns
 
 Run three foundational LLM agent patterns — prompt-chaining, routing, and
-parallelization — using the Vercel AI SDK inside an FC sandbox, with an
+parallelization — using the Vercel AI SDK inside a createos-sandbox sandbox, with an
 OpenAI-compatible model proxy.
 
 ## Run
@@ -39,7 +39,7 @@ Three independent LLM prompts run concurrently with `Promise.all`; each asks
 about a different dimension of microVM benefits (security, performance,
 reliability).
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive | SDK call |
 | --- | --- |

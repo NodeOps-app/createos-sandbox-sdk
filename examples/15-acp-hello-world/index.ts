@@ -2,7 +2,7 @@
  * ACP (Agent Client Protocol) hello world — drive an in-sandbox agent over
  * JSON-RPC.
  *
- * Spawns an ACP-compatible agent inside an FC sandbox and drives a single
+ * Spawns an ACP-compatible agent inside a createos-sandbox sandbox and drives a single
  * prompt turn over JSON-RPC 2.0. The agent is a ~100-line Python echo
  * implementation of the three baseline ACP methods (initialize, session/new,
  * session/prompt). A Python driver, also injected into the sandbox, spawns the

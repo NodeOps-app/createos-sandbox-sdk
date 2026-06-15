@@ -1,6 +1,6 @@
 # 28 — code-server (VS Code in Browser)
 
-Run [code-server](https://github.com/coder/code-server) inside an FC microVM and expose a
+Run [code-server](https://github.com/coder/code-server) inside a createos-sandbox microVM and expose a
 fully-functional VS Code IDE through the sandbox's public ingress URL.
 
 ## Run
@@ -23,11 +23,11 @@ bun index.ts
 6. Prints the live VS Code URL.
 7. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                      |
 | ---------------------------------- | --------------------------------------------- |
-| Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
+| Create sandbox with public ingress | `box.createSandbox({ ingress_enabled: true })` |
 | Run commands inside the VM         | `sandbox.runCommand("bash", ["-lc", ...])`    |
 | Build the public preview URL       | `sandbox.previewUrl(port)`                    |
 | Block until the server listens     | `sandbox.waitForPortReady(port)`              |

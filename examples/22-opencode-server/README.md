@@ -1,6 +1,6 @@
 # 22 — OpenCode Server (Sandbox)
 
-Run [OpenCode](https://opencode.ai)'s headless HTTP server inside an FC microVM,
+Run [OpenCode](https://opencode.ai)'s headless HTTP server inside a createos-sandbox microVM,
 expose it through the sandbox's public ingress URL, and verify the API is live
 by hitting `GET /global/health`.
 
@@ -30,11 +30,11 @@ bun index.ts
 7. Fetches `GET /provider` to confirm the Anthropic provider config landed.
 8. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                      |
 | ---------------------------------- | --------------------------------------------- |
-| Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
+| Create sandbox with public ingress | `box.createSandbox({ ingress_enabled: true })` |
 | Upload config file into the VM     | `sandbox.files.upload(path, contents)`        |
 | Run commands (install, daemonise)  | `sandbox.runCommand("bash", ["-lc", ...])`    |
 | Build the public preview URL       | `sandbox.previewUrl(port)`                    |

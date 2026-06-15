@@ -1,6 +1,6 @@
 # 30 — Headless Chromium + DevTools Port
 
-Install Google Chrome stable inside an FC sandbox, start it in headless mode
+Install Google Chrome stable inside a createos-sandbox sandbox, start it in headless mode
 with the Chrome DevTools Protocol (CDP) port, then prove remote debugging
 works by fetching `/json/version` through the public ingress URL.
 
@@ -51,7 +51,7 @@ verified end-to-end: Chrome/148.0.7778.215 reachable at http://<id>-8080.createo
    reject DNS-name Host headers as a DNS-rebinding defence; the IP literal
    satisfies the check.
 5. Launches Chrome headless with `--remote-debugging-port=9222` via
-   `nohup setsid` (no systemd in FC sandboxes).
+   `nohup setsid` (no systemd in createos-sandbox sandboxes).
 6. Starts nginx in the foreground, also daemonized via `nohup setsid`.
 7. Waits for nginx to bind port 8080 with `sandbox.waitForPortReady`.
 8. Polls `<previewUrl>/json/version` through the public ingress until Chrome
@@ -59,11 +59,11 @@ verified end-to-end: Chrome/148.0.7778.215 reachable at http://<id>-8080.createo
 9. Fetches `/json/list` to confirm debugging targets are listed.
 10. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                         | SDK call                                        |
 | --------------------------------- | ----------------------------------------------- |
-| Sandbox with public ingress       | `fc.createSandbox({ ingress_enabled: true })`   |
+| Sandbox with public ingress       | `box.createSandbox({ ingress_enabled: true })`   |
 | Run commands (install, daemonize) | `sandbox.runCommand("bash", ["-lc", script])`   |
 | Upload a config file              | `sandbox.files.upload(path, content)`           |
 | Wait for a port to bind           | `sandbox.waitForPortReady(port, { timeoutMs })` |

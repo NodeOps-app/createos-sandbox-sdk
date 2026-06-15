@@ -1,6 +1,6 @@
 # 45 — Claude agent GitHub wiki Q&A
 
-Clone a public GitHub repo into an FC sandbox and let a Claude agent
+Clone a public GitHub repo into a createos-sandbox sandbox and let a Claude agent
 explore the file tree to answer concrete questions about the codebase.
 The agent uses `read_file` and `list_dir` tools backed by
 `sandbox.runCommand` so it can introspect any path without extra installs.
@@ -29,11 +29,11 @@ bun index.ts
    - Q2: find and summarise the main entry-point in the `hono` template.
 5. Prints both answers to stdout and destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive           | SDK call                                        |
 | ------------------- | ----------------------------------------------- |
-| Sandbox create      | `fc.createSandbox({ shape, rootfs })`           |
+| Sandbox create      | `box.createSandbox({ shape, rootfs })`           |
 | Buffered command    | `sandbox.runCommand("sh", ["-c", …])`           |
 | Cleanup (required)  | `sandbox.destroy()`                             |
 

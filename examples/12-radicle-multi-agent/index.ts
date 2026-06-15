@@ -1,12 +1,12 @@
 /**
  * Radicle p2p git mesh across 3 sandboxes with role-specialised Claude agents.
- * Each sandbox runs a Radicle node joined to one FC overlay network (created
+ * Each sandbox runs a Radicle node joined to one createos-sandbox overlay network (created
  * via the networks API) so peers reach each other by overlay IP. Node A inits
  * the repo; nodes B/C clone it via gossip; each agent (coder / tester / docs)
  * writes its contribution on its own branch and pushes back over Radicle; we
  * then bundle every peer's namespace to the host.
  *
- * The FC-specific piece is `fc.networks.create` + `networks: [{ id }]` at
+ * The createos-sandbox-specific piece is `box.networks.create` + `networks: [{ id }]` at
  * sandbox-create time: that overlay is what lets the nodes gossip privately
  * instead of through Radicle's public bootstrap peers.
  *
@@ -66,7 +66,7 @@ const ROLES: Omit<Peer, "sandbox" | "overlayIp">[] = [
   },
 ];
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 async function bootRadicleNode(sb: Sandbox, alias: string) {
   await sb.sh(
@@ -138,14 +138,14 @@ mkdir -p "$(dirname ${remotePath})"
 echo '${enc}' | base64 -d > ${remotePath}
 git checkout -B ${peer.branch}
 git add ${peer.filePath}
-git -c user.email=${peer.role}@fc.local -c user.name=${peer.role}-agent commit -qm "${peer.role}: add ${peer.filePath}"
+git -c user.email=${peer.role}@box.local -c user.name=${peer.role}-agent commit -qm "${peer.role}: add ${peer.filePath}"
 RAD_PASSPHRASE=${RAD_PASS} git push -u rad ${peer.branch}
 RAD_PASSPHRASE=${RAD_PASS} rad sync --announce || true
 `;
   return peer.sandbox.sh(script, { label: "push", timeoutMs: 120_000 });
 }
 
-const network = await fc.networks.create({ name: `radicle-mesh-${Date.now()}` });
+const network = await box.networks.create({ name: `radicle-mesh-${Date.now()}` });
 console.log("overlay network:", network.id);
 
 let peers: Peer[] = [];
@@ -165,7 +165,7 @@ try {
   );
   // Authoritative overlay IPs come from networks.get(); SandboxView.ip
   // may report the primary management IP, not the overlay address.
-  const networkView = await fc.networks.get(network.id);
+  const networkView = await box.networks.get(network.id);
   const ipById = new Map((networkView.members ?? []).map((m) => [m.sandbox_id, m.ip]));
   peers = ROLES.map((r, i) => {
     const sb = sandboxes[i]!;
@@ -197,8 +197,8 @@ export PATH=${RAD_BIN}:$PATH
 mkdir -p ${REPO_DIR} && cd ${REPO_DIR}
 git init -q -b main
 echo '# fc-radicle-demo' > README.md
-git add . && git -c user.email=bootstrap@fc.local -c user.name=bootstrap commit -qm "chore: bootstrap"
-RAD_PASSPHRASE=${RAD_PASS} rad init --name fc-radicle-demo --description "FC + Radicle multi-agent demo" --default-branch main --public --no-confirm
+git add . && git -c user.email=bootstrap@box.local -c user.name=bootstrap commit -qm "chore: bootstrap"
+RAD_PASSPHRASE=${RAD_PASS} rad init --name fc-radicle-demo --description "createos-sandbox + Radicle multi-agent demo" --default-branch main --public --no-confirm
 rad inspect
 `,
       { label: "init", timeoutMs: 180_000 },
@@ -324,7 +324,7 @@ git --git-dir="$STORAGE" for-each-ref --format='%(refname) %(objectname:short)' 
     let deleted = false;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        await fc.networks.delete(network.id);
+        await box.networks.delete(network.id);
         deleted = true;
         break;
       } catch {

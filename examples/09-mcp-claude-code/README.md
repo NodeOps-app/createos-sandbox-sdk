@@ -1,12 +1,12 @@
-# 09 — Claude Code CLI in an FC Sandbox
+# 09 — Claude Code CLI in a createos-sandbox Sandbox
 
-Installs the `@anthropic-ai/claude-code` CLI inside a fresh FC sandbox and
+Installs the `@anthropic-ai/claude-code` CLI inside a fresh createos-sandbox sandbox and
 uses `claude -p` (print mode) to run a coding task: write and execute a Python
 script that generates Fibonacci numbers and identifies which are prime.
 
 ## What it does
 
-1. Creates an FC sandbox (`devbox:1`, 1 vCPU / 1 GB)
+1. Creates a createos-sandbox sandbox (`devbox:1`, 1 vCPU / 1 GB)
 2. Installs `@anthropic-ai/claude-code` via npm inside the sandbox (`--prefix /usr/local`)
 3. Creates a non-root user (`sandboxuser`) — required because Claude Code blocks
    `--dangerously-skip-permissions` when running as root, and devbox:1 runs as root
@@ -36,7 +36,7 @@ bun index.ts
 
 | Variable               | Required | Description                                                    |
 | ---------------------- | -------- | -------------------------------------------------------------- |
-| `CREATEOS_SANDBOX_API_KEY`           | yes      | FC control-plane API key                                       |
+| `CREATEOS_SANDBOX_API_KEY`           | yes      | createos-sandbox control-plane API key                                       |
 | `ANTHROPIC_API_KEY`    | yes\*    | Anthropic API key                                              |
 | `ANTHROPIC_AUTH_TOKEN` | yes\*    | Alternative to `ANTHROPIC_API_KEY` (custom proxy)              |
 | `ANTHROPIC_BASE_URL`   | no       | Custom Anthropic proxy URL                                     |

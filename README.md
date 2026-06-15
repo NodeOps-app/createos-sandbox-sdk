@@ -24,9 +24,9 @@ and `AbortSignal.any` — Bun, Deno, modern edge runtimes).
 ```ts
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY }); // baseUrl from CREATEOS_SANDBOX_BASE_URL
+const box = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY }); // baseUrl from CREATEOS_SANDBOX_BASE_URL
 
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
 });
@@ -49,7 +49,7 @@ optional and falls back to `CREATEOS_SANDBOX_API_KEY`, sent as `X-Api-Key`. Auth
 required for control-plane calls: provide either `apiKey` or `authHeaders`.
 
 ```ts
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   apiKey: "sk-...",                 // or env CREATEOS_SANDBOX_API_KEY
   baseUrl: "https://createos-sandbox...",   // or env CREATEOS_SANDBOX_BASE_URL
   timeoutMs: 30_000,                // per-request deadline (default 60s)
@@ -59,10 +59,10 @@ const fc = new CreateosSandboxClient({
 ```
 
 Use `authHeaders` when the SDK is talking to your own API/proxy and your app
-auth is not an createos-sandbox API key:
+auth is not a createos-sandbox API key:
 
 ```ts
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   baseUrl: "https://api.your-app.com/fc",
   authHeaders: {
     Authorization: `Bearer ${sessionToken}`,
@@ -75,20 +75,20 @@ const fc = new CreateosSandboxClient({
 
 ```ts
 // Reads CREATEOS_SANDBOX_API_KEY + CREATEOS_SANDBOX_BASE_URL from the environment (CREATEOS_SANDBOX_BASE_URL required).
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 ```
 
 Every method takes a final options argument for per-call overrides:
 
 ```ts
-await fc.whoami({ timeoutMs: 5_000, retry: false, signal: ac.signal });
+await box.whoami({ timeoutMs: 5_000, retry: false, signal: ac.signal });
 ```
 
 ## Creating sandboxes
 
 ```ts
-const sandbox = await fc.createSandbox({
-  shape: "s-1vcpu-256mb",          // required — see fc.listShapes()
+const sandbox = await box.createSandbox({
+  shape: "s-1vcpu-256mb",          // required — see box.listShapes()
   rootfs: "devbox:1",              // catalog name or template id/name
   name: "build-worker",            // optional; auto-generated if omitted
   envs: { NODE_ENV: "production" },// injected into every command
@@ -102,7 +102,7 @@ const sandbox = await fc.createSandbox({
 Return immediately instead of waiting for `running`:
 
 ```ts
-const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb" }, { wait: false });
+const sandbox = await box.createSandbox({ shape: "s-1vcpu-256mb" }, { wait: false });
 console.log(sandbox.status); // "creating" — or "running" if the spawn already finished
 await sandbox.waitUntilRunning({ timeoutMs: 60_000 });
 ```
@@ -122,10 +122,10 @@ const sandbox = await Sandbox.create(
 ## Connecting to existing sandboxes
 
 ```ts
-const sandbox = await fc.getSandbox("sb_01K...");
-const byIp = await fc.getSandboxByIP("10.0.0.2");
+const sandbox = await box.getSandbox("sb_01K...");
+const byIp = await box.getSandboxByIP("10.0.0.2");
 
-const running = await fc.listSandboxes({ status: "running", limit: 100 });
+const running = await box.listSandboxes({ status: "running", limit: 100 });
 for (const sbx of running) {
   console.log(sbx.id, sbx.status, sbx.ip);
 }
@@ -171,11 +171,11 @@ const { result: built } = await sandbox.sh("apt-get update -qq && apt-get instal
 // Environment variables are set per-sandbox at create time via `envs` and are
 // injected into every command. The control plane does not support per-command
 // stdin or env overrides — set env when creating or forking the sandbox.
-const box = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: "s-1vcpu-256mb",
   envs: { LOG_LEVEL: "info" },
 });
-const logged = await box.runCommand("printenv", ["LOG_LEVEL"]);
+const logged = await sandbox.runCommand("printenv", ["LOG_LEVEL"]);
 ```
 
 Streaming output yields a discriminated union — switch on `event.type`:
@@ -246,7 +246,7 @@ await sandbox.waitUntilDestroyed();
 A fork/snapshot workflow:
 
 ```ts
-const base = await fc.createSandbox({ shape: "s-1vcpu-256mb" });
+const base = await box.createSandbox({ shape: "s-1vcpu-256mb" });
 await base.runCommand("bash", ["-lc", "apt-get install -y ripgrep"]);
 await base.pause();
 await base.waitUntilPaused();
@@ -258,7 +258,7 @@ const workers = await Promise.all([base.fork(), base.fork(), base.fork()]);
 ## Preview URLs
 
 ```ts
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: "s-1vcpu-256mb",
   ingress_enabled: true,
 });
@@ -303,16 +303,16 @@ await sandbox.rechargeBandwidth(10 * 1024 * 1024 * 1024); // +10 GiB
 ## Networks
 
 ```ts
-const network = await fc.networks.create({ name: "backend" });
+const network = await box.networks.create({ name: "backend" });
 
 await sandbox.attachNetwork(network.id);
 await otherSandbox.attachNetwork(network.id);
 // sandboxes now reach each other by name across the overlay
 
-await fc.networks.get(network.id);   // includes members
-await fc.networks.list();
+await box.networks.get(network.id);   // includes members
+await box.networks.list();
 await sandbox.detachNetwork(network.id);
-await fc.networks.delete(network.id);
+await box.networks.delete(network.id);
 ```
 
 ## Templates
@@ -320,7 +320,7 @@ await fc.networks.delete(network.id);
 Build a custom rootfs from a Dockerfile:
 
 ```ts
-const template = await fc.templates.create({
+const template = await box.templates.create({
   name: "rg-base",
   dockerfile:
     "FROM your-registry/fc-base:latest\n" + // your createos-sandbox base rootfs image
@@ -329,32 +329,32 @@ const template = await fc.templates.create({
 
 // Follow the build log until it finishes. Pass a generous timeoutMs — a build
 // can outlast the default 60s per-request deadline.
-for await (const event of fc.templates.followLogs(template.id, { timeoutMs: 600_000 })) {
+for await (const event of box.templates.followLogs(template.id, { timeoutMs: 600_000 })) {
   if (event.line) console.log(event.line);
   if (event.final) console.log("build", event.status);
 }
 
 // Or fetch the log as plain text after the fact.
-console.log(await fc.templates.logs(template.id));
+console.log(await box.templates.logs(template.id));
 
-const ready = await fc.templates.get(template.id);
+const ready = await box.templates.get(template.id);
 if (ready.status === "ready") {
-  await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "rg-base" });
+  await box.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "rg-base" });
 }
 
-await fc.templates.list();
-await fc.templates.delete(template.id);
+await box.templates.list();
+await box.templates.delete(template.id);
 ```
 
 ## Catalog and identity
 
 ```ts
-await fc.listShapes();   // Shape[] — { id, vcpu, mem_mib, default_disk_mib }
-await fc.listRootfs();   // { rootfs, default, entries }
-await fc.listHosts();    // HostPublic[]
-await fc.whoami();       // { user_id, stats }
-await fc.healthz();      // { up }
-await fc.readyz();       // { ready, reason? } — does not throw on 503
+await box.listShapes();   // Shape[] — { id, vcpu, mem_mib, default_disk_mib }
+await box.listRootfs();   // { rootfs, default, entries }
+await box.listHosts();    // HostPublic[]
+await box.whoami();       // { user_id, stats }
+await box.healthz();      // { up }
+await box.readyz();       // { ready, reason? } — does not throw on 503
 ```
 
 ## Errors
@@ -368,7 +368,7 @@ file a useful support ticket — `statusCode`, `endpoint`, `method`,
 import { CreateosSandboxNotFoundError, CreateosSandboxRateLimitError, CreateosSandboxValidationError } from "createos-sandbox-sdk";
 
 try {
-  await fc.createSandbox({ shape: "does-not-exist" });
+  await box.createSandbox({ shape: "does-not-exist" });
 } catch (err) {
   if (err instanceof CreateosSandboxValidationError) {
     console.error("bad request:", err.envelope?.data);
@@ -413,7 +413,7 @@ your structured logger, or a metrics sink — the SDK does not pull any
 runtime dependency for this.
 
 ```ts
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
   hooks: {
     onRequest: (ctx) => log.debug("→", ctx.method, ctx.url, `try ${ctx.attempt}`),
@@ -447,10 +447,10 @@ network errors and `408/500/502/503/504`; non-idempotent methods retry
 only on `429/503`, where the server demonstrably did not act.
 
 ```ts
-const fc = new CreateosSandboxClient({ retry: { maxRetries: 4, baseDelayMs: 250 } });
+const box = new CreateosSandboxClient({ retry: { maxRetries: 4, baseDelayMs: 250 } });
 
-await fc.whoami({ retry: false });               // disable for one call
-await fc.createSandbox(req, { timeoutMs: 120_000 });
+await box.whoami({ retry: false });               // disable for one call
+await box.createSandbox(req, { timeoutMs: 120_000 });
 ```
 
 ## Cancellation
@@ -461,7 +461,7 @@ Every method accepts an `AbortSignal`:
 const ac = new AbortController();
 setTimeout(() => ac.abort(), 5_000);
 
-const sandbox = await fc.createSandbox(
+const sandbox = await box.createSandbox(
   { shape: "s-1vcpu-256mb" },
   { signal: ac.signal },
 );
@@ -469,11 +469,11 @@ const sandbox = await fc.createSandbox(
 
 ## Escape hatch
 
-`fc.http` exposes the low-level transport (`request`, `requestRaw`,
+`box.http` exposes the low-level transport (`request`, `requestRaw`,
 `stream`) for endpoints the SDK does not model:
 
 ```ts
-const data = await fc.http.request("GET", "/v1/some/new/endpoint");
+const data = await box.http.request("GET", "/v1/some/new/endpoint");
 ```
 
 ## Docs

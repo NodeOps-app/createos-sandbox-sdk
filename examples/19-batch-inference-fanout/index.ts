@@ -1,9 +1,9 @@
 /**
- * Batch inference fan-out — a parallel-map workload sharded across many FC
+ * Batch inference fan-out — a parallel-map workload sharded across many createos-sandbox
  * sandboxes.
  *
  * Sentiment classification over a bundled batch of labeled movie reviews,
- * sharded and processed in PARALLEL across N independent FC sandboxes. Each
+ * sharded and processed in PARALLEL across N independent createos-sandbox sandboxes. Each
  * sandbox installs a CPU-only HuggingFace model, runs its shard, and reports
  * its own inference timing. The host shards the batch, fans the work out
  * concurrently, then aggregates: overall accuracy against the bundled labels,
@@ -48,7 +48,7 @@ if (!CREATEOS_SANDBOX_API_KEY) {
   process.exit(1);
 }
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   apiKey: CREATEOS_SANDBOX_API_KEY,
   baseUrl: CREATEOS_SANDBOX_BASE_URL,
 });
@@ -98,7 +98,7 @@ async function createWithRetry(name: string): Promise<Sandbox> {
   const maxAttempts = 6;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
-      return await fc.createSandbox(opts);
+      return await box.createSandbox(opts);
     } catch (err) {
       // Out of credit is a hard stop, not a transient cap — waiting will not
       // fix it, and a 402 message can contain "limit"/"quota" that the retriable
@@ -299,7 +299,7 @@ try {
       // longer capped at one page), so this sees the account's full running
       // set and the leak check is exhaustive — at the cost of pulling every
       // running sandbox in a busy tenant.
-      const live = await fc.listSandboxes({ status: "running" });
+      const live = await box.listSandboxes({ status: "running" });
       const liveIds = new Set(live.map((s) => s.id));
       const leaked = created.filter((id) => liveIds.has(id));
       if (leaked.length) {

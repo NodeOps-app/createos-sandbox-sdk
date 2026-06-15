@@ -123,7 +123,7 @@ export class SandboxFiles {
  * `@throws` tags list only the conditions specific to that call.
  *
  * @example
- * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
+ * const sandbox = await box.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
  * const out = await sandbox.runCommand("uname", ["-a"]);
  * await sandbox.destroy();
  */

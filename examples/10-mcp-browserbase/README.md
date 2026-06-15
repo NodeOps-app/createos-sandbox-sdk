@@ -1,14 +1,14 @@
-# 10 — Browserbase MCP via FC Sandbox
+# 10 — Browserbase MCP via createos-sandbox Sandbox
 
-Runs the `@browserbasehq/mcp` server inside an FC microVM sandbox, exposes it
-over FC ingress, then drives it from the host using Claude (Anthropic SDK) as
+Runs the `@browserbasehq/mcp` server inside a createos-sandbox microVM sandbox, exposes it
+over createos-sandbox ingress, then drives it from the host using Claude (Anthropic SDK) as
 the AI agent. Claude calls Browserbase tools (screenshot, navigate, interact)
 through the MCP connection.
 
 ## Architecture
 
 ```
-Host (index.ts)                         FC Sandbox
+Host (index.ts)                         createos-sandbox Sandbox
 ──────────────────                      ──────────────────────
 Claude (Anthropic SDK)                  @browserbasehq/mcp server
   ↓ beta.messages (mcp_servers)         (node, port 8080, 0.0.0.0)
@@ -16,13 +16,13 @@ Anthropic API ──────────────────────
 ```
 
 Anthropic's API fetches tool definitions and calls tools server-side via the
-FC ingress URL. The sandbox environment variable `BROWSERBASE_API_KEY` and
+createos-sandbox ingress URL. The sandbox environment variable `BROWSERBASE_API_KEY` and
 `BROWSERBASE_PROJECT_ID` are passed at creation time so the MCP server can
 authenticate with Browserbase cloud.
 
 ## Prerequisites
 
-- FC API key (`CREATEOS_SANDBOX_API_KEY`)
+- createos-sandbox API key (`CREATEOS_SANDBOX_API_KEY`)
 - Anthropic API key (`ANTHROPIC_API_KEY`)
 - Browserbase API key (`BROWSERBASE_API_KEY`)
 - Browserbase project ID (`BROWSERBASE_PROJECT_ID`)
@@ -37,7 +37,7 @@ bun index.ts
 bun auto-loads `.env` from the example dir. The script also fills missing
 values from `../.env`.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                    | SDK call                                                    |
 | -------------------------------------------- | ----------------------------------------------------------- |

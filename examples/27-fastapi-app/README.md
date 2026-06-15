@@ -1,6 +1,6 @@
 # 27 — FastAPI App
 
-Run a FastAPI ASGI web server inside an FC microVM, expose it through the
+Run a FastAPI ASGI web server inside a createos-sandbox microVM, expose it through the
 sandbox's public ingress URL, and verify live JSON responses from two routes.
 
 ## Run
@@ -28,11 +28,11 @@ bun index.ts
    `{ item_id: 42, q: "hello" }` — confirming path + query parameter routing.
 8. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                      |
 | ---------------------------------- | --------------------------------------------- |
-| Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
+| Create sandbox with public ingress | `box.createSandbox({ ingress_enabled: true })` |
 | Upload app source into the VM      | `sandbox.files.upload(path, contents)`        |
 | Run commands (install, daemonise)  | `sandbox.runCommand("bash", ["-lc", ...])`    |
 | Build the public preview URL       | `sandbox.previewUrl(port)`                    |

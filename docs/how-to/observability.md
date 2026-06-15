@@ -24,7 +24,7 @@ hook. A throw inside a hook is caught and warned, never propagated.
 ```ts
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
   hooks: {
     onRequest: (ctx) =>
@@ -49,7 +49,7 @@ import { trace } from "@opentelemetry/api";
 const tracer = trace.getTracer("createos-sandbox-sdk");
 const spans = new Map<string, ReturnType<(typeof tracer)["startSpan"]>>();
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   hooks: {
     onRequest: (ctx) => {
       const key = `${ctx.method} ${ctx.url} ${ctx.attempt}`;
@@ -61,7 +61,7 @@ const fc = new CreateosSandboxClient({
       const key = `${ctx.method} ${ctx.url} ${ctx.attempt}`;
       const span = spans.get(key);
       span?.setAttribute("http.status_code", ctx.status);
-      span?.setAttribute("fc.request_id", ctx.requestId ?? "");
+      span?.setAttribute("box.request_id", ctx.requestId ?? "");
       span?.end();
       spans.delete(key);
     },

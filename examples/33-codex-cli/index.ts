@@ -1,7 +1,7 @@
 /**
  * Run the OpenAI Codex CLI inside a sandbox to execute a coding task.
  *
- * Installs the Codex CLI (Rust edition, @openai/codex) in an FC sandbox, points
+ * Installs the Codex CLI (Rust edition, @openai/codex) in a createos-sandbox sandbox, points
  * it at an OpenAI-compatible provider via ~/.codex/config.toml, then runs a
  * coding task non-interactively with `codex exec`. The generated file is
  * downloaded and re-run on the VM as proof. The interesting part is making an
@@ -38,7 +38,7 @@ const CODEX_TASK =
   "The script must also print the result of calling fizzbuzz with 15 when run directly. " +
   "After writing fizzbuzz.py run it with python3 fizzbuzz.py to confirm it produces output.";
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   baseUrl: CREATEOS_SANDBOX_BASE_URL,
   apiKey: CREATEOS_SANDBOX_API_KEY,
 });
@@ -47,7 +47,7 @@ const fc = new CreateosSandboxClient({
 //    Codex CLI (which reads OPENAI_API_KEY for auth) sees the key without us
 //    having to write it into a file.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   envs: {
@@ -89,7 +89,7 @@ try {
   // model_provider = "gateway" links the active model to the custom provider.
   // supports_websockets = false: gateway does not expose a WS endpoint for streaming.
   // approval_policy = "never": suppresses all interactive approval prompts.
-  // sandbox_mode = "danger-full-access": allows the agent to write files (inside FC VM is safe).
+  // sandbox_mode = "danger-full-access": allows the agent to write files (inside createos-sandbox VM is safe).
   const configToml = `
 model = "${OPENAI_MODEL}"
 model_provider = "gateway"
@@ -142,7 +142,9 @@ supports_websockets = false
   console.log("\n── python3 /root/work/fizzbuzz.py ───────────────────────────────");
   console.log(py.stdout.trim());
 
-  console.log("\nverified end-to-end: codex generated and ran Python code inside FC sandbox");
+  console.log(
+    "\nverified end-to-end: codex generated and ran Python code inside createos-sandbox sandbox",
+  );
 } finally {
   await sandbox.destroy().catch(() => {});
   console.log(`\ndestroyed: ${sandbox.id}`);

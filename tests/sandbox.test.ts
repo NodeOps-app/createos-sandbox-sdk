@@ -249,14 +249,14 @@ describe("ingress", () => {
           : success({
               ...RUNNING_VIEW,
               ingress_enabled: true,
-              ingress_url_template: "https://<port>-sb_1.fc.test",
+              ingress_url_template: "https://<port>-sb_1.box.test",
             }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
-    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.fc.test");
-    expect(sandbox.previewUrl(8080, { scheme: "https" })).toBe("https://8080-sb_1.fc.test");
-    expect(sandbox.previewUrl(8080, { scheme: "http" })).toBe("http://8080-sb_1.fc.test");
+    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.box.test");
+    expect(sandbox.previewUrl(8080, { scheme: "https" })).toBe("https://8080-sb_1.box.test");
+    expect(sandbox.previewUrl(8080, { scheme: "http" })).toBe("http://8080-sb_1.box.test");
   });
 
   test("previewUrl uses the create-response template before the view is populated (wait:false)", async () => {
@@ -265,7 +265,7 @@ describe("ingress", () => {
     const client = makeClient((_url, init) =>
       Promise.resolve(
         init.method === "POST"
-          ? success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.fc.test" })
+          ? success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" })
           : success({ ...RUNNING_VIEW, status: "creating", ingress_enabled: true }),
       ),
     );
@@ -273,7 +273,7 @@ describe("ingress", () => {
       { shape: "s", ingress_enabled: true },
       { wait: false },
     );
-    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.fc.test");
+    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.box.test");
   });
 
   test("previewUrl throws when ingress is not enabled", async () => {
@@ -291,12 +291,12 @@ describe("ingress", () => {
             : success({
                 ...RUNNING_VIEW,
                 ingress_enabled: true,
-                ingress_url_template: "https://<port>-sb_1.fc.test",
+                ingress_url_template: "https://<port>-sb_1.box.test",
               }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
-    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.fc.test");
+    expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.box.test");
     await sandbox.setIngress(false);
     expect(() => sandbox.previewUrl(8080)).toThrow(CreateosSandboxError);
   });

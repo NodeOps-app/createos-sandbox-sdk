@@ -16,7 +16,7 @@ const TEMPLATE_NAME = `docker-ce-${Date.now()}`;
 const SHAPE = "s-1vcpu-1gb";
 
 // Installs Docker CE via the official convenience script.
-// FC v1 Dockerfile rules: single FROM (fc-allowed base only), no COPY/ADD.
+// createos-sandbox v1 Dockerfile rules: single FROM (createos-sandbox-allowed base only), no COPY/ADD.
 // Uses the createos-sandbox debian base (apt-based, required for Docker CE install).
 const DOCKERFILE = `FROM bhautikchudasama/fc-base:debian-1
 
@@ -28,19 +28,19 @@ RUN apt-get update -qq \\
 
 // Template builds are a catalog-level operation, so go through CreateosSandboxClient
 // directly rather than the per-sandbox Sandbox.create factory.
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // 1. Submit the build. Returns immediately with a pending template; the actual
 //    image build runs server-side.
 console.log(`[1/5] submitting template build: ${TEMPLATE_NAME}`);
-const tmpl = await fc.templates.create({ name: TEMPLATE_NAME, dockerfile: DOCKERFILE });
+const tmpl = await box.templates.create({ name: TEMPLATE_NAME, dockerfile: DOCKERFILE });
 console.log(`      template id: ${tmpl.id}  status: ${tmpl.status}`);
 
 try {
   // 2. Follow the build logs until the build emits its final event.
   console.log("[2/5] streaming build logs...");
   try {
-    for await (const event of fc.templates.followLogs(tmpl.id)) {
+    for await (const event of box.templates.followLogs(tmpl.id)) {
       if (event.line) process.stdout.write(event.line + "\n");
       if (event.final) {
         console.log(`      build finished: ${event.status}`);
@@ -54,7 +54,7 @@ try {
   // Poll for terminal status — the log stream may close before the final event arrives.
   // The build has no inherent upper bound, so cap the wait at a generous 10 minutes.
   await pollUntil({
-    poll: () => fc.templates.get(tmpl.id).then((t) => t.status),
+    poll: () => box.templates.get(tmpl.id).then((t) => t.status),
     done: (status) => status === "ready",
     failed: (status) =>
       status === "pending" || status === "building"
@@ -66,7 +66,7 @@ try {
 
   // 3. Boot a sandbox on the freshly built template (rootfs = the template id).
   console.log(`[3/5] creating sandbox (shape=${SHAPE}, rootfs=${tmpl.id})...`);
-  const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: tmpl.id });
+  const sandbox = await box.createSandbox({ shape: SHAPE, rootfs: tmpl.id });
   console.log(`      sandbox created: ${sandbox.id}`);
 
   try {
@@ -124,6 +124,6 @@ try {
     console.log(`\ndestroyed sandbox: ${sandbox.id}`);
   }
 } finally {
-  await fc.templates.delete(tmpl.id).catch(() => {});
+  await box.templates.delete(tmpl.id).catch(() => {});
   console.log(`deleted template:  ${tmpl.id}`);
 }

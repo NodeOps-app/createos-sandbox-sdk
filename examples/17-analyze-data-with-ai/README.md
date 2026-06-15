@@ -1,6 +1,6 @@
 # 17 — Analyze data with AI
 
-Upload a CSV into an FC sandbox, let Claude write the pandas/matplotlib
+Upload a CSV into a createos-sandbox sandbox, let Claude write the pandas/matplotlib
 analysis from the file's real schema, run it inside the VM, then read the
 rendered chart PNG back out to the host.
 

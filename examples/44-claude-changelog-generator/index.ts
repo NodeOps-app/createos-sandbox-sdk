@@ -11,7 +11,7 @@
  */
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-// Bridge host env -> sandbox env.  Fail fast if FC creds are missing.
+// Bridge host env -> sandbox env.  Fail fast if createos-sandbox creds are missing.
 const baseUrl = process.env.FCSPAWN_URL ?? process.env.CREATEOS_SANDBOX_BASE_URL;
 if (!baseUrl) throw new Error("FCSPAWN_URL (or CREATEOS_SANDBOX_BASE_URL) is required");
 const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
@@ -47,10 +47,10 @@ const sandboxEnvs: Record<string, string> = {
     : {}),
 };
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS, envs: sandboxEnvs });
+const sandbox = await box.createSandbox({ shape: SHAPE, rootfs: ROOTFS, envs: sandboxEnvs });
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {

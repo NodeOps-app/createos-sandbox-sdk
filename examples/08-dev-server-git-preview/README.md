@@ -1,7 +1,7 @@
 # 08 — Dev Server Git Preview
 
 Clone a public Git repo, install dependencies, launch a Next.js dev server
-inside an FC sandbox, expose it via HTTP ingress, and print the live preview URL.
+inside a createos-sandbox sandbox, expose it via HTTP ingress, and print the live preview URL.
 
 ## What it does
 
@@ -9,7 +9,7 @@ inside an FC sandbox, expose it via HTTP ingress, and print the live preview URL
 2. Sparse-clones the `hello-world` example from the Next.js repo (`--depth=1
 --filter=blob:none --sparse`) — under 2 MB download.
 3. Runs `npm install` inside the clone.
-4. Daemonises `npx next dev -p 3000` via `nohup setsid` (no systemd in FC).
+4. Daemonises `npx next dev -p 3000` via `nohup setsid` (no systemd in createos-sandbox).
 5. Polls the ingress URL until Next.js responds (up to 90 s — cold compile takes
    ~40–60 s on 1 vCPU).
 6. Prints the live preview URL and a snippet of the response.
@@ -51,6 +51,6 @@ destroyed: sb-<id>
 
 - Next.js dev server compiles on first request — the 90-second poll budget
   accounts for this. Increase `deadline` if your network / CPU is slower.
-- The ingress URL is `https://` (TLS terminated by the FC ingress proxy).
+- The ingress URL is `https://` (TLS terminated by the createos-sandbox ingress proxy).
 - `runCommand` is used (not `exec`) throughout — a global security hook
   false-positives on the literal token `exec(`.

@@ -1,6 +1,6 @@
 # 13 — LlamaIndex RAG
 
-Build a LlamaIndex `VectorStoreIndex` inside a single FC sandbox, snapshot
+Build a LlamaIndex `VectorStoreIndex` inside a single createos-sandbox sandbox, snapshot
 the prepared state with `pause`/`resume`, and answer a question against the
 persisted index. Embeddings run locally on CPU (sentence-transformers/
 `all-MiniLM-L6-v2`); the chat model is reached over any OpenAI-compatible
@@ -36,7 +36,7 @@ bun auto-loads `.env` from this dir. Required vars: `CREATEOS_SANDBOX_API_KEY`,
    `index_store.json`, `default__vector_store.json`) to `./output/` and
    destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                | SDK call                                                                        |
 | ---------------------------------------- | ------------------------------------------------------------------------------- |

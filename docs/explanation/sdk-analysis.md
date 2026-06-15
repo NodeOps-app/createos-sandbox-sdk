@@ -615,7 +615,7 @@ Re-read at `10f8266` (2025-12-04), v2.4.2.
 | Versioned `User-Agent` header | Daytona, E2B |
 | `previewUrl(port)` helper | Cloudflare (token preview URLs) |
 | `exports` map, `sideEffects: false`, ESM-only | Vercel |
-| `fc.http` low-level escape hatch | ComputeSDK (`getInstance()`) |
+| `box.http` low-level escape hatch | ComputeSDK (`getInstance()`) |
 | Streaming surfaced as an async iterator | E2B, Modal |
 
 ## Where createos-sandbox-sdk leads
@@ -720,8 +720,8 @@ Patterns from the 2026-05-28 survey worth backporting into
   `/dev/tcp/<host>/<port>`** — defeats the 502-race on fresh VMs
   without a server-side probe. Shipped in v0.2.1 (Tensorlake).
 - **Targeted error subclasses for known body `code` values** —
-  `FcScalingLockedError` (403 + `code: "scaling_locked"`),
-  `FcPlanLimitError` (402). Awaits server-side commitment to a `code`
+  `CreateosSandboxScalingLockedError` (403 + `code: "scaling_locked"`),
+  `CreateosSandboxPlanLimitError` (402). Awaits server-side commitment to a `code`
   taxonomy; the field is already wired (OpenComputer).
 
 ### Conditional / awaits server feature
@@ -736,9 +736,9 @@ Patterns from the 2026-05-28 survey worth backporting into
 - **H2 connection pool warming during `createSandbox`** — only matters
   if createos-sandbox goes multi-region with edge domains (Blaxel).
 - **Sequence-numbered event subscriptions with `afterSequence` resume**
-  if FC adds an event bus (Runloop).
+  if createos-sandbox adds an event bus (Runloop).
 - **Multipart upload with parallel parts and transient-marker
-  classifier** if FC adds a large-file endpoint (Blaxel).
+  classifier** if createos-sandbox adds a large-file endpoint (Blaxel).
 
 ### Stylistic / testing
 

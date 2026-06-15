@@ -2,17 +2,17 @@
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
 where Anthropic keeps the orchestration but each agent **session executes in its
-own fresh FC microVM**. The host runs a control-plane-only work poller; for every
+own fresh createos-sandbox microVM**. The host runs a control-plane-only work poller; for every
 claimed session it spawns a sandbox, runs the worker inside it, and destroys the
 sandbox when the session finishes. True per-session isolation — the same model
-the Modal / Daytona / Vercel self-hosted guides use, with FC as the sandbox.
+the Modal / Daytona / Vercel self-hosted guides use, with createos-sandbox as the sandbox.
 
 This is the per-session-spawn topology. For a single always-on worker that
 handles every session in one VM, see `36-self-hosted-agent-worker`.
 
 ## Setup — credentials
 
-You need FC creds (`CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_API_KEY`) in `.env`, and three Anthropic
+You need createos-sandbox creds (`CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_API_KEY`) in `.env`, and three Anthropic
 values in `.env.ant`. Both files are gitignored — never commit them. `bun`
 auto-loads `.env`; the example reads `.env.ant` itself (kept separate so the
 shared `.env`'s internal Anthropic gateway vars can't misroute the real API).
@@ -72,7 +72,7 @@ ANTHROPIC_ENVIRONMENT_KEY=sk-ant-oat01-…   # Console > Generate environment ke
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC creds (or symlink ../.env)
+cp .env.example .env  # fill in createos-sandbox creds (or symlink ../.env)
 bun index.ts
 ```
 
@@ -82,13 +82,13 @@ bun index.ts
    sending each a prompt (which starts a run and enqueues a work item).
 2. Runs `work.poller({ drain: true })` on the host — control-plane only; it
    claims each work item with the environment key.
-3. For each claimed session: spawns a fresh FC microVM, installs `ant`, and runs
+3. For each claimed session: spawns a fresh createos-sandbox microVM, installs `ant`, and runs
    `ant beta:worker run`, which attaches to that exact session, executes the
    agent's tool calls in-VM, posts results back, and exits on idle.
 4. Downloads `/workspace/report.txt` from the per-session VM to prove the work
-   ran inside FC, then destroys the VM.
+   ran inside createos-sandbox, then destroys the VM.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                 | SDK call                                                |
 | ----------------------------------------- | ------------------------------------------------------- |

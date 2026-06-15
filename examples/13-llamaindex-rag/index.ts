@@ -21,7 +21,7 @@ const ROOTFS = "devbox:1";
 const CORPUS_DIR = new URL("./corpus/", import.meta.url).pathname;
 const OUTPUT_DIR = new URL("./output/", import.meta.url).pathname;
 const QUESTION =
-  "What states does an createos-sandbox sandbox move through, and which one is terminal?";
+  "What states does a createos-sandbox sandbox move through, and which one is terminal?";
 
 const OPENAI_API_URL = process.env.OPENAI_API_URL ?? process.env.OPENAI_BASE_URL;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -31,7 +31,7 @@ if (!OPENAI_API_URL || !OPENAI_API_KEY) {
   process.exit(1);
 }
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 async function createWithRetry() {
   const name = `llamaidx-${Date.now().toString(36).slice(-6)}`;
@@ -52,7 +52,7 @@ async function createWithRetry() {
   const maxAttempts = 6;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
-      return await fc.createSandbox(opts);
+      return await box.createSandbox(opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =

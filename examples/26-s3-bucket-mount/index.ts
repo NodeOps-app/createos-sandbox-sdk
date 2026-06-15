@@ -1,13 +1,13 @@
 /**
  * S3 Bucket Mount (read a public bucket via DuckDB httpfs).
  *
- * "Mounts" a public S3 bucket as a queryable data source inside an FC sandbox
+ * "Mounts" a public S3 bucket as a queryable data source inside a createos-sandbox sandbox
  * using DuckDB's httpfs extension — no real FUSE mount; httpfs reads the parquet
  * objects over HTTP on demand. Reads NOAA GHCN climate data (s3://noaa-ghcn-pds)
  * and runs a multi-year temperature trend analysis with an in-sandbox dbt-style
  * SQL transformation pipeline, then downloads the result parquet to the host.
  *
- * FC primitives: createSandbox, files.upload / files.download, runCommand, destroy
+ * createos-sandbox primitives: createSandbox, files.upload / files.download, runCommand, destroy
  *
  * Run:   bun 26-s3-bucket-mount/index.ts
  * Needs: CREATEOS_SANDBOX_API_KEY (CREATEOS_SANDBOX_BASE_URL optional — overrides the default control plane).
@@ -33,11 +33,11 @@ if (!process.env.CREATEOS_SANDBOX_API_KEY)
 
 const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
 const fcOptions = baseUrl ? { baseUrl } : {};
-const fc = new CreateosSandboxClient(fcOptions);
+const box = new CreateosSandboxClient(fcOptions);
 
 // 1. Create the sandbox. No ingress needed — this example only reaches outward.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
+const sandbox = await box.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
 console.log(`      sandbox: ${sandbox.id}  ip: ${sandbox.ip}`);
 
 try {

@@ -82,7 +82,7 @@ credit gating. See `COMPATIBILITY.md`.
   `ForkSandboxRequest` (still accepted on fork).
 - **`listSandboxes()` default changed from one page (≤50) to all rows.**
   `listSandboxes({ limit })` now treats `limit` as a cap on the number
-  of handles returned. A bare `await fc.listSandboxes()` walks every
+  of handles returned. A bare `await box.listSandboxes()` walks every
   page — pass `limit` to bound it.
 
 ## [0.5.0] — 2026-06-03

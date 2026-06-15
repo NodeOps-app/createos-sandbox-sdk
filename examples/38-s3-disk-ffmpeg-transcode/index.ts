@@ -1,7 +1,7 @@
 /**
  * S3-backed disk + ffmpeg transcode — mount a bucket into a sandbox.
  *
- * Registers an S3-compatible bucket as an FC disk, mounts it at boot on a
+ * Registers an S3-compatible bucket as a createos-sandbox disk, mounts it at boot on a
  * fresh sandbox (s3fs), runs an ffmpeg audio-extraction against files on the
  * mount, then detaches the disk and verifies the output landed durably in the
  * bucket from this host. Structured as a bounded watcher: it self-seeds a clip,
@@ -14,7 +14,7 @@
  *
  * Run:   bun 38-s3-disk-ffmpeg-transcode/index.ts
  * Needs: CREATEOS_SANDBOX_API_KEY + CREATEOS_SANDBOX_BASE_URL, and an S3-compatible bucket
- *        reachable from BOTH this machine and the FC agent — S3_BUCKET,
+ *        reachable from BOTH this machine and the createos-sandbox agent — S3_BUCKET,
  *        S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY (AWS S3 / R2 / MinIO; set
  *        S3_USE_PATH_STYLE=1 for MinIO). See .env.example for tuning vars.
  */
@@ -50,7 +50,7 @@ const VIDEO_RE = /\.(mp4|mov|mkv|webm|avi|m4v)$/i;
 
 // Local S3 client (Bun built-in) — seeds, lists, and verifies the bucket
 // from this machine. The same bucket is mounted *inside* the sandbox as an
-// FC disk via s3fs; this client never touches the mount, only the API.
+// createos-sandbox disk via s3fs; this client never touches the mount, only the API.
 const s3 = new Bun.S3Client({
   accessKeyId: S3.accessKey,
   secretAccessKey: S3.secretKey,
@@ -60,22 +60,22 @@ const s3 = new Bun.S3Client({
   virtualHostedStyle: !S3.usePathStyle,
 });
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // ── 1. self-seed a sample clip so the watcher always has work ────────────
 const seedKey = `${INPUT_PREFIX}seed-${rand()}.mp4`;
 console.log(`[seed] uploading sample.mp4 -> s3://${S3.bucket}/${seedKey}`);
 await s3.file(seedKey).write(Bun.file(new URL("./sample.mp4", import.meta.url)));
 
-// ── 2. register the bucket as an FC disk (idempotent by name) ────────────
+// ── 2. register the bucket as a createos-sandbox disk (idempotent by name) ────────────
 let createdDisk = false;
 console.log(`[disk] registering S3 disk "${DISK_NAME}" (bucket=${S3.bucket})`);
-let disk = await fc.disks.get(DISK_NAME).catch((e) => {
+let disk = await box.disks.get(DISK_NAME).catch((e) => {
   if (e instanceof CreateosSandboxNotFoundError) return null;
   throw e;
 });
 if (!disk) {
-  disk = await fc.disks.create({
+  disk = await box.disks.create({
     name: DISK_NAME,
     kind: "s3",
     config: {
@@ -141,7 +141,7 @@ try {
 } finally {
   if (createdDisk) {
     console.log(`[cleanup] deleting disk ${DISK_NAME} (bucket contents untouched)`);
-    await fc.disks.delete(DISK_NAME).catch((e) => console.warn(`  disk delete failed: ${e}`));
+    await box.disks.delete(DISK_NAME).catch((e) => console.warn(`  disk delete failed: ${e}`));
   }
 }
 
@@ -153,7 +153,7 @@ async function transcodeOne(inputKey: string): Promise<void> {
   console.log(`\n── ${inputKey} → ${outputKey} ──────────────────────────────`);
 
   console.log(`  [vm] creating sandbox (shape=${SHAPE}, disk=${DISK_NAME}@${MOUNT})`);
-  const sandbox = await fc.createSandbox({
+  const sandbox = await box.createSandbox({
     name: `ffmpeg-${rand()}`,
     shape: SHAPE,
     rootfs: "devbox:1",
@@ -208,7 +208,7 @@ async function transcodeOne(inputKey: string): Promise<void> {
     if (CLEANUP_MODE === "pause") {
       await sandbox.pause();
       console.log(
-        `  [vm] paused ${sandbox.id} — resume with fc.getSandbox("${sandbox.id}").resume()`,
+        `  [vm] paused ${sandbox.id} — resume with box.getSandbox("${sandbox.id}").resume()`,
       );
     } else {
       await sandbox.destroy();
@@ -234,7 +234,7 @@ async function waitForMount(sandbox: Sandbox): Promise<void> {
     }
     if (d?.mount_status === "error") {
       throw new Error(
-        `disk mount entered "error" state — is ${S3.endpoint} reachable from the FC agent?`,
+        `disk mount entered "error" state — is ${S3.endpoint} reachable from the createos-sandbox agent?`,
       );
     }
     await Bun.sleep(1000);

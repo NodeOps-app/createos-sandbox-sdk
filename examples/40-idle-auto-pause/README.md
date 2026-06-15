@@ -27,7 +27,7 @@ production control plane and only needs to be set to override.
 The valid range is 60–86400 (1 min – 24 h); the server rejects values outside
 it with a validation error.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive         | SDK call                       |
 | ----------------- | ------------------------------ |

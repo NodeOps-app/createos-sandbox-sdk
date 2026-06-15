@@ -1,10 +1,10 @@
-# 20 — Google ADK agent with FC sandbox tools
+# 20 — Google ADK agent with createos-sandbox sandbox tools
 
 A [Google Agent Development Kit](https://google.github.io/adk-docs/) (ADK)
-agent runs on the host in Python; its tools execute inside an FC microVM. The
+agent runs on the host in Python; its tools execute inside a createos-sandbox microVM. The
 agent reasons over a small coding task and drives it entirely through the
 sandbox: it writes a Python script, runs it, and reads the result back — each
-step is an ADK tool call that hits the FC HTTP API.
+step is an ADK tool call that hits the createos-sandbox HTTP API.
 
 This is the Python analogue of example 06 (OpenAI Agents SDK, TypeScript) and
 shows the same pattern in a second agent framework.
@@ -30,8 +30,8 @@ bun auto-loads `.env`. Required vars: `CREATEOS_SANDBOX_API_KEY`, the LLM proxy 
 1. `index.ts` creates one `devbox:1` sandbox with `createos-sandbox-sdk` and owns
    its lifecycle.
 2. It spawns `adk_agent.py` as a child process, passing the sandbox id and the
-   FC + LLM credentials via environment variables.
-3. `adk_agent.py` builds a Google ADK `Agent` whose three tools call the FC
+   createos-sandbox + LLM credentials via environment variables.
+3. `adk_agent.py` builds a Google ADK `Agent` whose three tools call the createos-sandbox
    HTTP API directly:
    - `write_file` → `PUT /v1/sandboxes/{id}/files` (upload a script)
    - `run_command` → `POST /v1/sandboxes/{id}/exec` (run it)
@@ -46,17 +46,17 @@ bun auto-loads `.env`. Required vars: `CREATEOS_SANDBOX_API_KEY`, the LLM proxy 
 ## Architecture — why the split
 
 ADK is a Python framework, but these examples are bun/TypeScript entry points.
-The thin `index.ts` owns the FC sandbox (create → spawn driver → destroy),
+The thin `index.ts` owns the createos-sandbox sandbox (create → spawn driver → destroy),
 mirroring examples 13/14/15 where a TS entry sequences Python payload files.
 The ADK driver runs on the host (not inside the sandbox) so the agent's tools
-treat the sandbox as a remote execution target reached over the FC HTTP API
+treat the sandbox as a remote execution target reached over the createos-sandbox HTTP API
 with the same `CREATEOS_SANDBOX_API_KEY` — exactly how a production agent would.
 
 The LLM defaults in ADK target Google Gemini. This example points ADK at the
 OpenAI-compatible proxy instead via `LiteLlm(model="openai/<model>", api_base,
 api_key)`, so no Google API key is needed.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                      | API call                                             |
 | ------------------------------ | ---------------------------------------------------- |

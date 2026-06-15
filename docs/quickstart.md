@@ -36,7 +36,7 @@ export CREATEOS_SANDBOX_API_KEY="sk_…"
 ```ts
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
 
-const fc = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY from the env
+const box = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY from the env
 // or pass them explicitly:
 // new CreateosSandboxClient({ baseUrl: "https://…", apiKey: "sk_…" })
 ```
@@ -44,7 +44,7 @@ const fc = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CRE
 ## 4. Spawn a sandbox
 
 ```ts
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
 });
@@ -77,7 +77,7 @@ if you need to be sure the row is reclaimed before continuing.
 ## Troubleshooting
 
 - **`CreateosSandboxAuthError` on the first call**: the API key is missing or wrong.
-  Verify with `await fc.whoami()`.
+  Verify with `await box.whoami()`.
 - **`CreateosSandboxConnectionError`**: the control plane is unreachable. Check
   `CREATEOS_SANDBOX_BASE_URL` and any corporate proxy / firewall.
 - **`CreateosSandboxTimeoutError` from `createSandbox`**: the sandbox never reached

@@ -1,7 +1,7 @@
-# 06 — OpenAI Agents SDK with FC Tools
+# 06 — OpenAI Agents SDK with createos-sandbox Tools
 
-An OpenAI Agents SDK agent uses an FC sandbox as its isolated filesystem and
-code-execution workspace. The host process exposes FC-backed tools for listing
+An OpenAI Agents SDK agent uses a createos-sandbox sandbox as its isolated filesystem and
+code-execution workspace. The host process exposes createos-sandbox-backed tools for listing
 files, running Python, and reading generated artifacts.
 
 ## Run
@@ -17,21 +17,21 @@ these examples. `CREATEOS_SANDBOX_BASE_URL` and `CREATEOS_SANDBOX_API_KEY` are t
 `createos-sandbox-sdk` consumes. Set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a
 live OpenAI model; `OPENAI_API_URL` or `OPENAI_BASE_URL` can point at an
 OpenAI-compatible endpoint. Without an OpenAI key, the example uses a
-deterministic local model through the Agents SDK runner so the FC tool path
+deterministic local model through the Agents SDK runner so the createos-sandbox tool path
 still runs end-to-end.
 
 ## What it does
 
-1. Creates a `devbox:1` sandbox on FC.
+1. Creates a `devbox:1` sandbox on createos-sandbox.
 2. Seeds a small workspace with `README.md` and `numbers.txt`.
-3. Starts an OpenAI Agents SDK `Agent` with FC-backed function tools.
+3. Starts an OpenAI Agents SDK `Agent` with createos-sandbox-backed function tools.
 4. The agent lists the workspace before computing.
 5. The agent uploads and runs Python inside the sandbox with `runCommand`.
 6. The Python task writes `answer.json` in the sandbox workspace.
 7. The agent reads `answer.json` back before producing its final answer.
 8. The sandbox is destroyed in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                             | SDK call                 |
 | ------------------------------------- | ------------------------ |

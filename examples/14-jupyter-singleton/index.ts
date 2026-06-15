@@ -40,7 +40,7 @@ interface CellReply {
   result: string;
 }
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // One-shot retry helper for the cap-exhausted / transient 5xx case. We back
 // off 30s and retry exactly once; further failures propagate so the run fails
@@ -65,7 +65,7 @@ async function createWithRetry() {
   const maxAttempts = 6;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
-      return await fc.createSandbox(opts);
+      return await box.createSandbox(opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =

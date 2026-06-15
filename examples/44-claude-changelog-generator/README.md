@@ -1,6 +1,6 @@
 # 44 — Claude Changelog Generator
 
-Clone a public git repo inside an FC sandbox, run the commit log through
+Clone a public git repo inside a createos-sandbox sandbox, run the commit log through
 the Claude Messages API (via `@anthropic-ai/sdk`), and download the
 generated `CHANGELOG.md` to your terminal.
 
@@ -25,11 +25,11 @@ bun index.ts
 6. Downloads `/tmp/CHANGELOG.md` from the sandbox and prints it to stdout.
 7. Destroys the sandbox in the `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive | SDK call |
 | --- | --- |
-| Create sandbox with env vars | `fc.createSandbox({ envs: { ANTHROPIC_* } })` |
+| Create sandbox with env vars | `box.createSandbox({ envs: { ANTHROPIC_* } })` |
 | Run a shell command | `sandbox.sh(script, { label, timeoutMs })` |
 | Buffered command execution | `sandbox.runCommand(cmd, args, { timeoutMs })` |
 | Upload a file to sandbox | `sandbox.files.upload(path, content)` |

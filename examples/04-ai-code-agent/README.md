@@ -1,6 +1,6 @@
 # 04 — AI Code Agent
 
-Claude uses an FC sandbox as its code-execution environment. The TypeScript
+Claude uses a createos-sandbox sandbox as its code-execution environment. The TypeScript
 process drives Claude through a `tool_use` loop: Claude emits Python via a
 `run_code` tool, this process uploads and runs it in the microVM with
 `runCommand`, feeds the output back, and repeats until Claude stops requesting
@@ -20,6 +20,6 @@ bun index.ts
 | Variable            | Required | Description                                       |
 | ------------------- | -------- | ------------------------------------------------- |
 | `CREATEOS_SANDBOX_BASE_URL`       | yes      | Your createos-sandbox control-plane URL                   |
-| `CREATEOS_SANDBOX_API_KEY`        | yes      | FC control-plane API key                          |
+| `CREATEOS_SANDBOX_API_KEY`        | yes      | createos-sandbox control-plane API key                          |
 | `ANTHROPIC_API_KEY` | yes      | Anthropic API key for the Claude agent loop       |
 | `ANTHROPIC_MODEL`   | no       | Override the model (default: `claude-sonnet-4-6`) |

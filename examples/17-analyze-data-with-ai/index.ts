@@ -1,7 +1,7 @@
 /**
  * Analyze data with AI — CSV in, AI-written analysis, chart PNG out.
  *
- * Uploads a CSV into an FC sandbox, lets Claude write a pandas/matplotlib
+ * Uploads a CSV into a createos-sandbox sandbox, lets Claude write a pandas/matplotlib
  * analysis from the file's real schema, runs it inside the VM, then reads the
  * rendered chart PNG back out to the host. The point is the files-API binary
  * round-trip: a text CSV goes in, a binary PNG comes back. That is the
@@ -41,7 +41,7 @@ const anthropic = new Anthropic({
   authToken: ANTHROPIC_AUTH_TOKEN,
 });
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // Create a sandbox, retrying through the shared-capacity / transient-5xx
 // errors that surface when the account's concurrency cap is full. MPLBACKEND=Agg
@@ -57,7 +57,7 @@ async function createWithRetry() {
   const maxAttempts = 6;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
-      return await fc.createSandbox(opts);
+      return await box.createSandbox(opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =

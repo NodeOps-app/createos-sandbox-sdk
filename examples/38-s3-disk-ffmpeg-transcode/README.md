@@ -1,30 +1,30 @@
 # 38 — S3-disk video→audio transcode (ffmpeg)
 
-An event-style media pipeline on FC. A new video in an S3 bucket triggers a
+An event-style media pipeline on createos-sandbox. A new video in an S3 bucket triggers a
 sandbox that mounts the **same bucket as a disk** (s3fs, read-write), runs
 ffmpeg to extract audio, writes the result back to the bucket, detaches the
-disk, and then destroys or pauses the sandbox. Shows off the FC **S3-disk**
+disk, and then destroys or pauses the sandbox. Shows off the createos-sandbox **S3-disk**
 primitive end-to-end: register, mount-at-boot, live detach, mount-state
 polling.
 
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC + S3 values
+cp .env.example .env  # fill in createos-sandbox + S3 values
 bun index.ts
 ```
 
-bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_API_KEY` is the standard FC
+bun auto-loads `.env` from the example dir. `CREATEOS_SANDBOX_API_KEY` is the standard createos-sandbox
 input (`CREATEOS_SANDBOX_BASE_URL` defaults to the prod control plane). The `S3_*` vars
 point at any S3-compatible bucket — **it must be reachable from both your
-machine and the FC agent** (AWS S3, Cloudflare R2, MinIO, …). Set
+machine and the createos-sandbox agent** (AWS S3, Cloudflare R2, MinIO, …). Set
 `S3_USE_PATH_STYLE=1` for MinIO-style endpoints.
 
 ## What it does
 
 1. Generates nothing — ships a tiny `sample.mp4` and **self-seeds** it to
    `s3://<bucket>/input/seed-<rand>.mp4` so the watcher always has work.
-2. Registers the bucket as an FC disk: `fc.disks.create({ kind: "s3", … })`.
+2. Registers the bucket as a createos-sandbox disk: `box.disks.create({ kind: "s3", … })`.
    The control plane HEADs the bucket and rejects bad creds up front.
 3. **Bounded poll** (`MAX_CYCLES`, `POLL_INTERVAL_S`): lists `input/` via
    `Bun.S3Client`, skipping any video that already has an `output/<base>.mp3`
@@ -43,13 +43,13 @@ machine and the FC agent** (AWS S3, Cloudflare R2, MinIO, …). Set
 
 The audio object appears at `s3://<bucket>/output/<name>.mp3`.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive | SDK call |
 | --- | --- |
-| Register an S3 bucket as a disk | `fc.disks.create({ kind: "s3", config, credentials })` |
-| Look up / delete a disk | `fc.disks.get()` / `fc.disks.delete()` |
-| Mount a disk at boot | `fc.createSandbox({ disks: [{ disk_id, mount_path }] })` |
+| Register an S3 bucket as a disk | `box.disks.create({ kind: "s3", config, credentials })` |
+| Look up / delete a disk | `box.disks.get()` / `box.disks.delete()` |
+| Mount a disk at boot | `box.createSandbox({ disks: [{ disk_id, mount_path }] })` |
 | Poll per-attachment mount state | `sandbox.listDisks()` → `mount_status` |
 | Live-detach a disk | `sandbox.detachDisk({ diskId, mountPath })` |
 | Run buffered commands | `sandbox.runCommand()` |

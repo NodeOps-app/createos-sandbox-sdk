@@ -30,7 +30,7 @@ if (!BROWSERBASE_API_KEY || !BROWSERBASE_PROJECT_ID) {
 
 const anthropic = new Anthropic();
 
-console.log("Creating FC sandbox with ingress enabled...");
+console.log("Creating createos-sandbox sandbox with ingress enabled...");
 const sandbox = await Sandbox.create({
   shape: "s-1vcpu-512mb", // small shape is fine: this workload is network-bound, not compute-bound
   rootfs: "devbox:1",
@@ -84,7 +84,7 @@ try {
   const mcpUrl = sandbox.previewUrl(MCP_PORT);
   console.log(`MCP ingress URL: ${mcpUrl}`);
 
-  // Call Claude with the MCP server pointing at the FC sandbox ingress
+  // Call Claude with the MCP server pointing at the createos-sandbox sandbox ingress
   console.log(`\nRunning agent task: "${TASK}"`);
   const response = await anthropic.beta.messages.create({
     model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",

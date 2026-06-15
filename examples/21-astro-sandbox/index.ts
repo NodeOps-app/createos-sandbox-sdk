@@ -1,7 +1,7 @@
 /**
  * Astro in a Sandbox.
  *
- * Scaffolds a minimal Astro site inside an FC microVM, installs its
+ * Scaffolds a minimal Astro site inside a createos-sandbox microVM, installs its
  * dependencies, runs `astro dev` as a daemon, exposes the dev server through
  * the public ingress URL, and verifies the rendered HTML over that URL.
  *
@@ -31,7 +31,7 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // The Astro project lives in ./site (committed alongside this example); we read
 // its three source files here and re-upload them into the sandbox below.
@@ -41,7 +41,7 @@ const sitePage = await readFile(new URL("./site/src/pages/index.astro", import.m
 
 // 1. Create the sandbox with ingress enabled — required for a public preview URL.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,

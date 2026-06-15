@@ -1,6 +1,6 @@
 /**
  * Offline/keyless stand-in for an LLM, factored out of index.ts so the real
- * lesson (FC as an OpenAI Agents workspace) stays readable in one scroll.
+ * lesson (createos-sandbox as an OpenAI Agents workspace) stays readable in one scroll.
  *
  * Imported dynamically by index.ts so the SDK still loads only after the
  * tracing flag is set there — see the loadParentEnvFallback note in index.ts.
@@ -9,7 +9,7 @@ import { Usage } from "@openai/agents";
 import type { Model, ModelRequest, ModelResponse } from "@openai/agents";
 
 // Deterministic offline stand-in for an LLM: implements the Model interface and
-// returns a fixed tool-call script, so the example runs (and the FC tool path is
+// returns a fixed tool-call script, so the example runs (and the createos-sandbox tool path is
 // exercised) without an OpenAI key. Each getResponse call advances one step.
 export class ScriptedWorkspaceModel implements Model {
   #step = 0;

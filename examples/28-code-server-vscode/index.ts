@@ -1,5 +1,5 @@
 /**
- * code-server (VS Code in the browser) inside an FC sandbox, reached over ingress.
+ * code-server (VS Code in the browser) inside a createos-sandbox sandbox, reached over ingress.
  *
  * Installs code-server in a microVM, binds it on 0.0.0.0:8080 with auth
  * disabled, exposes that port through the sandbox's public ingress URL, and
@@ -28,12 +28,12 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox with ingress_enabled — this is what allocates the
 //    public URL; without it previewUrl() would point at nothing routable.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,
@@ -55,7 +55,7 @@ try {
 
   // 3. Install code-server. Standalone install bundles the Node runtime —
   //    predictable, no PATH conflicts. ~120-200 MB download; 300 s budget is
-  //    sufficient on the FC egress link.
+  //    sufficient on the createos-sandbox egress link.
   console.log("[3/6] installing code-server (standalone, ~100-200 MB)...");
   await sandbox.sh("curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone", {
     label: "install",
@@ -142,7 +142,7 @@ try {
   const hostname = new URL(previewUrl).hostname;
   const region = hostname.split("-").slice(-1)[0]?.split(".").slice(1, -2).join(".") ?? "eu";
   console.log(`\n── versions (for versions.txt) ─────────────────────────────────`);
-  console.log(`fc control plane: ${baseUrl} (region ${region})`);
+  console.log(`createos-sandbox control plane: ${baseUrl} (region ${region})`);
   console.log(`code-server: ${codeServerVer}`);
 } finally {
   console.log("\ncleanup...");

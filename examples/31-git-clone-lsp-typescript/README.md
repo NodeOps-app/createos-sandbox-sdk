@@ -1,6 +1,6 @@
 # 31 — Git Clone + LSP (TypeScript)
 
-Clones a public TypeScript repository into an FC sandbox, installs
+Clones a public TypeScript repository into a createos-sandbox sandbox, installs
 `typescript-language-server`, and drives it over its stdio JSON-RPC protocol
 from inside the sandbox — capturing real LSP responses for `initialize`,
 `textDocument/documentSymbol`, `textDocument/definition`, and
@@ -37,7 +37,7 @@ bun auto-loads `.env` from the working directory. `CREATEOS_SANDBOX_API_KEY` and
 The LSP handshake runs entirely inside the sandbox, avoiding the latency and
 framing complexity of piping stdio across the control-plane network.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                      | SDK call                                                |
 | ------------------------------ | ------------------------------------------------------- |

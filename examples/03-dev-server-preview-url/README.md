@@ -1,7 +1,7 @@
 # 03 — Dev Server with Preview URL
 
 Bind an HTTP server inside a sandbox and reach it from the public
-internet via FC's per-sandbox ingress URL — no SSH tunnel, no
+internet via createos-sandbox's per-sandbox ingress URL — no SSH tunnel, no
 port-forward, no DNS setup.
 
 ## Run
@@ -32,7 +32,7 @@ production control plane and only needs to be set to override.
 5. `fetch`es the URL and prints the response body.
 6. Destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                | SDK call                                              |
 | ------------------------ | ----------------------------------------------------- |

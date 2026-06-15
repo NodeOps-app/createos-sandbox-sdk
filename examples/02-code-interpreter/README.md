@@ -26,7 +26,7 @@ production control plane and only needs to be set to override.
    stdout/stderr + exit code.
 4. Destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                | SDK call                          |
 | ------------------------ | --------------------------------- |

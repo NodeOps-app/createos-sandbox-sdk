@@ -1,5 +1,5 @@
 /**
- * Crawl4AI web crawler inside an FC sandbox.
+ * Crawl4AI web crawler inside a createos-sandbox sandbox.
  *
  * Installs Crawl4AI and Playwright/Chromium (with all OS-level deps) in a
  * microVM, runs an async crawl against a public URL, saves the Markdown output
@@ -28,10 +28,10 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   envs: { DEBIAN_FRONTEND: "noninteractive" },

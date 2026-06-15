@@ -29,7 +29,7 @@ import {
 } from "createos-sandbox-sdk";
 
 try {
-  await fc.getSandbox("sb-might-be-gone");
+  await box.getSandbox("sb-might-be-gone");
 } catch (err) {
   if (err instanceof CreateosSandboxNotFoundError) {
     // Caller-controlled fallback.

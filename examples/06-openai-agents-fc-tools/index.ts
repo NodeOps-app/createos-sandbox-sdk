@@ -1,11 +1,11 @@
 /**
- * OpenAI Agents SDK + FC tools — drive a microVM from an OpenAI Agents agent by
+ * OpenAI Agents SDK + createos-sandbox tools — drive a microVM from an OpenAI Agents agent by
  * exposing sandbox operations (list files, run Python, read a result file) as
  * agent tools. The agent inspects its workspace, computes in the sandbox, writes
- * an answer file, and reads it back. Shows the FC-as-agent-workspace pattern.
+ * an answer file, and reads it back. Shows the createos-sandbox-as-agent-workspace pattern.
  *
  * Runs with a real OpenAI model if OPENAI_API_KEY is set; otherwise it falls back
- * to a built-in deterministic model so the FC tool path is exercisable with no key.
+ * to a built-in deterministic model so the createos-sandbox tool path is exercisable with no key.
  *
  * Run:   bun 06-openai-agents-fc-tools/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY. OPENAI_API_KEY is optional (external service:
@@ -64,7 +64,7 @@ try {
   await sandbox.files.upload(
     `${WORKDIR}/README.md`,
     [
-      "# FC workspace for an OpenAI Agents SDK run",
+      "# createos-sandbox workspace for an OpenAI Agents SDK run",
       "",
       "Use the data in numbers.txt. Write any generated artifacts back into this directory.",
       "Do not rely on mental arithmetic; execute code in the sandbox.",
@@ -102,7 +102,8 @@ try {
   // List + preview workspace files (one shell call: find then sed each file's head).
   const listWorkspace = tool({
     name: "list_workspace",
-    description: "List files in the FC sandbox workspace and preview their first lines.",
+    description:
+      "List files in the createos-sandbox sandbox workspace and preview their first lines.",
     parameters: z.object({}),
     execute: async () => {
       const { result } = await sandbox.runCommand("sh", [
@@ -119,9 +120,9 @@ try {
   const runPython = tool({
     name: "run_python",
     description:
-      "Upload Python code into the FC sandbox workspace, run it, and return stdout, stderr, and exit code.",
+      "Upload Python code into the createos-sandbox sandbox workspace, run it, and return stdout, stderr, and exit code.",
     parameters: z.object({
-      code: z.string().describe("Python source code to run inside the FC sandbox."),
+      code: z.string().describe("Python source code to run inside the createos-sandbox sandbox."),
     }),
     execute: async ({ code }) => {
       // Prepend a preamble that chdirs into WORKDIR so the agent's code can use
@@ -150,7 +151,7 @@ try {
   // Read one text file back out of the workspace.
   const readWorkspaceFile = tool({
     name: "read_workspace_file",
-    description: "Read a UTF-8 text file from the FC sandbox workspace.",
+    description: "Read a UTF-8 text file from the createos-sandbox sandbox workspace.",
     parameters: z.object({
       relativePath: z.string().describe("Path relative to the workspace, for example answer.json."),
     }),
@@ -171,10 +172,10 @@ try {
   //    push it to compute in the sandbox (not in its head) and ground its answer
   //    in answer.json — guardrails against an LLM fabricating the result.
   const agent = new Agent({
-    name: "FC Sandbox Workspace Agent",
+    name: "createos-sandbox Sandbox Workspace Agent",
     model,
     instructions: [
-      "You are an OpenAI Agents SDK agent using an FC microVM as your workspace.",
+      "You are an OpenAI Agents SDK agent using a createos-sandbox microVM as your workspace.",
       "Always inspect the workspace before computing.",
       "Use run_python for computation instead of doing arithmetic in your response.",
       "Write your computed result to answer.json, then read it back before finalizing.",
@@ -186,7 +187,7 @@ try {
   });
 
   const prompt = [
-    "Inspect the FC workspace.",
+    "Inspect the createos-sandbox workspace.",
     "Find every value in numbers.txt that is both a Fibonacci number and a prime number.",
     "Write answer.json with keys prime_fibonacci_numbers and count.",
     "Read answer.json back and summarize the result.",

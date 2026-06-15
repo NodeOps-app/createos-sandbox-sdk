@@ -1,6 +1,6 @@
 # 12 — Radicle p2p git mesh with role-specialised Claude agents
 
-Three FC sandboxes joined to an overlay network each run a [Radicle][rad]
+Three createos-sandbox sandboxes joined to an overlay network each run a [Radicle][rad]
 node (Heartwood 1.9). Three Claude agents — coder, tester, docs — write
 their contributions, the sandboxes commit on role-specific branches and
 push to Radicle, and the gossip layer propagates every peer's namespace
@@ -125,7 +125,7 @@ sequenceDiagram
 
 ## What it does
 
-1. Creates an FC overlay network (`client.networks.create()`).
+1. Creates a createos-sandbox overlay network (`client.networks.create()`).
 2. Spawns three `s-2vcpu-2gb` sandboxes on that network — one per role.
 3. Looks up each sandbox's overlay IP from `networks.get(id).members[]`.
 4. Installs Radicle 1.9 in each sandbox, runs `rad auth` non-interactively
@@ -156,7 +156,7 @@ git log --all --oneline --graph
 git show "refs/namespaces/<peer-NID>/refs/heads/feat/code:src/fizzbuzz.ts"
 ```
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                            | SDK call                                                |
 | ------------------------------------ | ------------------------------------------------------- |

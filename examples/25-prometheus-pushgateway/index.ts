@@ -1,8 +1,8 @@
 /**
- * Prometheus Pushgateway inside an FC sandbox.
+ * Prometheus Pushgateway inside a createos-sandbox sandbox.
  *
  * Downloads the Prometheus Pushgateway binary, daemonises it on 0.0.0.0:9091
- * so the FC HTTP ingress can reach it, pushes a custom metric via the
+ * so the createos-sandbox HTTP ingress can reach it, pushes a custom metric via the
  * Pushgateway's /metrics/job/<job> endpoint, then scrapes /metrics through
  * the public ingress URL to verify the metric round-trips.
  *
@@ -24,7 +24,7 @@ const PORT = 9091;
 const PUSHGATEWAY_VERSION = "1.11.1";
 
 // Pushgateway listens on port 9091 by default.
-// Bind 0.0.0.0 so the FC ingress proxy can forward external traffic.
+// Bind 0.0.0.0 so the createos-sandbox ingress proxy can forward external traffic.
 
 const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
 const apiKey = process.env.CREATEOS_SANDBOX_API_KEY;
@@ -34,11 +34,11 @@ if (!baseUrl || !apiKey) {
   );
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox with ingress enabled so the scrape endpoint is public.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,

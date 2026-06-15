@@ -1,6 +1,6 @@
 # 29 — Playwright Headless Browser
 
-Run a Playwright + Chromium headless browser inside an FC microVM, scrape a
+Run a Playwright + Chromium headless browser inside a createos-sandbox microVM, scrape a
 public web page, and extract structured content via the DOM.
 
 ## Run
@@ -30,11 +30,11 @@ bun index.ts
 6. Downloads and validates the JSON output on the host.
 7. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                      | SDK call                                    |
 | ------------------------------ | ------------------------------------------- |
-| Create sandbox                 | `fc.createSandbox({ shape, rootfs, envs })` |
+| Create sandbox                 | `box.createSandbox({ shape, rootfs, envs })` |
 | Upload script into the VM      | `sandbox.files.upload(path, contents)`      |
 | Run commands (install, scrape) | `sandbox.runCommand("bash", ["-lc", ...])`  |
 | Tear the sandbox down          | `sandbox.destroy()`                         |

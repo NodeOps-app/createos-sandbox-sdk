@@ -1,7 +1,7 @@
 /**
  * OpenCode Server in a Sandbox.
  *
- * Installs opencode-ai inside an FC microVM, runs `opencode serve` bound
+ * Installs opencode-ai inside a createos-sandbox microVM, runs `opencode serve` bound
  * to 0.0.0.0, exposes the HTTP API through the sandbox ingress URL, and
  * verifies the server is live by hitting GET /global/health.
  *
@@ -37,7 +37,7 @@ const anthropicAuthToken = process.env.ANTHROPIC_AUTH_TOKEN ?? "";
 const anthropicBaseUrl = process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com";
 const anthropicModel = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // opencode.json configures the Anthropic provider with API key + base URL.
 // The {env:...} interpolation is resolved by opencode at startup from the
@@ -62,7 +62,7 @@ const opencodeConfig = JSON.stringify(
 
 // 1. Create the sandbox with ingress enabled so the HTTP API gets a public URL.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,

@@ -1,6 +1,6 @@
 # 05 — Filesystem Snapshots
 
-Demonstrates FC's snapshot + branching primitive: pause a running sandbox
+Demonstrates createos-sandbox's snapshot + branching primitive: pause a running sandbox
 to persist its full memory + disk state, then fork it into an independent
 clone that inherits everything written before the pause but diverges from
 that point on.
@@ -28,7 +28,7 @@ production control plane and only needs to be set to override.
    `/root/fork-only.txt` — proving the fork diverged independently.
 8. Destroys both sandboxes.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                        | SDK call                                  |
 | ------------------------------------------------ | ----------------------------------------- |

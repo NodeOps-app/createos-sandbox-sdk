@@ -1,5 +1,5 @@
 /**
- * Playwright + headless Chromium inside an FC sandbox to scrape a page.
+ * Playwright + headless Chromium inside a createos-sandbox sandbox to scrape a page.
  *
  * Installs Playwright and Chromium (with all OS-level deps) in a microVM,
  * uploads a scrape script, runs it headless against example.com, and parses
@@ -25,12 +25,12 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create the sandbox. DEBIAN_FRONTEND=noninteractive keeps apt from
 //    blocking on tzdata/debconf prompts when --with-deps pulls packages.
 console.log(`[1/5] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   envs: { DEBIAN_FRONTEND: "noninteractive" },

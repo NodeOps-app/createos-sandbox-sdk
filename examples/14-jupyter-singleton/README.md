@@ -54,13 +54,13 @@ realistic than a real Jupyter Server.
 Approach **B** (not shipped) would boot `jupyter kernel` on `0.0.0.0`,
 enable `ingress_enabled: true`, and drive the kernel from `index.ts`
 over the Jupyter ZMQ-over-WS protocol. More authentic but adds the
-ingress URL + WebSocket wire-format on top of the same FC primitives.
+ingress URL + WebSocket wire-format on top of the same createos-sandbox primitives.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                | SDK call                                  |
 | ------------------------ | ----------------------------------------- |
-| Create sandbox           | `fc.createSandbox()`                      |
+| Create sandbox           | `box.createSandbox()`                      |
 | Upload payload files     | `sandbox.files.upload()`                  |
 | Buffered command         | `sandbox.runCommand()`                    |
 | Snapshot the live kernel | `sandbox.pause()` + `waitUntilPaused()`   |

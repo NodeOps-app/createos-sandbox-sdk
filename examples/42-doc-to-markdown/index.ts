@@ -1,6 +1,6 @@
 /**
  * Python doc-to-Markdown converter — upload a local HTML (or .docx) document
- * into an FC sandbox, install Microsoft MarkItDown via pip, convert the file,
+ * into a createos-sandbox sandbox, install Microsoft MarkItDown via pip, convert the file,
  * download the output, and print the resulting Markdown to stdout.
  *
  * Run:   bun 42-doc-to-markdown/index.ts

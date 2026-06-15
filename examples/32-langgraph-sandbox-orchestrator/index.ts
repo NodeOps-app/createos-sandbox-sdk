@@ -1,8 +1,8 @@
 /**
- * Model FC sandbox operations as nodes in a LangGraph graph, an LLM driving it.
+ * Model createos-sandbox sandbox operations as nodes in a LangGraph graph, an LLM driving it.
  *
- * A LangGraph state machine runs on the host and walks an FC sandbox through a
- * lifecycle, one fc-sdk operation per node: create_sandbox → generate_code →
+ * A LangGraph state machine runs on the host and walks a createos-sandbox sandbox through a
+ * lifecycle, one createos-sandbox-sdk operation per node: create_sandbox → generate_code →
  * run_in_sandbox → summarise. An OpenAI model decides the work (writes the
  * Python, summarises the result); the sandbox executes and verifies it. The
  * pattern: the graph's typed state threads sandbox id / code / output between
@@ -44,7 +44,7 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_BASE_URL ?? process.env.OPENAI_API_URL ?? undefined,
 });
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // ── Graph state ───────────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ let sandbox: Sandbox | undefined;
 
 async function createSandboxNode(_state: AgentStateType): Promise<Partial<AgentStateType>> {
   console.log("\n[node: create_sandbox]");
-  sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
+  sandbox = await box.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
   console.log(`  sandbox id: ${sandbox.id}  ip: ${sandbox.ip}`);
 
   // Seed the workspace directory

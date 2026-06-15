@@ -1,12 +1,12 @@
 /**
- * Google ADK agent backed by FC sandbox tools.
+ * Google ADK agent backed by createos-sandbox sandbox tools.
  *
  * A Google Agent Development Kit (ADK) agent runs on the host in Python; its
- * tools execute inside an FC microVM. This thin TypeScript entry owns the
+ * tools execute inside a createos-sandbox microVM. This thin TypeScript entry owns the
  * sandbox lifecycle: it creates one sandbox with `createos-sandbox-sdk`, then spawns
  * the Python ADK driver (`adk_agent.py`) as a child process, handing it the
- * sandbox id plus the FC connection creds via env. The driver's tools call the
- * FC HTTP API directly (runCommand / files) so the agent's reasoning steps land
+ * sandbox id plus the createos-sandbox connection creds via env. The driver's tools call the
+ * createos-sandbox HTTP API directly (runCommand / files) so the agent's reasoning steps land
  * as real sandbox operations. The sandbox is destroyed in a `finally` block —
  * the Python child never tears it down, only this file does.
  *
@@ -97,14 +97,14 @@ try {
   }
 }
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   apiKey: CREATEOS_SANDBOX_API_KEY,
   baseUrl: CREATEOS_SANDBOX_BASE_URL,
 });
 
 // 1. Create the sandbox the agent's tools will act on.
 console.log(`[1/3] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   name: `adk-${Date.now() % 1_000_000}`,
@@ -122,7 +122,7 @@ try {
       stdio: "inherit",
       env: {
         ...process.env,
-        // Hand the child exactly what it needs to reach FC + the LLM proxy.
+        // Hand the child exactly what it needs to reach createos-sandbox + the LLM proxy.
         FC_SANDBOX_ID: sandbox.id,
         CREATEOS_SANDBOX_BASE_URL,
         CREATEOS_SANDBOX_API_KEY,

@@ -1,6 +1,6 @@
 # 42 — Python doc to Markdown converter
 
-Uploads a local document (HTML, DOCX, PDF, XLSX, …) into an FC sandbox,
+Uploads a local document (HTML, DOCX, PDF, XLSX, …) into a createos-sandbox sandbox,
 converts it to Markdown using [Microsoft MarkItDown](https://github.com/microsoft/markitdown)
 (installed with pip inside the guest), downloads the result, and prints it
 to stdout — no external API keys required.
@@ -30,7 +30,7 @@ for any document MarkItDown supports, update `INPUT_LOCAL` at the top of
    stdout.
 7. Destroys the sandbox in the `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                           |
 | ---------------------------------- | -------------------------------------------------- |

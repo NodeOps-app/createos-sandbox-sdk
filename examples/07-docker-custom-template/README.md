@@ -1,6 +1,6 @@
 # 07 — Docker via Custom Template
 
-Builds a custom FC template with Docker CE pre-installed, launches a sandbox from it,
+Builds a custom createos-sandbox template with Docker CE pre-installed, launches a sandbox from it,
 starts the Docker daemon, then pulls and runs containers inside the microVM.
 
 ## Run
@@ -17,7 +17,7 @@ tokens) are documented in `.env.example`.
 
 ## What it does
 
-1. Submits a Dockerfile (Docker CE via the official convenience script) to `fc.templates.create()`.
+1. Submits a Dockerfile (Docker CE via the official convenience script) to `box.templates.create()`.
 2. Streams the build log live until the terminal frame (`final: true`) arrives.
 3. Launches a sandbox with the built rootfs as its filesystem.
 4. Starts the Docker daemon in the background (`nohup setsid dockerd &`).
@@ -25,16 +25,16 @@ tokens) are documented in `.env.example`.
 6. Runs `hello-world` and `alpine` containers, then lists local images.
 7. Destroys the sandbox and deletes the template.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                               | SDK call                                    |
 | --------------------------------------- | ------------------------------------------- |
-| Build a custom rootfs from a Dockerfile | `fc.templates.create()`                     |
-| Stream live build logs                  | `fc.templates.followLogs()`                 |
-| Launch sandbox from custom template     | `fc.createSandbox({ rootfs: template.id })` |
+| Build a custom rootfs from a Dockerfile | `box.templates.create()`                     |
+| Stream live build logs                  | `box.templates.followLogs()`                 |
+| Launch sandbox from custom template     | `box.createSandbox({ rootfs: template.id })` |
 | Run a buffered command                  | `sandbox.runCommand()`                      |
 | Tear down sandbox                       | `sandbox.destroy()`                         |
-| Delete a template                       | `fc.templates.delete()`                     |
+| Delete a template                       | `box.templates.delete()`                     |
 
 ## Versions captured at build time
 

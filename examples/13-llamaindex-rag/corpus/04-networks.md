@@ -1,6 +1,6 @@
 # Networks
 
-An createos-sandbox network is a layer-2 overlay that joins multiple sandboxes
+A createos-sandbox network is a layer-2 overlay that joins multiple sandboxes
 into a private broadcast domain. Networks have an opaque id, a
 human-readable name, and a member list.
 

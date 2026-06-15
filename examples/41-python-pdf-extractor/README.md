@@ -26,7 +26,7 @@ production control plane and only needs to be set to override.
    next to `index.ts`.
 7. Destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive         | SDK call                          |
 | ----------------- | --------------------------------- |

@@ -1,5 +1,5 @@
 /**
- * Clone a TypeScript repo into an FC sandbox and drive a language server over it.
+ * Clone a TypeScript repo into a createos-sandbox sandbox and drive a language server over it.
  *
  * Shallow-clones microsoft/vscode-json-languageservice into a microVM, installs
  * typescript-language-server, then uploads and runs `lsp-driver.mjs` (see that

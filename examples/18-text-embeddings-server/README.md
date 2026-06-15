@@ -1,7 +1,7 @@
 # 18 — Text-embeddings server (model-as-a-service over ingress)
 
 Runs a small CPU text-embeddings model as a long-lived HTTP service
-_inside_ one FC sandbox, exposes it on the public ingress URL, and embeds
+_inside_ one createos-sandbox sandbox, exposes it on the public ingress URL, and embeds
 a batch of texts by POSTing to it from the host with plain `fetch` — no
 client SDK in the request path. This is the serving counterpart to
 example 13's in-sandbox RAG: there the model lives and dies with a single
@@ -44,7 +44,7 @@ concurrent-sandbox cap.
 ## Model choice — trade-off
 
 The reference workload uses a GPU and HF Text Embeddings Inference (TEI).
-FC has no GPU, so this example serves a **small CPU model**,
+createos-sandbox has no GPU, so this example serves a **small CPU model**,
 `BAAI/bge-small-en-v1.5` (384-dim), via a stdlib `http.server` wrapper
 around `sentence-transformers`. That's simpler and more robust on a
 CPU-only devbox than the TEI container: no GPU runtime, no extra image,
@@ -61,11 +61,11 @@ The server is reached at `http://<ulid>-<port>.<region>.<domain>` on port
 `https://` form built from the control-plane template; the example
 downgrades the scheme.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                   | SDK call                                      |
 | --------------------------- | --------------------------------------------- |
-| Create sandbox with ingress | `fc.createSandbox({ ingress_enabled: true })` |
+| Create sandbox with ingress | `box.createSandbox({ ingress_enabled: true })` |
 | Upload the server           | `sandbox.files.upload()`                      |
 | Install deps / boot daemon  | `sandbox.runCommand()`                        |
 | Wait for the port to listen | `sandbox.waitForPortReady()`                  |

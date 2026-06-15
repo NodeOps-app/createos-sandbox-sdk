@@ -20,10 +20,10 @@ const PG_PASSWORD = "demo";
 const PG_DB = "demodb";
 const MOUNT = "/mnt/db";
 
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 console.log(`[1/9] creating sandbox (shape=${SHAPE}, rootfs=devbox:1)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: "devbox:1",
   envs: {
@@ -154,7 +154,7 @@ try {
   const helloMd =
     "---\n" +
     "title: Hello World\n" +
-    "author: fc-sdk-example\n" +
+    "author: createos-sandbox-sdk-example\n" +
     "---\n" +
     "# Hello from TigerFS\n" +
     "\n" +

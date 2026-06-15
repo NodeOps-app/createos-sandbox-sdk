@@ -1,12 +1,12 @@
 # 16 — Firecrawl scrape + analyze
 
 Scrape a short-stay rental listings page, have Claude write a
-pandas/matplotlib analysis script, run that script inside a single FC
+pandas/matplotlib analysis script, run that script inside a single createos-sandbox
 sandbox, and pull the resulting price chart PNG back to the host.
 
 The scrape runs on the host with plain `fetch` against the Firecrawl API;
 the analysis runs in an isolated microVM. When `FIRECRAWL_API_KEY` is not
-set, the example uses the bundled `sample-listings.json` so the FC sandbox /
+set, the example uses the bundled `sample-listings.json` so the createos-sandbox sandbox /
 Claude / chart path still runs end-to-end.
 
 ## Run
@@ -40,7 +40,7 @@ is optional — without it the example falls back to the bundled fixture.
 6. **Download** `price_chart.png` and a text summary to `./output/` and
    destroy the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                             | SDK call                                                |
 | ------------------------------------- | ------------------------------------------------------- |

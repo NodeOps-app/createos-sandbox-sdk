@@ -1,7 +1,7 @@
 /**
  * Filesystem snapshots — pause → fork → resume.
  *
- * Demonstrates FC's copy-on-write snapshot model: a paused sandbox can be
+ * Demonstrates createos-sandbox's copy-on-write snapshot model: a paused sandbox can be
  * forked into an independent clone that inherits the parent's entire
  * filesystem as of the pause point. Writes made after the fork stay local to
  * each side — the fork and its parent diverge from the snapshot onward.

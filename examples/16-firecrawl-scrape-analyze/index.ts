@@ -1,13 +1,13 @@
 /**
- * Firecrawl scrape → Claude analysis → chart, end-to-end through an FC sandbox.
+ * Firecrawl scrape → Claude analysis → chart, end-to-end through a createos-sandbox sandbox.
  *
  * Scrapes a rental-listings page with Firecrawl (host side, plain `fetch`),
  * asks Claude to write a pandas/matplotlib analysis script against a fixed JSON
- * schema, uploads the scraped records + the generated script into one FC
+ * schema, uploads the scraped records + the generated script into one createos-sandbox
  * sandbox, installs pandas + matplotlib, runs the analysis to produce a price
  * chart PNG, and downloads the chart + summary back to ./output/. The Firecrawl
  * key is optional: when it is absent (or the scrape fails) the example falls
- * back to the bundled sample-listings.json so the FC / Claude / chart path
+ * back to the bundled sample-listings.json so the createos-sandbox / Claude / chart path
  * still runs. The chosen data source is reported in the output and the summary.
  *
  * Run:   bun 16-firecrawl-scrape-analyze/index.ts
@@ -47,7 +47,7 @@ interface Listing {
 }
 
 const anthropic = new Anthropic();
-const fc = new CreateosSandboxClient();
+const box = new CreateosSandboxClient();
 
 // ── 1. Acquire listings ────────────────────────────────────────────────
 //
@@ -183,7 +183,7 @@ async function createWithRetry() {
   const maxAttempts = 6;
   for (let i = 1; i <= maxAttempts; i++) {
     try {
-      return await fc.createSandbox(opts);
+      return await box.createSandbox(opts);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const retriable =

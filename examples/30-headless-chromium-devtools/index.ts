@@ -1,11 +1,11 @@
 /**
  * Headless Chrome with the remote-debugging (CDP) port exposed over ingress.
  *
- * Installs Google Chrome stable in an FC sandbox, launches it headless with the
+ * Installs Google Chrome stable in a createos-sandbox sandbox, launches it headless with the
  * Chrome DevTools Protocol port on 9222, then publishes it via the sandbox's
  * public ingress URL through an nginx reverse proxy on port 8080.
  *
- * The FC-specific twist is the nginx hop: Chrome's /json/* HTTP endpoints have
+ * The createos-sandbox-specific twist is the nginx hop: Chrome's /json/* HTTP endpoints have
  * DNS-rebinding protection and reject any request whose Host header is a DNS
  * name. The ingress Host *is* the sandbox's public domain, so a direct proxy
  * would be refused. nginx fronts Chrome and rewrites Host to 127.0.0.1:9222
@@ -37,12 +37,12 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // 1. Create with ingress_enabled so previewUrl(8080) resolves to a public URL.
 //    DEBIAN_FRONTEND=noninteractive stops apt blocking on debconf prompts.
 console.log(`[1/8] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,

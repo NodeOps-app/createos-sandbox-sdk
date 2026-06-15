@@ -1,7 +1,7 @@
 # 32 — LangGraph Sandbox Orchestrator
 
-A LangGraph graph running on the host uses fc-sdk as its tool layer:
-each graph node is an FC sandbox operation — create, upload and run code,
+A LangGraph graph running on the host uses createos-sandbox-sdk as its tool layer:
+each graph node is a createos-sandbox sandbox operation — create, upload and run code,
 read output, summarise — driven by an OpenAI LLM.
 
 ## Run
@@ -21,7 +21,7 @@ across examples.
 1. Reads `CREATEOS_SANDBOX_BASE_URL` from the environment so the SDK finds the control plane.
 2. Defines a four-node LangGraph `StateGraph`: `create_sandbox` →
    `generate_code` → `run_in_sandbox` → `summarise`.
-3. `create_sandbox` — calls `fc.createSandbox()` and seeds a workspace directory.
+3. `create_sandbox` — calls `box.createSandbox()` and seeds a workspace directory.
 4. `generate_code` — sends the task to OpenAI chat completions; the model
    writes Python code targeting the sandbox workspace path.
 5. `run_in_sandbox` — uploads the script with `sandbox.files.upload()`,
@@ -32,11 +32,11 @@ across examples.
    summarise node.
 8. The `finally` block calls `sandbox.destroy()` regardless of outcome.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive              | SDK call                                            |
 | ---------------------- | --------------------------------------------------- |
-| Create sandbox         | `fc.createSandbox({ shape, rootfs })`               |
+| Create sandbox         | `box.createSandbox({ shape, rootfs })`               |
 | Run buffered command   | `sandbox.runCommand("python3", […], { timeoutMs })` |
 | Upload file to sandbox | `sandbox.files.upload(path, content)`               |
 | Destroy sandbox        | `sandbox.destroy()`                                 |

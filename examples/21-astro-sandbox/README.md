@@ -1,6 +1,6 @@
 # 21 — Astro in a Sandbox
 
-Scaffold a minimal Astro site inside an FC microVM, install its dependencies,
+Scaffold a minimal Astro site inside a createos-sandbox microVM, install its dependencies,
 run `astro dev`, and reach the dev server through the sandbox's public ingress
 URL — then fetch that URL from the host and confirm Astro rendered the page.
 
@@ -30,11 +30,11 @@ bun index.ts
 The Astro config sets `vite.server.allowedHosts: true` — Vite's dev server
 otherwise rejects the non-local ingress Host header.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                      |
 | ---------------------------------- | --------------------------------------------- |
-| Create sandbox with public ingress | `fc.createSandbox({ ingress_enabled: true })` |
+| Create sandbox with public ingress | `box.createSandbox({ ingress_enabled: true })` |
 | Upload project files into the VM   | `sandbox.files.upload(path, contents)`        |
 | Run commands (install, daemonise)  | `sandbox.runCommand("bash", ["-lc", ...])`    |
 | Build the public preview URL       | `sandbox.previewUrl(port)`                    |

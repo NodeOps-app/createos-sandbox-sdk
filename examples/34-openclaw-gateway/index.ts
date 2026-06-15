@@ -1,7 +1,7 @@
 /**
  * OpenClaw gateway over ingress — run a third-party HTTP service in a sandbox.
  *
- * Installs the OpenClaw AI-assistant gateway (Node.js) inside an FC sandbox,
+ * Installs the OpenClaw AI-assistant gateway (Node.js) inside a createos-sandbox sandbox,
  * exposes it on the public preview URL via HTTP ingress, then verifies it is
  * live by probing its OpenAI-compatible /v1/models endpoint — first from
  * inside the VM, then from this host through ingress. The pattern (install →
@@ -18,7 +18,7 @@ const GATEWAY_PORT = 18789;
 const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN ?? "fc-openclaw-demo-token";
 
 const baseUrl = process.env.CREATEOS_SANDBOX_BASE_URL;
-const fc = new CreateosSandboxClient(baseUrl ? { baseUrl } : {});
+const box = new CreateosSandboxClient(baseUrl ? { baseUrl } : {});
 
 // Stream a long-running command and print live output.
 async function stream(
@@ -38,7 +38,7 @@ async function stream(
 }
 
 console.log("[1/6] creating sandbox with HTTP ingress…");
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: "s-1vcpu-2gb",
   rootfs: "devbox:1",
   ingress_enabled: true,
@@ -115,7 +115,7 @@ try {
     { label: "write-config" },
   );
 
-  // Daemonize with nohup setsid — no systemd in FC devbox:1.
+  // Daemonize with nohup setsid — no systemd in createos-sandbox devbox:1.
   // Semicolon before nohup is mandatory: && would cause runCommand to hold
   // the stdout pipe and never return.
   await sandbox.sh(

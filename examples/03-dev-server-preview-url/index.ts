@@ -26,7 +26,7 @@ try {
   // Bind 0.0.0.0: ingress forwards to eth0, not loopback.
   await sandbox.runCommand("sh", [
     "-c",
-    'mkdir -p /srv && echo "<h1>hello from fc preview URL</h1>" > /srv/index.html && cd /srv && nohup setsid python3 -m http.server 8080 --bind 0.0.0.0 >/tmp/srv.log 2>&1 &',
+    'mkdir -p /srv && echo "<h1>hello from createos-sandbox preview URL</h1>" > /srv/index.html && cd /srv && nohup setsid python3 -m http.server 8080 --bind 0.0.0.0 >/tmp/srv.log 2>&1 &',
   ]);
 
   // 3. Wait for the port to accept connections — the server boots async, so

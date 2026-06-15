@@ -1,7 +1,7 @@
 /**
  * Effective agent patterns — prompt-chaining, routing, and parallelization —
  * implemented with the Vercel AI SDK (ai + @ai-sdk/openai) running INSIDE an
- * FC microVM. The host orchestrates the sandbox lifecycle; all LLM calls
+ * createos-sandbox microVM. The host orchestrates the sandbox lifecycle; all LLM calls
  * happen inside the VM so the agent code runs in an isolated, ephemeral
  * environment.
  *

@@ -1,12 +1,12 @@
 /**
  * Self-hosted agent worker — back a Claude Managed Agent with ONE persistent
- * FC microVM.
+ * createos-sandbox microVM.
  *
  * Boots a single long-lived sandbox, installs the `ant` CLI, and runs
  * `ant beta:worker poll` inside it as an always-on daemon. That worker claims
  * every session assigned to the self-hosted environment and executes the
  * agent's tool calls locally, so agent code, files, and egress never leave the
- * FC boundary. The script then drives one agent session and proves the work
+ * createos-sandbox boundary. The script then drives one agent session and proves the work
  * ran in-VM by reading the file the tool wrote. Contrast with example 37, which
  * spawns a FRESH microVM per session instead of reusing one persistent worker.
  *
@@ -91,7 +91,7 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
 // The agent only has its sandbox tools — no python preinstalled in devbox, so
 // the task is pure shell. GOTCHA: the Managed Agents worker rejects an empty
 // tool-result text with a 400 when it posts the result back. `tee` defends
-// against that — it both writes the file (proof the tool ran inside the FC
+// against that — it both writes the file (proof the tool ran inside the createos-sandbox
 // microVM, since `uname` reports the guest kernel) AND echoes to stdout, so the
 // tool result is guaranteed non-empty. Any bash tool call here must print
 // something; a silent command would 400 the session.
@@ -102,10 +102,10 @@ const PROMPT =
 const { apiKey, environmentId, environmentKey } = loadAnt();
 const anthropic = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL });
 
-// One long-lived FC microVM is the self-hosted execution boundary. The worker
+// One long-lived createos-sandbox microVM is the self-hosted execution boundary. The worker
 // inside it claims every session assigned to the environment and runs the
-// agent's tool calls locally — agent code, files and egress never leave FC.
-console.log("[1/6] creating FC sandbox (the self-hosted execution boundary)…");
+// agent's tool calls locally — agent code, files and egress never leave createos-sandbox.
+console.log("[1/6] creating createos-sandbox sandbox (the self-hosted execution boundary)…");
 const sandbox = await createSandbox({
   shape: SHAPE,
   rootfs: "devbox:1",
@@ -146,7 +146,7 @@ ant --version`,
   const agent = await anthropic.beta.agents.create({
     name: `fc-self-hosted-worker-${Date.now() % 100000}`,
     model: AGENT_MODEL,
-    system: `You are a terse assistant running inside an FC microVM. Your working directory is ${WORKDIR}.`,
+    system: `You are a terse assistant running inside a createos-sandbox microVM. Your working directory is ${WORKDIR}.`,
     tools: [{ type: "agent_toolset_20260401" }],
   });
   const session = await anthropic.beta.sessions.create({
@@ -155,7 +155,7 @@ ant --version`,
   });
   console.log(`      agent ${agent.id} | session ${session.id}`);
 
-  console.log("[5/6] streaming the session — tool calls execute inside FC:\n");
+  console.log("[5/6] streaming the session — tool calls execute inside createos-sandbox:\n");
   const stream = await anthropic.beta.sessions.events.stream(session.id, undefined, {
     signal: AbortSignal.timeout(300_000),
   });
@@ -178,7 +178,9 @@ ant --version`,
     }
   }
 
-  console.log("\n[6/6] proof the work ran inside FC — reading /workspace from the microVM:");
+  console.log(
+    "\n[6/6] proof the work ran inside createos-sandbox — reading /workspace from the microVM:",
+  );
   // The worker writes the file just after the session goes idle, so the read
   // can briefly race ahead of it — retry until it lands.
   let report = "";

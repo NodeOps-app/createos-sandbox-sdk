@@ -1,6 +1,6 @@
 # 46 — Mastra agent in a sandbox
 
-Runs a [Mastra](https://mastra.ai) TypeScript AI agent entirely inside an FC
+Runs a [Mastra](https://mastra.ai) TypeScript AI agent entirely inside a createos-sandbox
 microVM. The sandbox installs bun, the Mastra framework, and the `@ai-sdk/openai`
 provider; the agent script is uploaded from the host and invoked with a single
 prompt. The LLM provider is the OpenAI-compatible gateway supplied via
@@ -28,11 +28,11 @@ bun auto-loads `.env` from the current directory.
 5. Streams the agent's stdout response to the host console, then destroys the
    sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                  | SDK call                                                     |
 | -------------------------- | ------------------------------------------------------------ |
-| Sandbox create with envs   | `fc.createSandbox({ shape, rootfs, envs: { … } })`          |
+| Sandbox create with envs   | `box.createSandbox({ shape, rootfs, envs: { … } })`          |
 | Buffered shell command      | `sandbox.sh(script, { label, timeoutMs })`                  |
 | Buffered command with args  | `sandbox.runCommand(cmd, args, { timeoutMs })`               |
 | File upload                 | `sandbox.files.upload(path, content)`                       |

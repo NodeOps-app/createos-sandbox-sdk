@@ -1,18 +1,18 @@
-# 36 — Self-hosted Managed Agent worker (one FC microVM)
+# 36 — Self-hosted Managed Agent worker (one createos-sandbox microVM)
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
 where Anthropic keeps the orchestration but **tool execution happens inside an
-FC microVM you control**. One long-lived sandbox runs an always-on environment
+createos-sandbox microVM you control**. One long-lived sandbox runs an always-on environment
 worker that claims every session assigned to the environment and executes the
 agent's tool calls locally — agent code, files, and network egress never leave
-FC.
+createos-sandbox.
 
 This is the always-on, single-worker topology. For one fresh microVM per
 session, see `37-self-hosted-sandbox-per-session`.
 
 ## Setup — credentials
 
-You need FC creds (`CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_API_KEY`) in `.env`, and three Anthropic
+You need createos-sandbox creds (`CREATEOS_SANDBOX_BASE_URL`, `CREATEOS_SANDBOX_API_KEY`) in `.env`, and three Anthropic
 values in `.env.ant`. Both files are gitignored — never commit them. `bun`
 auto-loads `.env`; the example reads `.env.ant` itself (kept separate so the
 shared `.env`'s internal Anthropic gateway vars can't misroute the real API).
@@ -71,22 +71,22 @@ ANTHROPIC_ENVIRONMENT_KEY=sk-ant-oat01-…   # Console > Generate environment ke
 ## Run
 
 ```sh
-cp .env.example .env  # fill in FC creds (or symlink ../.env)
+cp .env.example .env  # fill in createos-sandbox creds (or symlink ../.env)
 bun index.ts
 ```
 
 ## What it does
 
-1. Creates one FC microVM — the self-hosted execution boundary.
+1. Creates one createos-sandbox microVM — the self-hosted execution boundary.
 2. Installs the `ant` CLI and starts `ant beta:worker poll` in the background
    (claims sessions, runs an in-process tool runner for each).
 3. Creates a Managed Agent and a session bound to the `self_hosted` environment.
 4. Streams the session: agent reasoning and tool calls print live; the tool
    calls actually run inside the microVM.
 5. Downloads `/workspace/report.txt` straight from the microVM to prove the work
-   executed inside FC (the file contains the guest's `uname -a`).
+   executed inside createos-sandbox (the file contains the guest's `uname -a`).
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                           | SDK call                                              |
 | ----------------------------------- | ----------------------------------------------------- |

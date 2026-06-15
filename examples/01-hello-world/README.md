@@ -1,6 +1,6 @@
 # 01 — Hello World
 
-Smoke test the fc-sdk surface: create → run one buffered command → destroy.
+Smoke test the createos-sandbox-sdk surface: create → run one buffered command → destroy.
 
 ## Run
 
@@ -20,7 +20,7 @@ production control plane and only needs to be set to override.
    the buffered stdout.
 3. Destroys the sandbox.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive         | SDK call                                    |
 | ----------------- | ------------------------------------------- |

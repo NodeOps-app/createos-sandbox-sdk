@@ -1,7 +1,7 @@
 # 19 — Batch inference fan-out
 
 Run sentiment classification over a batch of labeled movie reviews, sharded and
-processed **in parallel across multiple FC sandboxes**. Each sandbox installs a
+processed **in parallel across multiple createos-sandbox sandboxes**. Each sandbox installs a
 small CPU-only HuggingFace model, classifies its shard, and reports its own
 inference timing. The host shards the batch, fans the work out concurrently,
 then aggregates accuracy, throughput, and the concurrency speedup.
@@ -53,7 +53,7 @@ The concurrency speedup is computed on the inference phase only, using the
 That is exactly the win fan-out buys: the deps are prepared once per worker and
 the workload runs N shards at the same wall-clock time as one.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                   | SDK call                                                                  |
 | ------------------------------------------- | ------------------------------------------------------------------------- |

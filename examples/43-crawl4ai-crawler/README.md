@@ -1,7 +1,7 @@
 # 43 — Crawl4AI Web Crawler
 
 Run [Crawl4AI](https://github.com/unclecode/crawl4ai) with a headless Chromium
-browser inside an FC microVM to crawl a public URL and produce clean Markdown,
+browser inside a createos-sandbox microVM to crawl a public URL and produce clean Markdown,
 then download the output to the host.
 
 ## Run
@@ -33,11 +33,11 @@ bun index.ts
    `crawl_output.md` in the current directory.
 7. Destroys the sandbox in a `finally` block.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | Primitive                          | SDK call                                    |
 | ---------------------------------- | ------------------------------------------- |
-| Create sandbox with env injection  | `fc.createSandbox({ shape, rootfs, envs })` |
+| Create sandbox with env injection  | `box.createSandbox({ shape, rootfs, envs })` |
 | Run buffered shell commands        | `sandbox.sh(script, { timeoutMs })`         |
 | Upload script into the VM          | `sandbox.files.upload(path, contents)`      |
 | Download file from the VM          | `sandbox.files.download(path)`              |

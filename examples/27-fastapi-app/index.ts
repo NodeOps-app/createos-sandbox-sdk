@@ -1,7 +1,7 @@
 /**
- * FastAPI App in an FC sandbox.
+ * FastAPI App in a createos-sandbox sandbox.
  *
- * Installs FastAPI + uvicorn inside an FC microVM, uploads a small ASGI app,
+ * Installs FastAPI + uvicorn inside a createos-sandbox microVM, uploads a small ASGI app,
  * daemonises uvicorn on 0.0.0.0:8000, exposes it through the public ingress
  * URL, and verifies JSON responses from two routes.
  *
@@ -30,7 +30,7 @@ if (!baseUrl || !apiKey) {
   throw new Error("set CREATEOS_SANDBOX_BASE_URL and CREATEOS_SANDBOX_API_KEY (see .env.example)");
 }
 
-const fc = new CreateosSandboxClient({ baseUrl, apiKey });
+const box = new CreateosSandboxClient({ baseUrl, apiKey });
 
 // The ASGI app lives in ./app.py (committed beside this example); we read it
 // here and upload it into the sandbox below.
@@ -39,7 +39,7 @@ const appSrc = await readFile(new URL("./app.py", import.meta.url), "utf8");
 // 1. Create the sandbox with ingress enabled so uvicorn gets a public URL.
 //    DEBIAN_FRONTEND=noninteractive keeps the apt-get install below from prompting.
 console.log(`[1/6] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS}, ingress on)...`);
-const sandbox = await fc.createSandbox({
+const sandbox = await box.createSandbox({
   shape: SHAPE,
   rootfs: ROOTFS,
   ingress_enabled: true,
@@ -172,7 +172,7 @@ try {
   // Capture versions for versions.txt at runtime
   const region = new URL(previewUrl).hostname.split(".").slice(1, -2).join(".");
   console.log(`\n── versions (for versions.txt) ─────────────────────────────────`);
-  console.log(`fc control plane: ${baseUrl} (region ${region || "eu"})`);
+  console.log(`createos-sandbox control plane: ${baseUrl} (region ${region || "eu"})`);
   console.log(`${pythonVer.toLowerCase()}`);
   console.log(`fastapi: ${fastapiVer}`);
   console.log(`uvicorn: ${uvicornVer}`);

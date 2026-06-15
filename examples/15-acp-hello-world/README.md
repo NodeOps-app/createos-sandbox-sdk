@@ -1,7 +1,7 @@
 # 15 — ACP Hello World
 
 Spawns a minimal [Agent Client Protocol](https://agentclientprotocol.com/)
-agent inside an FC sandbox and drives a single prompt turn over JSON-RPC 2.0.
+agent inside a createos-sandbox sandbox and drives a single prompt turn over JSON-RPC 2.0.
 Shows `files.upload` (payload injection), `runCommand` (executing the driver),
 and the ACP baseline handshake — `initialize` → `session/new` → `session/prompt`.
 
@@ -17,7 +17,7 @@ self-contained Python echo implementation, so no LLM provider key is needed.
 
 ## What it does
 
-1. Creates a `devbox:1` FC sandbox.
+1. Creates a `devbox:1` createos-sandbox sandbox.
 2. Uploads two Python scripts: `acp_agent.py` (a ~100-line ACP echo agent
    that speaks JSON-RPC 2.0 over stdio) and `acp_driver.py` (an in-sandbox
    driver that spawns the agent as a subprocess and walks one prompt turn).
@@ -29,7 +29,7 @@ self-contained Python echo implementation, so no LLM provider key is needed.
 
 The host prints both streams so the ACP traffic is visible end-to-end.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                     | SDK call                               |
 | ----------------------------- | -------------------------------------- |

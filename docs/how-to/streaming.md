@@ -59,7 +59,7 @@ transport:
 ```ts
 import type { ExecStreamFrame } from "createos-sandbox-sdk";
 
-for await (const frame of fc.http.stream<ExecStreamFrame>("POST", `/v1/sandboxes/${id}/exec`, {
+for await (const frame of box.http.stream<ExecStreamFrame>("POST", `/v1/sandboxes/${id}/exec`, {
   query: { stream: true },
   body: { cmd: "echo", args: ["hi"], stream: true },
 })) {

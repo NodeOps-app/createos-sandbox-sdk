@@ -55,7 +55,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const templates = await fc.templates.list();
+   * const templates = await client.templates.list();
    * console.log(templates.map((t) => t.id));
    */
   list(options: RequestOptions = {}): Promise<TemplateView[]> {
@@ -69,7 +69,7 @@ export class TemplatesApi {
    * instead of buffering the whole list like {@link list}.
    *
    * @example
-   * for await (const t of fc.templates.iterate()) console.log(t.id);
+   * for await (const t of box.templates.iterate()) console.log(t.id);
    */
   iterate(options: RequestOptions = {}): AsyncGenerator<TemplateView> {
     return this.#http.iteratePages<TemplateView>("GET", "/v1/templates", options, {
@@ -86,7 +86,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const tpl = await fc.templates.create({
+   * const tpl = await box.templates.create({
    *   name: "my-devbox",
    *   dockerfile: "FROM debian:trixie-slim\nRUN apt-get update",
    * });
@@ -109,7 +109,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const tpl = await fc.templates.get("tpl_01h…", { include: "dockerfile" });
+   * const tpl = await box.templates.get("tpl_01h…", { include: "dockerfile" });
    * console.log(tpl.status, tpl.dockerfile);
    */
   get(id: string, options: GetTemplateOptions = {}): Promise<TemplateView> {
@@ -129,7 +129,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * await fc.templates.delete("tpl_01h…");
+   * await box.templates.delete("tpl_01h…");
    */
   delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>("DELETE", `/v1/templates/${encodePath(id)}`, options);
@@ -144,7 +144,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const logs = await fc.templates.logs("tpl_01h…");
+   * const logs = await box.templates.logs("tpl_01h…");
    * process.stdout.write(logs);
    */
   async logs(id: string, options: TemplateLogsOptions = {}): Promise<string> {
@@ -169,7 +169,7 @@ export class TemplatesApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * for await (const event of fc.templates.followLogs("tpl_01h…")) {
+   * for await (const event of box.templates.followLogs("tpl_01h…")) {
    *   if (event.line) process.stdout.write(event.line);
    * }
    */
@@ -203,7 +203,7 @@ export class NetworksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const nets = await fc.networks.list();
+   * const nets = await box.networks.list();
    * console.log(nets.map((n) => n.id));
    */
   list(options: RequestOptions = {}): Promise<Network[]> {
@@ -214,7 +214,7 @@ export class NetworksApi {
    * Streams every overlay network owned by the caller, one page at a time.
    *
    * @example
-   * for await (const n of fc.networks.iterate()) console.log(n.id);
+   * for await (const n of box.networks.iterate()) console.log(n.id);
    */
   iterate(options: RequestOptions = {}): AsyncGenerator<Network> {
     return this.#http.iteratePages<Network>("GET", "/v1/networks", options);
@@ -230,7 +230,7 @@ export class NetworksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const net = await fc.networks.create({ name: "team-net" });
+   * const net = await box.networks.create({ name: "team-net" });
    * console.log(net.id);
    */
   create(request: NetworkCreateRequest, options: RequestOptions = {}): Promise<Network> {
@@ -246,7 +246,7 @@ export class NetworksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const net = await fc.networks.get("net_01h…");
+   * const net = await box.networks.get("net_01h…");
    * console.log(net.cidr);
    */
   get(id: string, options: RequestOptions = {}): Promise<Network> {
@@ -263,7 +263,7 @@ export class NetworksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * await fc.networks.delete("net_01h…");
+   * await box.networks.delete("net_01h…");
    */
   delete(id: string, options: RequestOptions = {}): Promise<OKResponse> {
     return this.#http.request<OKResponse>("DELETE", `/v1/networks/${encodePath(id)}`, options);
@@ -301,7 +301,7 @@ export class DisksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const disks = await fc.disks.list();
+   * const disks = await box.disks.list();
    * console.log(disks.map((d) => d.name));
    */
   list(options: RequestOptions = {}): Promise<DiskView[]> {
@@ -312,7 +312,7 @@ export class DisksApi {
    * Streams every registered S3 disk owned by the caller, one page at a time.
    *
    * @example
-   * for await (const d of fc.disks.iterate()) console.log(d.name);
+   * for await (const d of box.disks.iterate()) console.log(d.name);
    */
   iterate(options: RequestOptions = {}): AsyncGenerator<DiskView> {
     return this.#http.iteratePages<DiskView>("GET", "/v1/disks", options, { legacyKey: "disks" });
@@ -330,7 +330,7 @@ export class DisksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const disk = await fc.disks.create({
+   * const disk = await box.disks.create({
    *   name: "shared-data",
    *   bucket: "my-bucket",
    *   region: "us-east-1",
@@ -352,7 +352,7 @@ export class DisksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const disk = await fc.disks.get("shared-data");
+   * const disk = await box.disks.get("shared-data");
    * console.log(disk.bucket, disk.region);
    */
   get(idOrName: string, options: RequestOptions = {}): Promise<DiskView> {
@@ -370,7 +370,7 @@ export class DisksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * await fc.disks.delete("shared-data");
+   * await box.disks.delete("shared-data");
    */
   delete(idOrName: string, options: RequestOptions = {}): Promise<DiskDeletedResponse> {
     return this.#http.request<DiskDeletedResponse>(
@@ -393,7 +393,7 @@ export class DisksApi {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * await fc.disks.rotateCredentials("shared-data", {
+   * await box.disks.rotateCredentials("shared-data", {
    *   access_key: "AKIA…",
    *   secret_key: "…",
    * });
@@ -420,8 +420,8 @@ export class DisksApi {
  * `@throws` tags list only the conditions specific to that call.
  *
  * @example
- * const fc = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
- * const sandbox = await fc.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
+ * const box = new CreateosSandboxClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
+ * const sandbox = await box.createSandbox({ shape: "s-1vcpu-256mb", rootfs: "devbox:1" });
  */
 export class CreateosSandboxClient {
   /** Low-level transport. An escape hatch for requests the SDK does not model. */
@@ -453,7 +453,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const ok = await fc.healthz();
+   * const ok = await box.healthz();
    * console.log(ok);
    */
   healthz(options: RequestOptions = {}): Promise<HealthzResponse> {
@@ -466,7 +466,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const r = await fc.readyz();
+   * const r = await box.readyz();
    * if (!r.ready) console.warn("not ready:", r.reason);
    */
   async readyz(options: RequestOptions = {}): Promise<ReadyzResponse> {
@@ -506,7 +506,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const me = await fc.whoami();
+   * const me = await box.whoami();
    * console.log(me.user_id, me.stats);
    */
   whoami(options: RequestOptions = {}): Promise<WhoAmIView> {
@@ -522,7 +522,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const shapes = await fc.listShapes();
+   * const shapes = await box.listShapes();
    * console.log(shapes.map((s) => s.id));
    */
   listShapes(options: RequestOptions = {}): Promise<Shape[]> {
@@ -540,7 +540,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const { rootfs } = await fc.listRootfs();
+   * const { rootfs } = await box.listRootfs();
    * console.log(rootfs.map((r) => r.id));
    */
   listRootfs(options: RequestOptions = {}): Promise<RootfsData> {
@@ -555,7 +555,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const hosts = await fc.listHosts();
+   * const hosts = await box.listHosts();
    * console.log(hosts.map((h) => h.id));
    */
   listHosts(options: RequestOptions = {}): Promise<HostPublic[]> {
@@ -566,7 +566,7 @@ export class CreateosSandboxClient {
    * Streams the worker hosts visible to the caller, one page at a time.
    *
    * @example
-   * for await (const h of fc.iterateHosts()) console.log(h.id);
+   * for await (const h of box.iterateHosts()) console.log(h.id);
    */
   iterateHosts(options: RequestOptions = {}): AsyncGenerator<HostPublic> {
     return this.http.iteratePages<HostPublic>("GET", "/v1/hosts", options);
@@ -584,7 +584,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout or wait budget elapses.
    *
    * @example
-   * const sandbox = await fc.createSandbox({
+   * const sandbox = await box.createSandbox({
    *   shape: "s-1vcpu-256mb",
    *   rootfs: "devbox:1",
    * });
@@ -634,7 +634,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const sandbox = await fc.getSandbox("sb_01h…");
+   * const sandbox = await box.getSandbox("sb_01h…");
    * console.log(sandbox.status);
    */
   async getSandbox(id: string, options: RequestOptions = {}): Promise<Sandbox> {
@@ -655,7 +655,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
-   * const sandbox = await fc.getSandboxByIP("10.0.0.42");
+   * const sandbox = await box.getSandboxByIP("10.0.0.42");
    * console.log(sandbox.id);
    */
   async getSandboxByIP(ip: string, options: RequestOptions = {}): Promise<Sandbox> {
@@ -677,7 +677,7 @@ export class CreateosSandboxClient {
    * handles returned.
    *
    * @example
-   * const all = await fc.listSandboxes({ status: "running" });
+   * const all = await box.listSandboxes({ status: "running" });
    * for (const s of all) console.log(s.id, s.ip);
    */
   async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
@@ -698,7 +698,7 @@ export class CreateosSandboxClient {
    * the total handles yielded.
    *
    * @example
-   * for await (const s of fc.iterateSandboxes({ status: "running" })) {
+   * for await (const s of box.iterateSandboxes({ status: "running" })) {
    *   console.log(s.id, s.ip);
    * }
    */
@@ -721,7 +721,7 @@ export class CreateosSandboxClient {
  *
  * @example
  * import { createClient } from "createos-sandbox-sdk";
- * const fc = createClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
+ * const box = createClient({ apiKey: process.env.CREATEOS_SANDBOX_API_KEY });
  */
 export function createClient(options: CreateosSandboxClientOptions = {}): CreateosSandboxClient {
   return new CreateosSandboxClient(options);

@@ -1,5 +1,5 @@
 /**
- * Claude agent GitHub wiki Q&A — clone a public GitHub repo into an FC
+ * Claude agent GitHub wiki Q&A — clone a public GitHub repo into a createos-sandbox
  * sandbox, let a Claude agent explore its file tree, then ask it 2 concrete
  * questions about the codebase and capture the answers to stdout.
  *
@@ -66,12 +66,12 @@ const TOOLS: Anthropic.Tool[] = [
 const anthropic = new Anthropic();
 const model = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 
-const fc = new CreateosSandboxClient({
+const box = new CreateosSandboxClient({
   baseUrl: process.env.CREATEOS_SANDBOX_BASE_URL,
 });
 
 console.log(`[1/4] creating sandbox (shape=${SHAPE}, rootfs=${ROOTFS})...`);
-const sandbox = await fc.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
+const sandbox = await box.createSandbox({ shape: SHAPE, rootfs: ROOTFS });
 console.log(`      sandbox: ${sandbox.id}`);
 
 try {

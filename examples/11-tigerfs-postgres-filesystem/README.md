@@ -1,6 +1,6 @@
-# 11 — TigerFS over Postgres in an FC sandbox
+# 11 — TigerFS over Postgres in a createos-sandbox sandbox
 
-Runs Postgres inside a single FC microVM, mounts that database as a
+Runs Postgres inside a single createos-sandbox microVM, mounts that database as a
 filesystem with [TigerFS](https://tigerfs.io/docs), then reads and writes
 markdown notes from a plain Python script — proving that an off-the-shelf
 "filesystem-is-the-API" tool works end-to-end inside `createos-sandbox` sandboxes.
@@ -40,11 +40,11 @@ demo user.
 9. `psql` dumps the rows that back the filesystem so you can see the
    round trip: file written via the mount, row in `tigerfs.notes`.
 
-## FC primitives exercised
+## createos-sandbox primitives exercised
 
 | primitive                                   | SDK call                                   |
 | ------------------------------------------- | ------------------------------------------ |
-| Boot stock devbox rootfs                    | `fc.createSandbox({ rootfs: "devbox:1" })` |
+| Boot stock devbox rootfs                    | `box.createSandbox({ rootfs: "devbox:1" })` |
 | Inject Postgres password into every command | `envs: { PGPASSWORD: … }`                  |
 | Run buffered commands                       | `sandbox.runCommand()`                     |
 | Upload local script to the guest            | `sandbox.files.upload()`                   |
