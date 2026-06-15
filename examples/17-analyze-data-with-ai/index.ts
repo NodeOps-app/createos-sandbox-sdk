@@ -102,19 +102,22 @@ async function generateAnalysis(header: string, sampleRows: string): Promise<str
     "Constraints: standard library + pandas + matplotlib only, no network " +
     "access, no command-line arguments. Output ONLY the Python code, nothing else.";
 
-  const msg = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    messages: [{ role: "user", content: prompt }],
-  });
-  const block = msg.content.find((b) => b.type === "text");
-  if (!block || block.type !== "text") {
+  // Extended-thinking model tiers occasionally return end_turn with only a
+  // thinking block and no text content; retry a few times before giving up.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const msg = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const block = msg.content.find((b) => b.type === "text");
+    if (block && block.type === "text") return extractPython(block.text);
     const shape = msg.content.map((b) => b.type).join("+") || "empty";
-    throw new Error(
-      `model returned no text for analysis (stop=${msg.stop_reason}, blocks=[${shape}])`,
+    console.warn(
+      `attempt ${attempt}/3: no text block (stop=${msg.stop_reason}, blocks=[${shape}]), retrying…`,
     );
   }
-  return extractPython(block.text);
+  throw new Error("Claude returned no text content after 3 attempts");
 }
 
 const sandbox = await createWithRetry();

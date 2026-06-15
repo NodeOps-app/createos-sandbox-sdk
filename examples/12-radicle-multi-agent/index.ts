@@ -145,7 +145,24 @@ RAD_PASSPHRASE=${RAD_PASS} rad sync --announce || true
   return peer.sandbox.sh(script, { label: "push", timeoutMs: 120_000 });
 }
 
-const network = await box.networks.create({ name: `radicle-mesh-${Date.now()}` });
+// networks.create can transiently 503 under control-plane load; retry with backoff.
+async function createNetwork() {
+  const maxAttempts = 5;
+  for (let i = 1; i <= maxAttempts; i++) {
+    try {
+      return await box.networks.create({ name: `radicle-mesh-${Date.now()}` });
+    } catch (err) {
+      if (i === maxAttempts) throw err;
+      const wait = 5_000 * i;
+      console.warn(
+        `networks.create attempt ${i}/${maxAttempts} failed; retrying in ${wait / 1000}s…`,
+      );
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw new Error("unreachable");
+}
+const network = await createNetwork();
 console.log("overlay network:", network.id);
 
 let peers: Peer[] = [];
