@@ -13,8 +13,10 @@ ESM-only, built with `tsc`. The control plane itself is a separate service
 maintained by the NodeOps team; this repository is the client SDK only.
 
 Design rationale — why the handle model, the retry policy and the
-deliberate non-goals — and a competitive analysis of seven other sandbox
-SDKs live in `docs/explanation/sdk-analysis.md`.
+deliberate non-goals — lives in `docs/explanation/` (the microVM model,
+handle model, lifecycle, and reliability pages). The internal competitive
+analysis of other sandbox SDKs is **not** in this public repo; it lives in
+the private `fc` control-plane repo at `docs/sdk-analysis.md`.
 
 ## Commands
 
@@ -25,7 +27,7 @@ bun run typecheck:examples  # tsc -p examples/tsconfig.json (typechecks examples
 bun run lint       # oxlint
 bun run fmt        # oxfmt (writes); fmt:check to verify, lint:fix to autofix
 bun test           # bun test tests/*.test.ts (coverage gated by bunfig.toml)
-bun run docs:gen   # regenerate the example index + llms.txt from examples/manifest.json
+bun run docs:gen   # regenerate examples index (incl. docs/examples.md), llms.txt + llms-full.txt
 ```
 
 `tsc` is the type gate. `oxlint` + `oxfmt` lint and format code only —
@@ -76,10 +78,16 @@ Data flow: `CreateosSandboxClient` → `CreateosSandboxHttp` (transport) → ret
   memory. Skip only when the change is purely internal.
 - **The example index is generated.** `examples/manifest.json` is the
   single source of truth for the example catalog. The table in
-  `examples/README.md` and the example list in `llms.txt` are generated
+  `examples/README.md`, the example list in `llms.txt`, and the whole of
+  `docs/examples.md` (capability-bucketed from the manifest) are generated
   from it by `bun run docs:gen` (and verified in CI / pre-commit via
   `bun run docs:check`). Edit the manifest, then regenerate — never hand-
-  edit the generated regions.
+  edit the generated regions or `docs/examples.md`.
+- **`llms-full.txt` bundles the whole `docs/` corpus.** Its file list is
+  `LLMS_FULL_DOCS` in `scripts/gen-docs.mjs`. When you add a new page under
+  `docs/`, add it to that list (and link it from `llms.txt`) or it is left
+  out of the bundle; then run `bun run docs:gen`. Avoid the literal `exec(`
+  token in docs — the security hook above false-positives on it.
 
 ## Wire types — source of truth
 

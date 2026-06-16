@@ -1,9 +1,10 @@
 # createos-sandbox-sdk
 
-> TypeScript SDK for the createos-sandbox microVM sandbox control plane.
-> Zero runtime dependencies. ESM-only. Node 20+ / Bun / Deno / edge / browser.
-> Hand-written HTTP client around `fetch`. Retries, typed errors, NDJSON
-> streaming, runtime detection, header/URL redaction, lifecycle hooks.
+> TypeScript SDK for the createos-sandbox control plane — spawn Firecracker
+> microVM sandboxes, run commands, move files, expose services, attach disks
+> and networks. Zero runtime dependencies, ESM-only. Node 20+ / Bun / Deno /
+> edge / browser. A hand-written `fetch` client with typed errors, automatic
+> retries, NDJSON streaming, runtime detection, and redaction helpers.
 
 ## Install
 
@@ -12,20 +13,46 @@ npm install createos-sandbox-sdk
 ```
 
 Not yet published to npm — until the first release, install from a local
-checkout. The control plane is configured with `CREATEOS_SANDBOX_BASE_URL` (required) and
+checkout. Configure with `CREATEOS_SANDBOX_BASE_URL` (required) and
 `CREATEOS_SANDBOX_API_KEY`.
 
 ## Docs
 
-- [README](README.md) — top-level overview
-- [Quickstart](docs/quickstart.md) — 30-second tour
-- [How-to: streaming](docs/how-to/streaming.md) — `streamCommand` union
-- [How-to: error handling](docs/how-to/error-handling.md) — typed errors
-- [How-to: observability](docs/how-to/observability.md) — `onRequest` / `onResponse` / `onRetry`
-- [API reference](docs/reference/index.html) — TypeDoc output (`npm run docs:api`)
-- [Design rationale](docs/explanation/sdk-analysis.md) — handle model, retry policy, competitive analysis
+The documentation follows the [Diátaxis](https://diataxis.fr/) framework.
+
+- [Docs home](docs/index.md) — start here; the four-quadrant map
+- [Quickstart](docs/quickstart.md) — install, authenticate, first sandbox
+- [Tutorial](docs/tutorial.md) — build an AI app generator end to end
+
+How-to guides (problem-oriented recipes):
+
+- [Move files in and out](docs/how-to/files.md) — `upload` / `download`
+- [Manage lifecycle](docs/how-to/lifecycle.md) — pause, fork, resume, auto-pause, bandwidth
+- [Expose a service](docs/how-to/expose-a-service.md) — ingress + preview URLs
+- [Disks, networks & templates](docs/how-to/disks-networks-templates.md)
+- [Stream command output](docs/how-to/streaming.md) — `streamCommand` event union
+- [Handle errors](docs/how-to/error-handling.md) — typed-error narrowing
+- [Observability](docs/how-to/observability.md) — `onRequest` / `onResponse` / `onRetry`, redaction
+
+Reference (the API dictionary):
+
+- [Reference index](docs/reference/index.md) — the surface map
+- [Client](docs/reference/client.md) — `CreateosSandboxClient`, `createClient`
+- [Sandbox](docs/reference/sandbox.md) — the `Sandbox` handle + `SandboxFiles`
+- [Sub-APIs](docs/reference/sub-apis.md) — `TemplatesApi`, `NetworksApi`, `DisksApi`
+- [Errors](docs/reference/errors.md) — the `CreateosSandboxError` hierarchy
+- [Types](docs/reference/types.md) — all wire types and option interfaces
+- [Helpers & transport](docs/reference/helpers.md) — poll, runtime, redact, `VERSION`, `CreateosSandboxHttp`
+
+Explanation (understanding-oriented):
+
+- [What is a microVM sandbox](docs/explanation/microvm-sandboxes.md)
+- [The handle model & data flow](docs/explanation/handle-model.md)
+- [Lifecycle & state machine](docs/explanation/lifecycle.md)
+- [Reliability: retries, timeouts, cancellation](docs/explanation/reliability.md)
+
+- [Examples index](docs/examples.md) — runnable programs, by capability
 - [CHANGELOG](CHANGELOG.md) — release history + deprecation policy
-- [AGENTS.md](AGENTS.md) — guidance for agents/contributors working in the repo
 
 ## Examples
 
@@ -91,5 +118,5 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 ## Source
 
 Public surface lives in `src/index.ts`. The wire types in `src/types.ts`
-mirror the createos-sandbox control plane's JSON HTTP API and are the source of truth
-for the request/response shapes.
+mirror the createos-sandbox control plane's JSON HTTP API and are the source of
+truth for the request/response shapes.
