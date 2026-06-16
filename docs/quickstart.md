@@ -26,9 +26,9 @@ password and keep it out of source control.
 
 ## 3. Configure and authenticate
 
-Point the client at your control plane — `baseUrl` is **required** (the client
-throws without it) — and give it an API key. The simplest path is two
-environment variables:
+The client targets the production control plane by default; set `baseUrl` (or
+`CREATEOS_SANDBOX_BASE_URL`) only to point at a different one. Give it an API
+key. The simplest path is two environment variables:
 
 ```sh
 export CREATEOS_SANDBOX_BASE_URL="https://your-createos-sandbox-control-plane"

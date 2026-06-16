@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { CreateosSandboxError } from "../src/index.ts";
-import { resolveConfig, VERSION } from "../src/config.ts";
+import { DEFAULT_BASE_URL, resolveConfig, VERSION } from "../src/config.ts";
 
 const fetchStub = (() => Promise.resolve(new Response())) as unknown as typeof fetch;
 
@@ -44,8 +44,9 @@ describe("resolveConfig — sources and precedence", () => {
     expect(cfg.baseUrl).toBe("https://env.test");
   });
 
-  test("throws when no base URL is configured", () => {
-    expect(() => resolveConfig({ fetch: fetchStub })).toThrow(CreateosSandboxError);
+  test("falls back to the production default base URL when none is configured", () => {
+    const cfg = resolveConfig({ fetch: fetchStub });
+    expect(cfg.baseUrl).toBe(DEFAULT_BASE_URL);
   });
 
   test("trims trailing slashes from the base URL", () => {

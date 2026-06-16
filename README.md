@@ -39,8 +39,8 @@ try {
 }
 ```
 
-`baseUrl` is required — pass it to the constructor or set
-`CREATEOS_SANDBOX_BASE_URL`; the client throws without it. `createSandbox`
+`baseUrl` defaults to the production control plane; override it via the
+constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox`
 blocks until the sandbox reaches `running`. Sandboxes bill while running — tear
 down in `finally`, or set an idle `auto_pause_after_seconds`.
 

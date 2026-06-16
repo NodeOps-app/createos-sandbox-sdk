@@ -10,6 +10,12 @@ export const VERSION = "0.6.0";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
+/**
+ * Production control-plane base URL, used when neither the `baseUrl` option
+ * nor the `CREATEOS_SANDBOX_BASE_URL` environment variable is set.
+ */
+export const DEFAULT_BASE_URL = "https://api.sb.createos.sh";
+
 export const DEFAULT_RETRY: Required<RetryOptions> = {
   maxRetries: 2,
   baseDelayMs: 500,
@@ -59,12 +65,10 @@ export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedCo
     );
   }
 
-  const rawBaseUrl = options.baseUrl ?? readEnv("CREATEOS_SANDBOX_BASE_URL");
-  if (!rawBaseUrl || !rawBaseUrl.trim()) {
-    throw new CreateosSandboxError(
-      "No base URL configured. Pass `baseUrl` in CreateosSandboxClientOptions or set the CREATEOS_SANDBOX_BASE_URL environment variable.",
-    );
-  }
+  // Precedence: explicit option > environment variable > production default.
+  // A blank option or env var is treated as unset so the next source applies.
+  const rawBaseUrl =
+    options.baseUrl?.trim() || readEnv("CREATEOS_SANDBOX_BASE_URL")?.trim() || DEFAULT_BASE_URL;
 
   let parsedBaseUrl: URL;
   try {

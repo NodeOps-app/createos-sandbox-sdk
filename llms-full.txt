@@ -48,8 +48,8 @@ try {
 }
 ```
 
-`baseUrl` is required — pass it to the constructor or set
-`CREATEOS_SANDBOX_BASE_URL`; the client throws without it. `createSandbox`
+`baseUrl` defaults to the production control plane; override it via the
+constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox`
 blocks until the sandbox reaches `running`. Sandboxes bill while running — tear
 down in `finally`, or set an idle `auto_pause_after_seconds`.
 
@@ -199,9 +199,9 @@ password and keep it out of source control.
 
 ## 3. Configure and authenticate
 
-Point the client at your control plane — `baseUrl` is **required** (the client
-throws without it) — and give it an API key. The simplest path is two
-environment variables:
+The client targets the production control plane by default; set `baseUrl` (or
+`CREATEOS_SANDBOX_BASE_URL`) only to point at a different one. Give it an API
+key. The simplest path is two environment variables:
 
 ```sh
 export CREATEOS_SANDBOX_BASE_URL="https://your-createos-sandbox-control-plane"
@@ -3294,15 +3294,15 @@ new CreateosSandboxClient(options: CreateosSandboxClientOptions = {}): CreateosS
 ```
 
 Resolves `options` against environment variables and defaults, then constructs
-the transport. Throws `CreateosSandboxError` synchronously when required
-configuration is missing or invalid (no `baseUrl`, invalid URL, both `apiKey`
-and `authHeaders` provided, no `fetch` available).
+the transport. Throws `CreateosSandboxError` synchronously when configuration
+is invalid (invalid `baseUrl` URL, both `apiKey` and `authHeaders` provided, no
+`fetch` available).
 
 #### Options
 
 | Name | Type | Default | Description |
 |---|---|---|---|
-| `baseUrl` | `string` | `CREATEOS_SANDBOX_BASE_URL` env var | Control-plane base URL. **Required** — construction throws if absent from both options and env. |
+| `baseUrl` | `string` | `CREATEOS_SANDBOX_BASE_URL` env var, then the production default | Control-plane base URL. Defaults to the production control plane when absent from both options and env. |
 | `apiKey` | `string` | `CREATEOS_SANDBOX_API_KEY` env var | API key sent as `X-Api-Key`. Mutually exclusive with `authHeaders`. |
 | `authHeaders` | `HeadersInit` | — | Auth headers used instead of an API key (e.g. a session token). Mutually exclusive with `apiKey`. |
 | `timeoutMs` | `number` | `60000` | Per-request timeout in ms. `0` disables it. |
@@ -6099,7 +6099,7 @@ Construction options for `CreateosSandboxClient`. All fields are optional.
 |---|---|---|
 | `apiKey` | `string?` | Sent as `X-Api-Key`. Falls back to `CREATEOS_SANDBOX_API_KEY` env var |
 | `authHeaders` | `HeadersInit?` | Auth headers used instead of an API key |
-| `baseUrl` | `string?` | Control-plane base URL. Required; falls back to `CREATEOS_SANDBOX_BASE_URL` |
+| `baseUrl` | `string?` | Control-plane base URL. Falls back to `CREATEOS_SANDBOX_BASE_URL`, then the production default |
 | `fetch` | `typeof fetch?` | Custom fetch implementation (useful in tests) |
 | `timeoutMs` | `number?` | Per-request timeout in ms. Default 60000. 0 disables |
 | `retry` | `RetryOptions \| false?` | Retry policy, or `false` to disable retries entirely |
