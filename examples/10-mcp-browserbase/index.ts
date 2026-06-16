@@ -4,7 +4,7 @@
  * public ingress URL; Claude reaches it via the Anthropic beta MCP-client
  * feature, pointing `mcp_servers[].url` at the sandbox's `previewUrl(port)`.
  * The sandbox is the MCP *host* — the browser automation itself runs on
- * Browserbase's cloud, called out from inside the microVM.
+ * Browserbase's cloud, called out from inside the VM.
  *
  * Run:   bun 10-mcp-browserbase/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, ANTHROPIC_API_KEY, and a Browserbase

@@ -1,8 +1,8 @@
-# 37 — Self-hosted Managed Agent, one microVM per session
+# 37 — Self-hosted Managed Agent, one VM per session
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
 where Anthropic keeps the orchestration but each agent **session executes in its
-own fresh createos-sandbox microVM**. The host runs a control-plane-only work poller; for every
+own fresh createos-sandbox VM**. The host runs a control-plane-only work poller; for every
 claimed session it spawns a sandbox, runs the worker inside it, and destroys the
 sandbox when the session finishes. True per-session isolation — the same model
 the Modal / Daytona / Vercel self-hosted guides use, with createos-sandbox as the sandbox.
@@ -82,7 +82,7 @@ bun index.ts
    sending each a prompt (which starts a run and enqueues a work item).
 2. Runs `work.poller({ drain: true })` on the host — control-plane only; it
    claims each work item with the environment key.
-3. For each claimed session: spawns a fresh createos-sandbox microVM, installs `ant`, and runs
+3. For each claimed session: spawns a fresh createos-sandbox VM, installs `ant`, and runs
    `ant beta:worker run`, which attaches to that exact session, executes the
    agent's tool calls in-VM, posts results back, and exits on idle.
 4. Downloads `/workspace/report.txt` from the per-session VM to prove the work

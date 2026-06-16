@@ -24,13 +24,13 @@ async function promptChaining() {
 
   const { text: summary } = await generateText({
     model,
-    prompt: "In two sentences, explain what a microVM is and why it is useful for sandboxing.",
+    prompt: "In two sentences, explain what a VM is and why it is useful for sandboxing.",
   });
   console.log("Step 1 — summary:", summary.trim());
 
   const { text: insight } = await generateText({
     model,
-    prompt: `Given this summary: "${summary.trim()}" — extract the single most important benefit of microVMs in one short sentence.`,
+    prompt: `Given this summary: "${summary.trim()}" — extract the single most important benefit of VMs in one short sentence.`,
   });
   console.log("Step 2 — key insight:", insight.trim());
 }
@@ -81,11 +81,11 @@ async function parallelization() {
   const tasks = [
     {
       label: "security",
-      prompt: "Name one security benefit of running code in a microVM. One sentence.",
+      prompt: "Name one security benefit of running code in a VM. One sentence.",
     },
     {
       label: "performance",
-      prompt: "Name one performance benefit of microVM snapshots. One sentence.",
+      prompt: "Name one performance benefit of VM snapshots. One sentence.",
     },
     {
       label: "reliability",

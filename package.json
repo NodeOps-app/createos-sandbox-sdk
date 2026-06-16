@@ -1,14 +1,13 @@
 {
   "name": "@nodeops-createos/sandbox",
   "version": "0.6.0",
-  "description": "TypeScript SDK for the createos-sandbox microVM sandbox control plane.",
+  "description": "TypeScript SDK for the createos-sandbox VM sandbox control plane.",
   "keywords": [
     "compute",
     "createos-sandbox",
-    "firecracker",
-    "microvm",
     "sandbox",
-    "sdk"
+    "sdk",
+    "vm"
   ],
   "homepage": "https://github.com/NodeOps-app/createos-sandbox-sdk#readme",
   "bugs": {

@@ -5,7 +5,7 @@ pandas/matplotlib analysis script, run that script inside a single createos-sand
 sandbox, and pull the resulting price chart PNG back to the host.
 
 The scrape runs on the host with plain `fetch` against the Firecrawl API;
-the analysis runs in an isolated microVM. When `FIRECRAWL_API_KEY` is not
+the analysis runs in an isolated VM. When `FIRECRAWL_API_KEY` is not
 set, the example uses the bundled `sample-listings.json` so the createos-sandbox sandbox /
 Claude / chart path still runs end-to-end.
 

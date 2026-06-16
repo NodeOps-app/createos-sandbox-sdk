@@ -148,7 +148,7 @@ const LLMS_FULL_DOCS = [
   "docs/index.md",
   "docs/quickstart.md",
   "docs/tutorial.md",
-  "docs/explanation/microvm-sandboxes.md",
+  "docs/explanation/vm-sandboxes.md",
   "docs/explanation/handle-model.md",
   "docs/explanation/lifecycle.md",
   "docs/explanation/reliability.md",

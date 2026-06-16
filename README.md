@@ -1,7 +1,7 @@
 # @nodeops-createos/sandbox
 
-TypeScript SDK for the `createos-sandbox` control plane — spawn Firecracker
-microVM sandboxes, run commands, move files, expose services, and manage disks
+TypeScript SDK for the `createos-sandbox` control plane — spawn VM
+sandboxes, run commands, move files, expose services, and manage disks
 and networks. `createSandbox()` returns a stateful `Sandbox` handle, errors are
 a typed hierarchy, and the transport retries transient failures automatically.
 
@@ -53,7 +53,7 @@ Full docs follow the [Diátaxis](https://diataxis.fr/) framework and live under
 - **[Tutorial](docs/tutorial.md)** — build an AI app generator end to end
 - **[How-to guides](docs/how-to/)** — files, lifecycle, services, disks, streaming, errors, observability
 - **[API reference](docs/reference/)** — every class, method, and type
-- **[Explanation](docs/explanation/)** — the microVM model, the handle model, lifecycle, reliability
+- **[Explanation](docs/explanation/)** — the VM model, the handle model, lifecycle, reliability
 - **[Examples](docs/examples.md)** — runnable programs, one per directory under [`examples/`](examples/)
 
 For AI agents and tools: the machine-readable index is [`llms.txt`](llms.txt)

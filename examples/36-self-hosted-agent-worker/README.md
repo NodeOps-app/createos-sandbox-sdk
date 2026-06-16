@@ -1,13 +1,13 @@
-# 36 — Self-hosted Managed Agent worker (one createos-sandbox microVM)
+# 36 — Self-hosted Managed Agent worker (one createos-sandbox VM)
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
 where Anthropic keeps the orchestration but **tool execution happens inside an
-createos-sandbox microVM you control**. One long-lived sandbox runs an always-on environment
+createos-sandbox VM you control**. One long-lived sandbox runs an always-on environment
 worker that claims every session assigned to the environment and executes the
 agent's tool calls locally — agent code, files, and network egress never leave
 createos-sandbox.
 
-This is the always-on, single-worker topology. For one fresh microVM per
+This is the always-on, single-worker topology. For one fresh VM per
 session, see `37-self-hosted-sandbox-per-session`.
 
 ## Setup — credentials
@@ -77,13 +77,13 @@ bun index.ts
 
 ## What it does
 
-1. Creates one createos-sandbox microVM — the self-hosted execution boundary.
+1. Creates one createos-sandbox VM — the self-hosted execution boundary.
 2. Installs the `ant` CLI and starts `ant beta:worker poll` in the background
    (claims sessions, runs an in-process tool runner for each).
 3. Creates a Managed Agent and a session bound to the `self_hosted` environment.
 4. Streams the session: agent reasoning and tool calls print live; the tool
-   calls actually run inside the microVM.
-5. Downloads `/workspace/report.txt` straight from the microVM to prove the work
+   calls actually run inside the VM.
+5. Downloads `/workspace/report.txt` straight from the VM to prove the work
    executed inside createos-sandbox (the file contains the guest's `uname -a`).
 
 ## createos-sandbox primitives exercised

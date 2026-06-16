@@ -2,7 +2,7 @@
  * Run the Claude Code CLI *inside* a sandbox and drive it headlessly. Installs
  * `@anthropic-ai/claude-code`, pipes a coding task into `claude -p`, and prints
  * what the agent produced. The agent's keys and model are passed through the
- * sandbox's `envs`, so the CLI talks to Anthropic from within the microVM.
+ * sandbox's `envs`, so the CLI talks to Anthropic from within the VM.
  *
  * The task is collected with a single `runCommand`, not `streamCommand`:
  * `streamCommand` exits -1 for long-running CLIs on this backend, so we block

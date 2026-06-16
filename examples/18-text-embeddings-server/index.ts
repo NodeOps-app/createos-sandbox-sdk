@@ -25,7 +25,7 @@ const MODEL_ID = "BAAI/bge-small-en-v1.5"; // small CPU model; ~384-dim vectors
 const EXPECTED_DIM = 384;
 
 const SAMPLE_TEXTS = [
-  "Firecracker boots microVMs in well under a second.",
+  "VM boots VMs in well under a second.",
   "Sentence embeddings map text into a dense vector space.",
   "The quick brown fox jumps over the lazy dog.",
   "Vector similarity powers semantic search and RAG.",

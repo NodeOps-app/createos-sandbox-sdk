@@ -1,7 +1,7 @@
 # createos-sandbox-sdk
 
-> TypeScript SDK for the createos-sandbox control plane — spawn Firecracker
-> microVM sandboxes, run commands, move files, expose services, attach disks
+> TypeScript SDK for the createos-sandbox control plane — spawn VM
+> VM sandboxes, run commands, move files, expose services, attach disks
 > and networks. Zero runtime dependencies, ESM-only. Node 20+ / Bun / Deno /
 > edge / browser. A hand-written `fetch` client with typed errors, automatic
 > retries, NDJSON streaming, runtime detection, and redaction helpers.
@@ -46,7 +46,7 @@ Reference (the API dictionary):
 
 Explanation (understanding-oriented):
 
-- [What is a microVM sandbox](docs/explanation/microvm-sandboxes.md)
+- [What is a VM sandbox](docs/explanation/vm-sandboxes.md)
 - [The handle model & data flow](docs/explanation/handle-model.md)
 - [Lifecycle & state machine](docs/explanation/lifecycle.md)
 - [Reliability: retries, timeouts, cancellation](docs/explanation/reliability.md)
@@ -65,11 +65,11 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [04-ai-code-agent](examples/04-ai-code-agent/) — Use a sandbox as the code-execution environment for a Claude agent.
 - [05-filesystem-snapshots](examples/05-filesystem-snapshots/) — Snapshot/branch a sandbox: pause, fork, resume the clone.
 - [06-openai-agents-fc-tools](examples/06-openai-agents-fc-tools/) — Expose sandbox operations as tools to the OpenAI Agents SDK.
-- [07-docker-custom-template](examples/07-docker-custom-template/) — Build a custom rootfs template from a Dockerfile, then run containers inside the microVM.
+- [07-docker-custom-template](examples/07-docker-custom-template/) — Build a custom rootfs template from a Dockerfile, then run containers inside the VM.
 - [08-dev-server-git-preview](examples/08-dev-server-git-preview/) — Clone a repo, start a dev server, expose it via a live ingress URL.
 - [09-mcp-claude-code](examples/09-mcp-claude-code/) — Run the Claude Code CLI inside a sandbox.
 - [10-mcp-browserbase](examples/10-mcp-browserbase/) — Run the Browserbase MCP server in a sandbox, driven by Claude.
-- [11-tigerfs-postgres-filesystem](examples/11-tigerfs-postgres-filesystem/) — Run PostgreSQL on a TigerFS filesystem layer in one microVM.
+- [11-tigerfs-postgres-filesystem](examples/11-tigerfs-postgres-filesystem/) — Run PostgreSQL on a TigerFS filesystem layer in one VM.
 - [12-radicle-multi-agent](examples/12-radicle-multi-agent/) — Three networked sandboxes running a Radicle p2p git mesh with role-specialized agents.
 - [13-llamaindex-rag](examples/13-llamaindex-rag/) — Build a LlamaIndex vector index; persist it across pause/resume.
 - [14-jupyter-singleton](examples/14-jupyter-singleton/) — Keep a persistent Python kernel over a socket; pause and fork two branches.
@@ -78,7 +78,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [17-analyze-data-with-ai](examples/17-analyze-data-with-ai/) — Upload a CSV, have Claude write the analysis from its schema, read back the chart.
 - [18-text-embeddings-server](examples/18-text-embeddings-server/) — Serve a CPU embeddings model as a long-lived service over ingress.
 - [19-batch-inference-fanout](examples/19-batch-inference-fanout/) — Shard a classification job across many sandboxes in parallel.
-- [20-google-adk-agent](examples/20-google-adk-agent/) — Drive a Google ADK agent whose tools run inside a microVM.
+- [20-google-adk-agent](examples/20-google-adk-agent/) — Drive a Google ADK agent whose tools run inside a VM.
 - [21-astro-sandbox](examples/21-astro-sandbox/) — Scaffold an Astro site, run `astro dev`, reach it via ingress.
 - [22-opencode-server](examples/22-opencode-server/) — Run the OpenCode headless HTTP server over ingress.
 - [25-prometheus-pushgateway](examples/25-prometheus-pushgateway/) — Run a Prometheus Pushgateway, push a metric, scrape it via ingress.
@@ -92,17 +92,17 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [33-codex-cli](examples/33-codex-cli/) — Run the OpenAI Codex CLI in a sandbox to execute a task.
 - [34-openclaw-gateway](examples/34-openclaw-gateway/) — Run the OpenClaw gateway over ingress and verify /v1/models.
 - [35-aio-sandbox](examples/35-aio-sandbox/) — All-in-one tour exercising every core primitive in one run.
-- [36-self-hosted-agent-worker](examples/36-self-hosted-agent-worker/) — Back a Claude Managed Agent with one persistent microVM for tool execution.
-- [37-self-hosted-sandbox-per-session](examples/37-self-hosted-sandbox-per-session/) — Back a Claude Managed Agent with a fresh microVM per session.
+- [36-self-hosted-agent-worker](examples/36-self-hosted-agent-worker/) — Back a Claude Managed Agent with one persistent VM for tool execution.
+- [37-self-hosted-sandbox-per-session](examples/37-self-hosted-sandbox-per-session/) — Back a Claude Managed Agent with a fresh VM per session.
 - [38-s3-disk-ffmpeg-transcode](examples/38-s3-disk-ffmpeg-transcode/) — Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy.
 - [39-bandwidth-recharge](examples/39-bandwidth-recharge/) — Read a sandbox's bandwidth quota and grow it after create with rechargeBandwidth (create no longer accepts bandwidth_quota_bytes).
 - [40-idle-auto-pause](examples/40-idle-auto-pause/) — Set an idle auto-pause timeout at create with auto_pause_after_seconds and change it live with setAutoPause(seconds | null) so an idle sandbox stops billing.
 - [41-python-pdf-extractor](examples/41-python-pdf-extractor/) — Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required.
 - [42-doc-to-markdown](examples/42-doc-to-markdown/) — Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result.
-- [43-crawl4ai-crawler](examples/43-crawl4ai-crawler/) — Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host.
+- [43-crawl4ai-crawler](examples/43-crawl4ai-crawler/) — Install Crawl4AI and Playwright/Chromium inside a VM, crawl a public URL to Markdown, download the output to the host.
 - [44-claude-changelog-generator](examples/44-claude-changelog-generator/) — Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md.
 - [45-claude-github-wiki](examples/45-claude-github-wiki/) — Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase.
-- [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside a createos-sandbox microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
+- [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside a createos-sandbox VM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
 - [47-effective-agents-patterns](examples/47-effective-agents-patterns/) — Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy.
 <!-- END GENERATED: examples -->
 

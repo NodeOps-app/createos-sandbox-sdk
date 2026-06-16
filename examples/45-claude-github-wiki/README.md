@@ -23,7 +23,7 @@ bun index.ts
 4. Asks two questions; for each, runs a Claude tool-use agent loop:
    - Seed the conversation with the tree snapshot and the question.
    - Claude calls `read_file` / `list_dir` tools to explore the clone.
-   - `sandbox.runCommand` executes each tool call inside the microVM.
+   - `sandbox.runCommand` executes each tool call inside the VM.
    - Loop until `stop_reason !== "tool_use"`.
    - Q1: list and describe every template directory at the root.
    - Q2: find and summarise the main entry-point in the `hono` template.

@@ -55,7 +55,7 @@ def run_cell(source: str) -> dict:
 
     # Intentional `exec` + `eval` of user-supplied code — this daemon
     # IS the Jupyter-style kernel; running arbitrary Python is its
-    # entire job. The microVM the daemon runs inside is the security
+    # entire job. The VM the daemon runs inside is the security
     # boundary; nothing here is reachable from outside the sandbox.
     try:
         with redirect_stdout(out), redirect_stderr(err):

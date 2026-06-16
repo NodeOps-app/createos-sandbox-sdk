@@ -1,6 +1,6 @@
 /**
  * Mastra agent in a sandbox — installs the Mastra TypeScript agent framework
- * inside a createos-sandbox microVM, uploads a small agent script, and runs it with bun.
+ * inside a createos-sandbox VM, uploads a small agent script, and runs it with bun.
  * OPENAI_API_KEY / OPENAI_API_URL / OPENAI_MODEL are injected into the sandbox
  * environment so the agent's AI SDK provider reaches the OpenAI-compatible
  * gateway without secrets being written to disk.

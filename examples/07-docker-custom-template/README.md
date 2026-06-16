@@ -1,7 +1,7 @@
 # 07 — Docker via Custom Template
 
 Builds a custom createos-sandbox template with Docker CE pre-installed, launches a sandbox from it,
-starts the Docker daemon, then pulls and runs containers inside the microVM.
+starts the Docker daemon, then pulls and runs containers inside the VM.
 
 ## Run
 

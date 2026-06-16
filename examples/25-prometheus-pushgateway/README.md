@@ -1,7 +1,7 @@
 # 25 — Prometheus Pushgateway
 
 Runs a [Prometheus Pushgateway](https://github.com/prometheus/pushgateway)
-inside a createos-sandbox microVM with public HTTP ingress, pushes a custom metric to it,
+inside a createos-sandbox VM with public HTTP ingress, pushes a custom metric to it,
 then scrapes `/metrics` through the ingress URL to verify the full round-trip.
 
 ## Run
@@ -19,7 +19,7 @@ releases and runs entirely inside the sandbox.
 ## What it does
 
 1. Creates a createos-sandbox sandbox (`s-1vcpu-1gb`, `devbox:1`) with `ingress_enabled: true`
-   so the Pushgateway's HTTP API is reachable from outside the microVM.
+   so the Pushgateway's HTTP API is reachable from outside the VM.
 2. Downloads the official Prometheus Pushgateway binary from GitHub and
    installs it at `/usr/local/bin/pushgateway`.
 3. Daemonises the Pushgateway on `0.0.0.0:9091` using `nohup setsid` (no

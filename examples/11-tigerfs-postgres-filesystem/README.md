@@ -1,6 +1,6 @@
 # 11 — TigerFS over Postgres in a createos-sandbox sandbox
 
-Runs Postgres inside a single createos-sandbox microVM, mounts that database as a
+Runs Postgres inside a single createos-sandbox VM, mounts that database as a
 filesystem with [TigerFS](https://tigerfs.io/docs), then reads and writes
 markdown notes from a plain Python script — proving that an off-the-shelf
 "filesystem-is-the-API" tool works end-to-end inside `createos-sandbox` sandboxes.
@@ -21,7 +21,7 @@ demo user.
 
 1. Boots `devbox:1` on `s-2vcpu-2gb`. The guest kernel has
    `CONFIG_FUSE_FS=y` and devbox already ships `fuse3`, so TigerFS can use
-   FUSE inside the microVM without any host capability bumps.
+   FUSE inside the VM without any host capability bumps.
 2. `apt-get install postgresql python3 curl`, then starts the default
    Debian cluster with `pg_ctlcluster <ver> main start` (no systemd in
    devbox).

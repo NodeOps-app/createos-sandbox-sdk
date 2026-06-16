@@ -1,7 +1,7 @@
 /**
  * Dev server + preview URL — run an HTTP server inside the sandbox and reach it
  * from the public internet over per-sandbox ingress. The pattern behind serving
- * a live app preview (dev server, web UI) straight out of a microVM.
+ * a live app preview (dev server, web UI) straight out of a VM.
  *
  * Run:   bun 03-dev-server-preview-url/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (see .env.example). No external services.

@@ -1,6 +1,6 @@
 # 10 — Browserbase MCP via createos-sandbox Sandbox
 
-Runs the `@browserbasehq/mcp` server inside a createos-sandbox microVM sandbox, exposes it
+Runs the `@browserbasehq/mcp` server inside a createos-sandbox VM sandbox, exposes it
 over createos-sandbox ingress, then drives it from the host using Claude (Anthropic SDK) as
 the AI agent. Claude calls Browserbase tools (screenshot, navigate, interact)
 through the MCP connection.
@@ -41,7 +41,7 @@ values from `../.env`.
 
 | primitive                                    | SDK call                                                    |
 | -------------------------------------------- | ----------------------------------------------------------- |
-| Create an isolated microVM with HTTP ingress | `client.createSandbox({ ingress_enabled: true })`           |
+| Create an isolated VM with HTTP ingress | `client.createSandbox({ ingress_enabled: true })`           |
 | Pass credentials to sandbox processes        | `createSandbox({ envs: { ... } })`                          |
 | Install packages inside sandbox              | `sandbox.runCommand("bash", ["-lc", "npm install -g ..."])` |
 | Start background services                    | `sandbox.runCommand("bash", ["-lc", "nohup setsid ... &"])` |

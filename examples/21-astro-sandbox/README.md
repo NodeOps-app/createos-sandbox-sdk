@@ -1,6 +1,6 @@
 # 21 — Astro in a Sandbox
 
-Scaffold a minimal Astro site inside a createos-sandbox microVM, install its dependencies,
+Scaffold a minimal Astro site inside a createos-sandbox VM, install its dependencies,
 run `astro dev`, and reach the dev server through the sandbox's public ingress
 URL — then fetch that URL from the host and confirm Astro rendered the page.
 

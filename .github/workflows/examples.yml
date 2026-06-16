@@ -5,7 +5,7 @@ name: examples
 # it, and destroys it in a `finally` block — so a green job means the example
 # worked against production.
 #
-# Cost note: every run spawns real microVMs and makes paid LLM API calls.
+# Cost note: every run spawns real VMs and makes paid LLM API calls.
 # Triggers are kept deliberate: nightly, manual, and on push to main.
 #
 # No `pull_request` trigger by design. Examples run arbitrary `bun index.ts`

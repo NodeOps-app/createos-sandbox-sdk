@@ -7,13 +7,13 @@ consumer-facing docs.
 
 ## What this is
 
-`createos-sandbox-sdk` — the TypeScript SDK for the `createos-sandbox` microVM sandbox
+`createos-sandbox-sdk` — the TypeScript SDK for the `createos-sandbox` VM sandbox
 control plane. A hand-written HTTP client: **zero runtime dependencies**,
 ESM-only, built with `tsc`. The control plane itself is a separate service
 maintained by the NodeOps team; this repository is the client SDK only.
 
 Design rationale — why the handle model, the retry policy and the
-deliberate non-goals — lives in `docs/explanation/` (the microVM model,
+deliberate non-goals — lives in `docs/explanation/` (the VM model,
 handle model, lifecycle, and reliability pages). The internal competitive
 analysis of other sandbox SDKs is **not** in this public repo; it lives in
 the private `fc` control-plane repo at `docs/sdk-analysis.md`.
@@ -163,3 +163,5 @@ if a build-output regression is a concern.
 `POST /v1/sandboxes/:id/tunnel/:port` (keyless port-forward) is an
 HTTP-Upgrade endpoint and is intentionally not exposed — it needs a raw
 socket, not `fetch`.
+
+- DO not mention "VM" or "VM" in public docs or codebase

@@ -1,7 +1,7 @@
 # 46 — Mastra agent in a sandbox
 
 Runs a [Mastra](https://mastra.ai) TypeScript AI agent entirely inside a createos-sandbox
-microVM. The sandbox installs bun, the Mastra framework, and the `@ai-sdk/openai`
+VM. The sandbox installs bun, the Mastra framework, and the `@ai-sdk/openai`
 provider; the agent script is uploaded from the host and invoked with a single
 prompt. The LLM provider is the OpenAI-compatible gateway supplied via
 `OPENAI_API_KEY` / `OPENAI_API_URL` / `OPENAI_MODEL`.

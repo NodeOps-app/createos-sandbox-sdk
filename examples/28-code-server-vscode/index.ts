@@ -1,7 +1,7 @@
 /**
  * code-server (VS Code in the browser) inside a createos-sandbox sandbox, reached over ingress.
  *
- * Installs code-server in a microVM, binds it on 0.0.0.0:8080 with auth
+ * Installs code-server in a VM, binds it on 0.0.0.0:8080 with auth
  * disabled, exposes that port through the sandbox's public ingress URL, and
  * proves the workbench is live by polling GET /healthz from the host. The
  * takeaway: any TCP server bound to 0.0.0.0 inside the VM becomes a public

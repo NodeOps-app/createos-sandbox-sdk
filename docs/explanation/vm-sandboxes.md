@@ -1,6 +1,6 @@
-# What is a microVM sandbox?
+# What is a VM sandbox?
 
-A createos-sandbox **sandbox** is a Firecracker microVM — a real virtual machine
+A createos-sandbox **sandbox** is a VM — a real virtual machine
 running its own Linux kernel on KVM hardware virtualization, not a
 container sharing the host kernel. Each sandbox has its own kernel, its own
 memory address space, and its own set of virtual devices. That hard
@@ -10,7 +10,7 @@ boundary is the foundation everything else in this platform is built on.
 
 Containers are processes isolated by Linux namespaces and cgroups. They
 share the host kernel, so a kernel-level exploit in one container can
-escape to every other container and the host. A Firecracker microVM has its
+escape to every other container and the host. A VM has its
 own kernel and memory; a kernel exploit stays inside the VM. The blast
 radius of a compromised sandbox is the sandbox. This property is what makes
 it safe to run untrusted or model-generated code — code that, by
@@ -90,7 +90,7 @@ following sequence, which the SDK abstracts into a single awaitable call:
 1. **Schedule.** The control plane selects a worker host with enough free
    memory for the requested shape and places the sandbox there.
 
-2. **Boot.** Firecracker starts a microVM on that host: it loads the
+2. **Boot.** VM starts a VM on that host: it loads the
    rootfs, applies the writable overlay, brings up the Linux kernel, and
    waits for the in-VM agent to come online.
 

@@ -1,7 +1,7 @@
 /**
  * Astro in a Sandbox.
  *
- * Scaffolds a minimal Astro site inside a createos-sandbox microVM, installs its
+ * Scaffolds a minimal Astro site inside a createos-sandbox VM, installs its
  * dependencies, runs `astro dev` as a daemon, exposes the dev server through
  * the public ingress URL, and verifies the rendered HTML over that URL.
  *

@@ -7,7 +7,7 @@
  * downloaded and re-run on the VM as proof. The interesting part is making an
  * autonomous coding agent safe to let loose: it gets danger-full-access +
  * approval=never, which is only acceptable *because* the blast radius is a
- * disposable microVM that gets destroyed in the finally block.
+ * disposable VM that gets destroyed in the finally block.
  *
  * Run:   bun 33-codex-cli/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY, plus OPENAI_API_KEY, OPENAI_API_URL (the

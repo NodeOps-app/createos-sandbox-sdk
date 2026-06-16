@@ -2,7 +2,7 @@
 
 Claude uses a createos-sandbox sandbox as its code-execution environment. The TypeScript
 process drives Claude through a `tool_use` loop: Claude emits Python via a
-`run_code` tool, this process uploads and runs it in the microVM with
+`run_code` tool, this process uploads and runs it in the VM with
 `runCommand`, feeds the output back, and repeats until Claude stops requesting
 tools. The canonical "LLM with a code sandbox" pattern.
 

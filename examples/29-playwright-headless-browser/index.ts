@@ -1,7 +1,7 @@
 /**
  * Playwright + headless Chromium inside a createos-sandbox sandbox to scrape a page.
  *
- * Installs Playwright and Chromium (with all OS-level deps) in a microVM,
+ * Installs Playwright and Chromium (with all OS-level deps) in a VM,
  * uploads a scrape script, runs it headless against example.com, and parses
  * the extracted DOM (title, heading, paragraph, link count) back on the host.
  * Shows the "heavy browser toolchain in a disposable VM" pattern: the install
@@ -72,7 +72,7 @@ npx playwright install --with-deps chromium 2>&1 | tail -20`,
 const { chromium } = require('playwright');
 
 (async () => {
-  // --no-sandbox is required when running as root inside the microVM.
+  // --no-sandbox is required when running as root inside the VM.
   // --disable-dev-shm-usage prevents crashes in low /dev/shm environments.
   const browser = await chromium.launch({
     args: ['--no-sandbox', '--disable-dev-shm-usage'],

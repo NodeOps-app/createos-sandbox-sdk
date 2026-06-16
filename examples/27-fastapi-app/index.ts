@@ -1,7 +1,7 @@
 /**
  * FastAPI App in a createos-sandbox sandbox.
  *
- * Installs FastAPI + uvicorn inside a createos-sandbox microVM, uploads a small ASGI app,
+ * Installs FastAPI + uvicorn inside a createos-sandbox VM, uploads a small ASGI app,
  * daemonises uvicorn on 0.0.0.0:8000, exposes it through the public ingress
  * URL, and verifies JSON responses from two routes.
  *

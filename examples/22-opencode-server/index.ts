@@ -1,7 +1,7 @@
 /**
  * OpenCode Server in a Sandbox.
  *
- * Installs opencode-ai inside a createos-sandbox microVM, runs `opencode serve` bound
+ * Installs opencode-ai inside a createos-sandbox VM, runs `opencode serve` bound
  * to 0.0.0.0, exposes the HTTP API through the sandbox ingress URL, and
  * verifies the server is live by hitting GET /global/health.
  *

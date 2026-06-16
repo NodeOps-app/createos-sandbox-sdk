@@ -19,16 +19,16 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 17 | [17-analyze-data-with-ai](../examples/17-analyze-data-with-ai/) | Upload a CSV, have Claude write the analysis from its schema, read back the chart. | — |
 | 18 | [18-text-embeddings-server](../examples/18-text-embeddings-server/) | Serve a CPU embeddings model as a long-lived service over ingress. | — |
 | 19 | [19-batch-inference-fanout](../examples/19-batch-inference-fanout/) | Shard a classification job across many sandboxes in parallel. | — |
-| 20 | [20-google-adk-agent](../examples/20-google-adk-agent/) | Drive a Google ADK agent whose tools run inside a microVM. | — |
+| 20 | [20-google-adk-agent](../examples/20-google-adk-agent/) | Drive a Google ADK agent whose tools run inside a VM. | — |
 | 32 | [32-langgraph-sandbox-orchestrator](../examples/32-langgraph-sandbox-orchestrator/) | Model sandbox operations as LangGraph nodes with an OpenAI LLM. | — |
 | 33 | [33-codex-cli](../examples/33-codex-cli/) | Run the OpenAI Codex CLI in a sandbox to execute a task. | — |
 | 34 | [34-openclaw-gateway](../examples/34-openclaw-gateway/) | Run the OpenClaw gateway over ingress and verify /v1/models. | — |
 | 35 | [35-aio-sandbox](../examples/35-aio-sandbox/) | All-in-one tour exercising every core primitive in one run. | — |
-| 36 | [36-self-hosted-agent-worker](../examples/36-self-hosted-agent-worker/) | Back a Claude Managed Agent with one persistent microVM for tool execution. | extra setup |
-| 37 | [37-self-hosted-sandbox-per-session](../examples/37-self-hosted-sandbox-per-session/) | Back a Claude Managed Agent with a fresh microVM per session. | extra setup |
+| 36 | [36-self-hosted-agent-worker](../examples/36-self-hosted-agent-worker/) | Back a Claude Managed Agent with one persistent VM for tool execution. | extra setup |
+| 37 | [37-self-hosted-sandbox-per-session](../examples/37-self-hosted-sandbox-per-session/) | Back a Claude Managed Agent with a fresh VM per session. | extra setup |
 | 44 | [44-claude-changelog-generator](../examples/44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | extra setup |
 | 45 | [45-claude-github-wiki](../examples/45-claude-github-wiki/) | Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase. | — |
-| 46 | [46-mastra-agent](../examples/46-mastra-agent/) | Install the Mastra TypeScript agent framework inside a createos-sandbox microVM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | — |
+| 46 | [46-mastra-agent](../examples/46-mastra-agent/) | Install the Mastra TypeScript agent framework inside a createos-sandbox VM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | — |
 | 47 | [47-effective-agents-patterns](../examples/47-effective-agents-patterns/) | Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy. | — |
 
 ## Dev servers & preview URLs
@@ -50,19 +50,19 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | --- | --- | --- | --- |
 | 01 | [01-hello-world](../examples/01-hello-world/) | Smoke test: create a sandbox, run one buffered command, destroy it. | — |
 | 02 | [02-code-interpreter](../examples/02-code-interpreter/) | Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant. | — |
-| 11 | [11-tigerfs-postgres-filesystem](../examples/11-tigerfs-postgres-filesystem/) | Run PostgreSQL on a TigerFS filesystem layer in one microVM. | — |
+| 11 | [11-tigerfs-postgres-filesystem](../examples/11-tigerfs-postgres-filesystem/) | Run PostgreSQL on a TigerFS filesystem layer in one VM. | — |
 | 26 | [26-s3-bucket-mount](../examples/26-s3-bucket-mount/) | Query a public S3 bucket via DuckDB httpfs inside a sandbox. | — |
 | 29 | [29-playwright-headless-browser](../examples/29-playwright-headless-browser/) | Run Playwright + headless Chromium to scrape and extract the DOM. | — |
 | 31 | [31-git-clone-lsp-typescript](../examples/31-git-clone-lsp-typescript/) | Clone a TS repo and drive typescript-language-server over stdio. | — |
 | 41 | [41-python-pdf-extractor](../examples/41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | — |
 | 42 | [42-doc-to-markdown](../examples/42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | — |
-| 43 | [43-crawl4ai-crawler](../examples/43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a microVM, crawl a public URL to Markdown, download the output to the host. | — |
+| 43 | [43-crawl4ai-crawler](../examples/43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a VM, crawl a public URL to Markdown, download the output to the host. | — |
 
 ## Disks, networks & templates
 
 | # | Example | What it shows | Setup |
 | --- | --- | --- | --- |
-| 07 | [07-docker-custom-template](../examples/07-docker-custom-template/) | Build a custom rootfs template from a Dockerfile, then run containers inside the microVM. | — |
+| 07 | [07-docker-custom-template](../examples/07-docker-custom-template/) | Build a custom rootfs template from a Dockerfile, then run containers inside the VM. | — |
 | 38 | [38-s3-disk-ffmpeg-transcode](../examples/38-s3-disk-ffmpeg-transcode/) | Register an S3-backed disk, mount at boot, transcode with ffmpeg, detach, destroy. | extra setup |
 
 ## Lifecycle, snapshots & cost

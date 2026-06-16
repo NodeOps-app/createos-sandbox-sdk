@@ -1,7 +1,7 @@
 # 20 — Google ADK agent with createos-sandbox sandbox tools
 
 A [Google Agent Development Kit](https://google.github.io/adk-docs/) (ADK)
-agent runs on the host in Python; its tools execute inside a createos-sandbox microVM. The
+agent runs on the host in Python; its tools execute inside a createos-sandbox VM. The
 agent reasons over a small coding task and drives it entirely through the
 sandbox: it writes a Python script, runs it, and reads the result back — each
 step is an ADK tool call that hits the createos-sandbox HTTP API.
@@ -60,7 +60,7 @@ api_key)`, so no Google API key is needed.
 
 | primitive                      | API call                                             |
 | ------------------------------ | ---------------------------------------------------- |
-| Create an isolated microVM     | `client.createSandbox({ shape, rootfs })` (index.ts) |
+| Create an isolated VM     | `client.createSandbox({ shape, rootfs })` (index.ts) |
 | Upload a script (agent tool)   | `PUT /v1/sandboxes/{id}/files` (adk_agent.py)        |
 | Run a command (agent tool)     | `POST /v1/sandboxes/{id}/exec` (adk_agent.py)        |
 | Download a result (agent tool) | `GET /v1/sandboxes/{id}/files` (adk_agent.py)        |

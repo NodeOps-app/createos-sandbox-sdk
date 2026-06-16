@@ -1,7 +1,7 @@
 /**
  * Clone a TypeScript repo into a createos-sandbox sandbox and drive a language server over it.
  *
- * Shallow-clones microsoft/vscode-json-languageservice into a microVM, installs
+ * Shallow-clones microsoft/vscode-json-languageservice into a VM, installs
  * typescript-language-server, then uploads and runs `lsp-driver.mjs` (see that
  * file) which speaks the LSP JSON-RPC stdio protocol to the server from *inside*
  * the VM and captures real responses for initialize, documentSymbol, definition,

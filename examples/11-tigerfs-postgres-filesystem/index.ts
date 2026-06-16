@@ -1,7 +1,7 @@
 /**
  * PostgreSQL as a filesystem — TigerFS mounts a Postgres database as a FUSE
  * tree, so files written under the mount land as rows in the DB. This runs the
- * whole stack inside one microVM: install + start Postgres without systemd
+ * whole stack inside one VM: install + start Postgres without systemd
  * (`pg_ctlcluster`), install TigerFS, `migrate` the schema, `mount` it over
  * FUSE, write a markdown note through the filesystem, then prove via `psql`
  * that the note is a row in `tigerfs.notes`. The SDK's role is the orchestrator

@@ -1,6 +1,6 @@
 # 27 — FastAPI App
 
-Run a FastAPI ASGI web server inside a createos-sandbox microVM, expose it through the
+Run a FastAPI ASGI web server inside a createos-sandbox VM, expose it through the
 sandbox's public ingress URL, and verify live JSON responses from two routes.
 
 ## Run

@@ -1,5 +1,5 @@
 /**
- * OpenAI Agents SDK + createos-sandbox tools — drive a microVM from an OpenAI Agents agent by
+ * OpenAI Agents SDK + createos-sandbox tools — drive a VM from an OpenAI Agents agent by
  * exposing sandbox operations (list files, run Python, read a result file) as
  * agent tools. The agent inspects its workspace, computes in the sandbox, writes
  * an answer file, and reads it back. Shows the createos-sandbox-as-agent-workspace pattern.
@@ -175,7 +175,7 @@ try {
     name: "createos-sandbox Sandbox Workspace Agent",
     model,
     instructions: [
-      "You are an OpenAI Agents SDK agent using a createos-sandbox microVM as your workspace.",
+      "You are an OpenAI Agents SDK agent using a createos-sandbox VM as your workspace.",
       "Always inspect the workspace before computing.",
       "Use run_python for computation instead of doing arithmetic in your response.",
       "Write your computed result to answer.json, then read it back before finalizing.",

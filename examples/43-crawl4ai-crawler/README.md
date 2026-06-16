@@ -1,7 +1,7 @@
 # 43 — Crawl4AI Web Crawler
 
 Run [Crawl4AI](https://github.com/unclecode/crawl4ai) with a headless Chromium
-browser inside a createos-sandbox microVM to crawl a public URL and produce clean Markdown,
+browser inside a createos-sandbox VM to crawl a public URL and produce clean Markdown,
 then download the output to the host.
 
 ## Run
@@ -25,7 +25,7 @@ bun index.ts
    Chromium binary and all OS-level dependencies (fonts, NSS, libglib, etc.)
    via apt in one step.
 4. Uploads `crawl.py` — a small async script that opens a headless Chromium
-   browser with `--no-sandbox` (required as root inside the microVM) and
+   browser with `--no-sandbox` (required as root inside the VM) and
    `--disable-dev-shm-usage`, then calls `crawler.arun(url)` to produce Markdown.
 5. Runs the crawler against `CRAWL_URL` and captures the Markdown output to
    `/tmp/crawl_output.md` inside the sandbox.

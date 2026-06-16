@@ -1,6 +1,6 @@
 # 29 — Playwright Headless Browser
 
-Run a Playwright + Chromium headless browser inside a createos-sandbox microVM, scrape a
+Run a Playwright + Chromium headless browser inside a createos-sandbox VM, scrape a
 public web page, and extract structured content via the DOM.
 
 ## Run

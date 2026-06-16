@@ -1,6 +1,6 @@
 # 28 — code-server (VS Code in Browser)
 
-Run [code-server](https://github.com/coder/code-server) inside a createos-sandbox microVM and expose a
+Run [code-server](https://github.com/coder/code-server) inside a createos-sandbox VM and expose a
 fully-functional VS Code IDE through the sandbox's public ingress URL.
 
 ## Run

@@ -1,9 +1,9 @@
 # Tutorial: build an AI app generator
 
 In this tutorial you will build a small script that takes a plain-English
-prompt, asks Claude to write a web app, uploads that app into a live microVM
+prompt, asks Claude to write a web app, uploads that app into a live VM
 sandbox, starts it, and hands you a public URL you can open in a browser.
-That is the SDK's flagship loop: **LLM generates → microVM runs → ingress
+That is the SDK's flagship loop: **LLM generates → VM runs → ingress
 serves**.
 
 **What you'll learn**
@@ -456,7 +456,7 @@ destroy** loop:
    your next step on the port actually being bound.
 4. The loop is repeatable — re-upload, restart, re-fetch — so iterative
    generation works without touching the sandbox plumbing again.
-5. `try { … } finally { sandbox.destroy() }` ensures the microVM is always
+5. `try { … } finally { sandbox.destroy() }` ensures the VM is always
    reclaimed, even when earlier steps throw.
 
 This pattern generalises: swap Claude for any model or codegen pipeline, swap
@@ -473,7 +473,7 @@ the sandbox wiring stays the same.
   download artifacts
 - [Reference: Sandbox](./reference/sandbox.md) — full method signatures for
   `runCommand`, `files`, `previewUrl`, `waitForPortReady`, `destroy`
-- [Explanation: microVM sandboxes](./explanation/microvm-sandboxes.md) — why
-  microVMs, isolation model, cold-start latency
+- [Explanation: VM sandboxes](./explanation/vm-sandboxes.md) — why
+  VMs, isolation model, cold-start latency
 - [examples/04-ai-code-agent](../examples/04-ai-code-agent/index.ts) — a
   richer tool-use loop where Claude runs code iteratively and reacts to output

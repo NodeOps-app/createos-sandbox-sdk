@@ -25,7 +25,7 @@ bun index.ts
 ### Pattern 1 — Prompt chaining
 
 Two sequential LLM calls where the output of step 1 feeds step 2.
-Step 1 summarises microVMs; step 2 extracts the single key insight from that
+Step 1 summarises VMs; step 2 extracts the single key insight from that
 summary.
 
 ### Pattern 2 — Routing
@@ -36,7 +36,7 @@ prompts (technical / business / creative) based on the input's intent.
 ### Pattern 3 — Parallelization
 
 Three independent LLM prompts run concurrently with `Promise.all`; each asks
-about a different dimension of microVM benefits (security, performance,
+about a different dimension of VM benefits (security, performance,
 reliability).
 
 ## createos-sandbox primitives exercised

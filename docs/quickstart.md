@@ -3,7 +3,7 @@
 The 30-second tour: install, authenticate, spawn a sandbox, run a command,
 and tear it down. For a full guided lesson, see the
 [tutorial](./tutorial.md); for the conceptual picture, start with
-[what a microVM sandbox is](./explanation/microvm-sandboxes.md).
+[what a VM sandbox is](./explanation/vm-sandboxes.md).
 
 ## 1. Install
 
@@ -130,5 +130,5 @@ try {
 - [Tutorial: build an AI app generator](./tutorial.md) — the full guided lesson
 - [How-to guides](./how-to/) — task-oriented recipes
 - [API reference](./reference/) — every class, method, and type
-- [Explanation](./explanation/) — the microVM model, lifecycle, and reliability
+- [Explanation](./explanation/) — the VM model, lifecycle, and reliability
 - [Examples](./examples.md) — runnable, copy-pasteable end-to-end programs

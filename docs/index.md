@@ -1,6 +1,6 @@
 # createos-sandbox SDK
 
-The TypeScript SDK for **createos-sandbox** — spawn Firecracker microVM
+The TypeScript SDK for **createos-sandbox** — spawn VM
 sandboxes, run commands, move files, expose services, and orchestrate fleets,
 from one hand-written `fetch` client with zero runtime dependencies.
 
@@ -10,7 +10,7 @@ import { CreateosSandboxClient } from "createos-sandbox-sdk";
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
 try {
-  const out = await sandbox.runCommand("echo", ["hello from a microVM"]);
+  const out = await sandbox.runCommand("echo", ["hello from a VM"]);
   console.log(out.result.stdout);
 } finally {
   await sandbox.destroy();
@@ -25,7 +25,7 @@ Vercel Edge, and the browser.
 
 ## What you can build
 
-- **Run AI-generated code** safely — an agent writes code, a microVM runs it,
+- **Run AI-generated code** safely — an agent writes code, a VM runs it,
   you read back the result.
 - **Expose a live service** — start a server inside the sandbox and reach it at
   a per-sandbox [preview URL](./how-to/expose-a-service.md).
@@ -45,15 +45,15 @@ of documentation for four kinds of need.
 | **Get going in 30 seconds** | [Quickstart](./quickstart.md) |
 | **Solve a specific problem** | [How-to guides](./how-to/) — files, lifecycle, services, disks, streaming, errors, observability |
 | **Look up a method or type** | [API reference](./reference/) — client, sandbox, sub-APIs, errors, types, helpers |
-| **Understand how it works** | [Explanation](./explanation/) — microVMs, the handle model, lifecycle, reliability |
+| **Understand how it works** | [Explanation](./explanation/) — VMs, the handle model, lifecycle, reliability |
 | **Copy a working program** | [Examples](./examples.md) — runnable, one per directory |
 
 ## Start here
 
 - New to the SDK? Read the [Quickstart](./quickstart.md), then the
   [Tutorial](./tutorial.md).
-- New to microVM sandboxes? Read
-  [What is a microVM sandbox?](./explanation/microvm-sandboxes.md)
+- New to VM sandboxes? Read
+  [What is a VM sandbox?](./explanation/vm-sandboxes.md)
 - Building an agent? Jump to the [Tutorial](./tutorial.md) and the
   [examples](./examples.md).
 

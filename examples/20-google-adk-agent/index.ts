@@ -2,7 +2,7 @@
  * Google ADK agent backed by createos-sandbox sandbox tools.
  *
  * A Google Agent Development Kit (ADK) agent runs on the host in Python; its
- * tools execute inside a createos-sandbox microVM. This thin TypeScript entry owns the
+ * tools execute inside a createos-sandbox VM. This thin TypeScript entry owns the
  * sandbox lifecycle: it creates one sandbox with `createos-sandbox-sdk`, then spawns
  * the Python ADK driver (`adk_agent.py`) as a child process, handing it the
  * sandbox id plus the createos-sandbox connection creds via env. The driver's tools call the

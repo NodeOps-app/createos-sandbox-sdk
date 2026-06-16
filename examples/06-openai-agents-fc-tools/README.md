@@ -35,7 +35,7 @@ still runs end-to-end.
 
 | primitive                             | SDK call                 |
 | ------------------------------------- | ------------------------ |
-| Create an isolated microVM workspace  | `client.createSandbox()` |
+| Create an isolated VM workspace  | `client.createSandbox()` |
 | Push files into the workspace         | `sandbox.files.upload()` |
 | Run buffered commands for agent tools | `sandbox.runCommand()`   |
 | Tear down                             | `sandbox.destroy()`      |

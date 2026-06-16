@@ -33,7 +33,7 @@ The host prints both streams so the ACP traffic is visible end-to-end.
 
 | primitive                     | SDK call                               |
 | ----------------------------- | -------------------------------------- |
-| Create an isolated microVM    | `Sandbox.create({ shape, rootfs })`    |
+| Create an isolated VM    | `Sandbox.create({ shape, rootfs })`    |
 | Inject payload scripts        | `sandbox.files.upload(path, bytes)`    |
 | Run the in-sandbox ACP driver | `sandbox.runCommand("python3", [...])` |
 | Tear down                     | `sandbox.destroy()`                    |

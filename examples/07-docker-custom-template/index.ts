@@ -1,6 +1,6 @@
 /**
  * Docker custom template — build a bespoke rootfs from a Dockerfile, then run
- * Docker containers inside the microVM (Docker-in-microVM). Shows the full
+ * Docker containers inside the VM (Docker-in-VM). Shows the full
  * template lifecycle: submit a build, follow its logs to ready, boot a sandbox
  * on it, and use the baked-in tooling.
  *
@@ -97,7 +97,7 @@ try {
     }
     if (!ready) throw new Error("dockerd did not start within 60 s");
 
-    // 5. Run containers inside the microVM — proof Docker-in-microVM works.
+    // 5. Run containers inside the VM — proof Docker-in-VM works.
     console.log("[5/5] running containers...\n");
 
     console.log("── docker run hello-world ──────────────────────────────────────");

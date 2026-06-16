@@ -2,7 +2,7 @@
  * Crawl4AI web crawler inside a createos-sandbox sandbox.
  *
  * Installs Crawl4AI and Playwright/Chromium (with all OS-level deps) in a
- * microVM, runs an async crawl against a public URL, saves the Markdown output
+ * VM, runs an async crawl against a public URL, saves the Markdown output
  * to a file inside the sandbox, then downloads it back to the host. Shows the
  * "heavy browser toolchain in a disposable VM" pattern: the install cost stays
  * inside the sandbox and is torn down when done.
@@ -80,7 +80,7 @@ python3 -m venv /opt/crawl4ai-venv
   console.log(`      ${chromiumVer}`);
 
   // 4. Build and upload the crawler script. chromium.launch needs
-  //    --no-sandbox when running as root inside the microVM.
+  //    --no-sandbox when running as root inside the VM.
   const crawlerScript = `import asyncio
 import sys
 from crawl4ai import AsyncWebCrawler, BrowserConfig
@@ -91,7 +91,7 @@ async def main():
     browser_cfg = BrowserConfig(
         browser_type="chromium",
         headless=True,
-        # --no-sandbox required when running as root inside the microVM
+        # --no-sandbox required when running as root inside the VM
         extra_args=["--no-sandbox", "--disable-dev-shm-usage"],
     )
     async with AsyncWebCrawler(config=browser_cfg) as crawler:

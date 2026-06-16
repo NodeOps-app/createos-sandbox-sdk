@@ -1,6 +1,6 @@
 # 22 — OpenCode Server (Sandbox)
 
-Run [OpenCode](https://opencode.ai)'s headless HTTP server inside a createos-sandbox microVM,
+Run [OpenCode](https://opencode.ai)'s headless HTTP server inside a createos-sandbox VM,
 expose it through the sandbox's public ingress URL, and verify the API is live
 by hitting `GET /global/health`.
 

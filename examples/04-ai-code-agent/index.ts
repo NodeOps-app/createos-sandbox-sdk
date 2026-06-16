@@ -1,7 +1,7 @@
 /**
  * AI code agent — Claude writes code, the sandbox runs it. The Anthropic SDK
  * drives a tool-use loop: Claude emits Python via a `run_code` tool, this process
- * executes it in the microVM with runCommand, feeds the output back, and repeats
+ * executes it in the VM with runCommand, feeds the output back, and repeats
  * until Claude stops asking for tools. The canonical "LLM with a code sandbox" pattern.
  *
  * Run:   bun 04-ai-code-agent/index.ts

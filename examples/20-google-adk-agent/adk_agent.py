@@ -190,9 +190,9 @@ def build_agent() -> Agent:
     return Agent(
         model=model,
         name="fc_sandbox_agent",
-        description="An agent that performs coding tasks inside a createos-sandbox microVM sandbox.",
+        description="An agent that performs coding tasks inside a createos-sandbox VM sandbox.",
         instruction=(
-            "You are a coding agent. Your tools run inside an isolated createos-sandbox microVM "
+            "You are a coding agent. Your tools run inside an isolated createos-sandbox VM "
             "sandbox: run_command executes shell commands, write_file writes files "
             "into the workspace, read_file reads them back. "
             "You MUST NOT compute or guess any result yourself. Every number you "

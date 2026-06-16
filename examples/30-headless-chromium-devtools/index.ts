@@ -57,7 +57,7 @@ console.log(`      preview URL: ${previewUrl}`);
 
 try {
   // 2. Install Chrome's shared-library deps + nginx. Ubuntu 24.04 (Noble)
-  //    ships chromium as a snap-only wrapper — unusable in a microVM — so we
+  //    ships chromium as a snap-only wrapper — unusable in a VM — so we
   //    pull Google Chrome stable from the official .deb in step 3 instead.
   console.log("[2/8] installing Chrome deps + nginx (apt-get)...");
   await sandbox.sh(
@@ -119,10 +119,10 @@ try {
     { label: "nginx-enable" },
   );
 
-  // 5. Launch Chrome headless. Flags required in a microVM running as root:
+  // 5. Launch Chrome headless. Flags required in a VM running as root:
   //   --no-sandbox          — Chrome refuses to start as root without this
   //   --disable-dev-shm-usage — prevents OOM on the small /dev/shm
-  //   --disable-gpu         — no GPU in the microVM
+  //   --disable-gpu         — no GPU in the VM
   //   --remote-allow-origins=* — allow WebSocket CDP connections from any Origin
   // Daemonize with (; nohup setsid) — && would keep the pipe open and block runCommand.
   console.log(`[5/8] launching Google Chrome headless on CDP port ${CDP_PORT}...`);
