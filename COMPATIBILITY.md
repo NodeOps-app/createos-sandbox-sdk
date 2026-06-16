@@ -12,7 +12,8 @@ See `AGENTS.md` → "Wire types — source of truth".
 | --- | --- |
 | SDK version | `0.6.0` |
 | createos-sandbox branch | `main` |
-| Audited | 2026-06-12 (live-behavior audit; no wire change since the prior pass) |
+| createos-sandbox commit | `3c3f4b5` (2026-06-12) |
+| Audited | 2026-06-16 (delta `12ed1a7..3c3f4b5` reviewed; the only user-facing wire addition was idle auto-pause, already modeled in 0.6.0 — no new drift) |
 
 **What "compliant" means here:** every endpoint the SDK *models* is
 wire-faithful to the server at the audit above — field names, types, and

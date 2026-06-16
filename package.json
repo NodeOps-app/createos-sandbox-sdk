@@ -1,5 +1,5 @@
 {
-  "name": "createos-sandbox-sdk",
+  "name": "@nodeops-createos/sandbox",
   "version": "0.6.0",
   "description": "TypeScript SDK for the createos-sandbox microVM sandbox control plane.",
   "keywords": [
@@ -35,6 +35,9 @@
       "import": "./dist/index.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

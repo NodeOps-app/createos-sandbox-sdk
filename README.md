@@ -1,4 +1,4 @@
-# createos-sandbox-sdk
+# @nodeops-createos/sandbox
 
 TypeScript SDK for the `createos-sandbox` control plane — spawn Firecracker
 microVM sandboxes, run commands, move files, expose services, and manage disks
@@ -11,13 +11,9 @@ Workers, Vercel Edge, and the browser.
 ## Install
 
 ```sh
-npm install createos-sandbox-sdk
-# or: bun add createos-sandbox-sdk
+npm install @nodeops-createos/sandbox
+# or: bun add @nodeops-createos/sandbox
 ```
-
-> **Not yet published to npm.** Until the first release, install from a local
-> checkout (`bun install && bun run build`, then depend on it via a `file:`
-> path). The name above is reserved for the first published release.
 
 Requires Node 20+ (or any runtime with global `fetch`, `ReadableStream`, and
 `AbortSignal.any` — Bun, Deno, modern edge runtimes).
@@ -25,7 +21,7 @@ Requires Node 20+ (or any runtime with global `fetch`, `ReadableStream`, and
 ## Quick start
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 // baseUrl from CREATEOS_SANDBOX_BASE_URL, apiKey from CREATEOS_SANDBOX_API_KEY
 const client = new CreateosSandboxClient();
