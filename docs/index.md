@@ -5,7 +5,7 @@ sandboxes, run commands, move files, expose services, and orchestrate fleets,
 from one hand-written `fetch` client with zero runtime dependencies.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });

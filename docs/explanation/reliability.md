@@ -277,7 +277,7 @@ deadline arrives.
 `pollUntil` is exported for custom poll loops that need the same behavior:
 
 ```ts
-import { pollUntil } from "createos-sandbox-sdk";
+import { pollUntil } from "@nodeops-createos/sandbox";
 
 const result = await pollUntil({
   poll: () => client.getSandbox(id),
@@ -307,7 +307,7 @@ import {
   CreateosSandboxTimeoutError,
   CreateosSandboxRateLimitError,
   CreateosSandboxServerError,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 try {
   const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb" });

@@ -7,7 +7,9 @@ export {
 } from "./client.js";
 export { Sandbox, SandboxFiles } from "./sandbox.js";
 export { CreateosSandboxHttp } from "./http.js";
+export type { HttpRequestOptions, Query, QueryValue } from "./http.js";
 export { VERSION } from "./config.js";
+export type { ResolvedConfig } from "./config.js";
 export {
   CreateosSandboxError,
   CreateosSandboxApiError,

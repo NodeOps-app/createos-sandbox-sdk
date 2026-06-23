@@ -8,8 +8,8 @@ and tear it down. For a full guided lesson, see the
 ## 1. Install
 
 ```sh
-bun add createos-sandbox-sdk
-# or: npm install createos-sandbox-sdk
+bun add @nodeops-createos/sandbox
+# or: npm install @nodeops-createos/sandbox
 ```
 
 > **Not yet published to npm.** Until the first release, install from a local
@@ -36,7 +36,7 @@ export CREATEOS_SANDBOX_API_KEY="sk_…"
 ```
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient(); // reads CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY
 // or pass them explicitly:
@@ -92,7 +92,7 @@ Sandboxes bill while they run, so wrap the work in `try / finally` and always
 destroy:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });

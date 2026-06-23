@@ -30,7 +30,7 @@ serves**.
 Install the two packages you need:
 
 ```sh
-bun add createos-sandbox-sdk @anthropic-ai/sdk
+bun add @nodeops-createos/sandbox @anthropic-ai/sdk
 ```
 
 Export your credentials as environment variables. The SDK reads both
@@ -46,7 +46,7 @@ Create a file called `ai-app-gen.ts` and paste in this three-liner to verify
 connectivity before writing the real code:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 console.log(await client.whoami());
@@ -71,7 +71,7 @@ Delete the three-liner and start the real script. The key option here is
 public hostname, and `previewUrl` has nothing to route to.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new CreateosSandboxClient();
@@ -322,7 +322,7 @@ Copy it into `ai-app-gen.ts` and run with `bun ai-app-gen.ts`.
  *        ANTHROPIC_API_KEY
  *        ANTHROPIC_MODEL (optional — defaults to claude-sonnet-4-6)
  */
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Both clients read credentials from env automatically.

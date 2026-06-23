@@ -22,7 +22,7 @@ The canonical recipe:
 5. `fetch` it, hand it to a browser, or pass it downstream.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient({
   baseUrl: process.env.CREATEOS_SANDBOX_BASE_URL!,

@@ -22,7 +22,7 @@ Both methods accept an optional `RequestOptions` third argument
 ## Upload: text and binary
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.sandboxes.create({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
@@ -69,7 +69,7 @@ await writeFile("output.png", Buffer.from(imgBuf));
 Upload a script, run it, pull back the output file it wrote.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 import { readFile, writeFile } from "node:fs/promises";
 
 const client = new CreateosSandboxClient();

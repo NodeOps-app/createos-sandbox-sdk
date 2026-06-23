@@ -24,7 +24,7 @@ It yields a discriminated `ExecStreamEvent` union; switch on `event.type`
 to handle each variant:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ template: "base-debian-12" });
@@ -75,7 +75,7 @@ Throw inside the loop to cancel the stream at any point. The generator
 unwinds and the HTTP connection closes:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ template: "base-debian-12" });
@@ -115,8 +115,8 @@ forwarders, raw proxies — bypass the `ExecStreamEvent` projection and
 drive the low-level transport directly:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
-import type { ExecStreamFrame } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
+import type { ExecStreamFrame } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ template: "base-debian-12" });

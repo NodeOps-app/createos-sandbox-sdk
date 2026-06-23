@@ -20,7 +20,7 @@ sandbox snapshot is stored; billing for compute stops. When you need it back,
 call `resume()` and wait with `waitUntilRunning()`.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
@@ -67,7 +67,7 @@ Set `auto_pause_after_seconds` at create time, or update it on a live sandbox
 with `setAutoPause(seconds)`. Pass `null` to disable.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 
@@ -115,7 +115,7 @@ returns a handle to a new, fully independent sandbox. The parent stays paused;
 you can fork from it again or resume it independently.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const parent = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
@@ -178,7 +178,7 @@ Read the current quota with `getBandwidth()`, then add bytes with
 `rechargeBandwidth(addBytes)`.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const GiB = 1024 ** 3;
 
@@ -219,7 +219,7 @@ reclaimed before proceeding.
 to block until the row is fully reclaimed.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
@@ -256,8 +256,46 @@ For deeper treatment of the state machine and billing model, see
 
 ---
 
+## Toggle public ingress
+
+To enable or disable the public HTTPS URL on an existing sandbox, call
+`setIngress`. For the full recipe — port binding, preview URLs, and scheme
+notes — see [How-to: expose a service](./expose-a-service.md).
+
+```ts
+await sandbox.setIngress(true);   // enable; refreshes ingress_url_template
+await sandbox.setIngress(false);  // revoke; previewUrl throws until re-enabled
+```
+
+---
+
+## Control outbound network access (egress)
+
+By default sandboxes can reach any destination. To restrict or inspect
+egress rules, use `getEgress` and `setEgress`:
+
+```ts
+// Read current rules.
+const view = await sandbox.getEgress();
+console.log(view.rules);
+
+// Restrict to specific hosts (allowlist).
+await sandbox.setEgress(["api.openai.com:443", "pypi.org:443"]);
+
+// Re-open all outbound access.
+await sandbox.setEgress(null);
+```
+
+`setEgress` replaces the entire rule set atomically. `null` (or an empty
+array) means allow-all.
+
+---
+
 ## See also
 
+- [How-to: expose a service](./expose-a-service.md) — `setIngress`,
+  `previewUrl`, `waitForPortReady`.
 - [Reference: Sandbox](../reference/sandbox.md) — full method signatures and
-  parameter tables for `pause`, `resume`, `fork`, `destroy`, `setAutoPause`,
-  `getBandwidth`, `rechargeBandwidth`, and the `waitUntil*` pollers.
+  parameter tables for `pause`, `resume`, `fork`, `destroy`, `setIngress`,
+  `setAutoPause`, `getBandwidth`, `rechargeBandwidth`, `getEgress`,
+  `setEgress`, `resize`, and the `waitUntil*` pollers.

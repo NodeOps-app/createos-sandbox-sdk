@@ -41,7 +41,7 @@ import {
   CreateosSandboxServerError,
   CreateosSandboxConnectionError,
   CreateosSandboxTimeoutError,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 try {
   const sandbox = await client.createSandbox({ templateId: "tpl-abc123" });
@@ -115,7 +115,7 @@ different problems and require different remediation.
 import {
   CreateosSandboxAuthError,
   CreateosSandboxPermissionError,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 async function run() {
   const sandbox = await client.createSandbox({ templateId: "tpl-abc123" });
@@ -159,7 +159,7 @@ surfacing `CreateosSandboxRateLimitError` — see
 `catch` block, retries are exhausted and you must decide what to do next.
 
 ```ts
-import { CreateosSandboxRateLimitError } from "createos-sandbox-sdk";
+import { CreateosSandboxRateLimitError } from "@nodeops-createos/sandbox";
 
 async function withRateLimitBackoff<T>(fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -193,7 +193,7 @@ structured set of fields. Use them for observability instead of parsing
 import {
   CreateosSandboxApiError,
   CreateosSandboxError,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 function logSdkError(err: unknown): void {
   if (err instanceof CreateosSandboxApiError) {
@@ -245,7 +245,7 @@ network or abort error is chained on `err.cause` when available.
 import {
   CreateosSandboxConnectionError,
   CreateosSandboxTimeoutError,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 try {
   await client.createSandbox({ templateId: "tpl-abc123" });

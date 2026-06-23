@@ -5,8 +5,11 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Generated TypeDoc reference (run `npm run docs:api` to regenerate)
-docs/reference/
+# Hand-authored Markdown references are source; ignore only other files in
+# their directory. Generated TypeDoc HTML is kept separate.
+docs/reference/*
+!docs/reference/*.md
+docs/api-reference/
 
 # Test and coverage artifacts
 coverage/

@@ -22,7 +22,7 @@ A throw inside a hook is swallowed — a misbehaving observer cannot crash
 a real request.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient({
   apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
@@ -103,7 +103,7 @@ string `"redacted"`, so your logs stay greppable.
 ## Recipe: structured log line per request
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient({
   apiKey: process.env.CREATEOS_SANDBOX_API_KEY,
@@ -134,7 +134,7 @@ Wire `onRetry` to a metrics counter. The `reason` field lets you split
 rate-limit retries from transient 5xx:
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 // Replace with your metrics client (Prometheus, Datadog, etc.).
 function incrementCounter(name: string, labels: Record<string, string>): void {
@@ -170,7 +170,7 @@ import {
   CreateosSandboxClient,
   redactHeaders,
   redactUrl,
-} from "createos-sandbox-sdk";
+} from "@nodeops-createos/sandbox";
 
 // Your own middleware / interceptor — not a hook:
 function logOutbound(method: string, url: string, headers: Headers): void {
@@ -199,7 +199,7 @@ fire both hooks with an incremented `attempt`.
 
 ```ts
 import { trace, SpanStatusCode } from "@opentelemetry/api";
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const tracer = trace.getTracer("createos-sandbox-sdk");
 const spans = new Map<string, ReturnType<typeof tracer.startSpan>>();

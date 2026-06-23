@@ -4,7 +4,7 @@ Three independent recipes. Each has a self-contained code block you can
 adapt; they share the same import and client setup.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 // reads CREATEOS_SANDBOX_API_KEY + CREATEOS_SANDBOX_BASE_URL from env
@@ -33,7 +33,7 @@ bucket is flushed cleanly, then delete the disk registration when you no
 longer need it.
 
 ```ts
-import { CreateosSandboxClient, CreateosSandboxNotFoundError } from "createos-sandbox-sdk";
+import { CreateosSandboxClient, CreateosSandboxNotFoundError } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 
@@ -125,7 +125,7 @@ from `client.networks.get(id).members` — `SandboxView.ip` is the
 management address, not the overlay address.
 
 ```ts
-import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 
@@ -225,7 +225,7 @@ then poll `templates.get` for terminal status, and finally pass the
 template's `id` or `name` as `rootfs` in `createSandbox`.
 
 ```ts
-import { CreateosSandboxClient, pollUntil } from "createos-sandbox-sdk";
+import { CreateosSandboxClient, pollUntil } from "@nodeops-createos/sandbox";
 
 const client = new CreateosSandboxClient();
 
