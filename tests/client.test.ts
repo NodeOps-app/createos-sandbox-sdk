@@ -8,7 +8,7 @@ const WHOAMI = {
 };
 
 describe("createSandbox", () => {
-  test("returns a Sandbox handle and waits until running", async () => {
+  test("returns a running Sandbox handle from the canonical view", async () => {
     const client = makeClient((_url, init) =>
       Promise.resolve(init.method === "POST" ? success(CREATE_RESPONSE) : success(RUNNING_VIEW)),
     );
@@ -19,17 +19,19 @@ describe("createSandbox", () => {
     expect(sandbox.ip).toBe("10.0.0.2");
   });
 
-  test("issues a single POST and seeds `running` without a follow-up GET or poll", async () => {
+  test("issues POST then a single GET (no readiness poll) and seeds the server view", async () => {
     const calls: string[] = [];
     const client = makeClient((_url, init) => {
       calls.push(init.method ?? "");
-      return Promise.resolve(success(CREATE_RESPONSE));
+      return Promise.resolve(
+        init.method === "POST" ? success(CREATE_RESPONSE) : success(RUNNING_VIEW),
+      );
     });
     const sandbox = await client.createSandbox({ shape: "s" });
-    // A 200 from POST /v1/sandboxes already means the VM is up and its agent
-    // answered a probe, so the handle is seeded `running` from that response.
+    // The synchronous POST guarantees the row is already `running`, so one GET
+    // returns the authoritative view — no poll loop, and no fabricated view.
     expect(sandbox.status).toBe("running");
-    expect(calls).toEqual(["POST"]);
+    expect(calls).toEqual(["POST", "GET"]);
   });
 
   test("forwards a disks array in the create body", async () => {

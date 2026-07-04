@@ -20,26 +20,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [0.6.1] — 2026-07-04
 
-Faster sandbox creation: `createSandbox` / `Sandbox.create` now resolve in a
-single API round-trip.
+Faster sandbox creation and a cleaner create contract.
 
 ### Changed
 
-- **`createSandbox` returns a `running` handle from one POST.** The old path
-  issued `POST /v1/sandboxes`, then a redundant `GET`, then polled
-  `waitUntilRunning` at a 250 ms interval — re-confirming a state the create
-  response already guaranteed (the control plane holds the POST open until the
-  VM has booted and its in-guest agent has answered a readiness probe). The
-  handle is now seeded directly from the create response, removing ~1 round-
-  trip plus up to 250 ms of poll quantization per create.
-- **`wait` / `waitTimeoutMs` on `CreateSandboxOptions` are now inert.** They
-  remain accepted for source compatibility, but the POST cannot return before
-  the sandbox is `running`, so there is nothing left to wait for. A caller that
-  passed `wait: false` and then inspected `status === "creating"` will now
-  observe `running`. `created_at` / `running_at` on the freshly-created handle
-  are stamped client-side (accurate to within the create round-trip, and
-  corrected by any later `refresh()`). `waitUntilRunning` itself is unchanged
-  and still backs the fork / resume / pause waits.
+- **`createSandbox` / `Sandbox.create` no longer run a readiness poll.** The
+  old path issued `POST /v1/sandboxes`, then a `GET`, then polled
+  `waitUntilRunning` at a 250 ms interval. The POST is synchronous end-to-end —
+  the control plane holds it open until the VM has booted, its in-guest agent
+  has answered a readiness probe, and the durable row has been written
+  `running` — so a single authoritative `GET` already returns the
+  already-`running` view and the poll is redundant. The handle is seeded from
+  that server view (it is never fabricated client-side). Removes up to ~250 ms
+  of poll quantization per create.
+
+### Deprecated
+
+- **`wait` / `waitTimeoutMs` on `CreateSandboxOptions`.** They have no effect:
+  `createSandbox` cannot return before the sandbox is `running`, so there is
+  nothing to wait for. Bound or cancel the call with the per-request
+  `timeoutMs` / `signal` instead. `waitUntilRunning` and the other `waitUntil*`
+  helpers are unchanged and still back the fork / resume / pause waits.
+  Scheduled for removal in a future minor.
 
 ## [0.6.0] — 2026-06-10
 

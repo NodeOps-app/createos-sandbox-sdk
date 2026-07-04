@@ -239,13 +239,18 @@ describe("ingress", () => {
     expect(sandbox.data.ingress_enabled).toBe(true);
   });
 
-  test("previewUrl renders the template from the create response", async () => {
-    // The control plane computes ingress_url_template synchronously and returns
-    // it in the create response, so the handle reads it straight from #data —
-    // no follow-up GET needed.
-    const client = makeClient(() =>
+  test("previewUrl renders the template from the canonical sandbox view", async () => {
+    // The ingress-enabled running view (fetched by the create GET) carries
+    // ingress_url_template, so the handle reads it straight from #data.
+    const client = makeClient((_url, init) =>
       Promise.resolve(
-        success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" }),
+        init.method === "POST"
+          ? success(CREATE_RESPONSE)
+          : success({
+              ...RUNNING_VIEW,
+              ingress_enabled: true,
+              ingress_url_template: "https://<port>-sb_1.box.test",
+            }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
@@ -254,20 +259,18 @@ describe("ingress", () => {
     expect(sandbox.previewUrl(8080, { scheme: "http" })).toBe("http://8080-sb_1.box.test");
   });
 
-  test("previewUrl uses the create-response template before the view is populated (wait:false)", async () => {
-    // wait:false skips the poll refresh; if the freshly-created view doesn't
-    // carry the template yet, the create response's value is seeded onto it.
+  test("previewUrl falls back to the create-response template when the view lacks it", async () => {
+    // The create response computes ingress_url_template synchronously; if the
+    // GET-fetched view hasn't populated it yet, that value is seeded onto the
+    // handle so previewUrl works immediately.
     const client = makeClient((_url, init) =>
       Promise.resolve(
         init.method === "POST"
           ? success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" })
-          : success({ ...RUNNING_VIEW, status: "creating", ingress_enabled: true }),
+          : success({ ...RUNNING_VIEW, ingress_enabled: true }),
       ),
     );
-    const sandbox = await client.createSandbox(
-      { shape: "s", ingress_enabled: true },
-      { wait: false },
-    );
+    const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
     expect(sandbox.previewUrl(8080)).toBe("https://8080-sb_1.box.test");
   });
 
@@ -279,9 +282,15 @@ describe("ingress", () => {
   test("setIngress(false) invalidates the preview URL template", async () => {
     const client = makeClient((_url, init) =>
       Promise.resolve(
-        init.method === "PATCH"
-          ? success({ ...RUNNING_VIEW, ingress_enabled: false })
-          : success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" }),
+        init.method === "POST"
+          ? success(CREATE_RESPONSE)
+          : init.method === "PATCH"
+            ? success({ ...RUNNING_VIEW, ingress_enabled: false })
+            : success({
+                ...RUNNING_VIEW,
+                ingress_enabled: true,
+                ingress_url_template: "https://<port>-sb_1.box.test",
+              }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });

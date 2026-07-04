@@ -185,17 +185,17 @@ message like `Request timed out after 60000ms: GET /v1/sandboxes`.
 
 ### Wait timeout
 
-`createSandbox` and the `waitUntil*` lifecycle helpers (`waitUntilRunning`,
-`waitUntilStopped`) run a poll loop with a separate budget — **120 000 ms
-(120 s)** by default (`DEFAULT_WAIT_MS`). Pass `waitTimeoutMs` to change
-it:
+The `waitUntil*` lifecycle helpers (`waitUntilRunning`, `waitUntilPaused`,
+`waitUntilDestroyed`) run a poll loop with a separate budget — **120 000 ms
+(120 s)** by default (`DEFAULT_WAIT_MS`). Pass `timeoutMs` to change it:
 
 ```ts
-const sandbox = await client.createSandbox(
-  { shape: "s-4vcpu-4gb" },
-  { waitTimeoutMs: 180_000 },
-);
+await sandbox.waitUntilRunning({ timeoutMs: 180_000 });
 ```
+
+`createSandbox` does **not** poll: the create request already resolves once
+the sandbox is `running`, bounded only by the per-request `timeoutMs` /
+`signal`. (`wait` / `waitTimeoutMs` are deprecated no-ops.)
 
 When the wait budget is exhausted, `CreateosSandboxTimeoutError` is thrown and the
 sandbox (or template) may still be transitioning in the background — it is
