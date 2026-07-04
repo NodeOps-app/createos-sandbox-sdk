@@ -198,12 +198,14 @@ jobs:
             done
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Example failures are advisory: flaky external deps (LLM APIs,
+          # sandbox quota/429s, play.min.io bucket purges) shouldn't red the
+          # run. Surface them as warnings + full logs, but do not exit non-zero.
           if [[ $nfailed -gt 0 ]]; then
-            echo "::error::${nfailed} of ${total} example(s) failed: ${FAILED[*]}"
+            echo "::warning::${nfailed} of ${total} example(s) failed: ${FAILED[*]}"
             for ex in "${FAILED[@]}"; do
               echo "::group::FAILED: $ex"
               cat "/tmp/example-logs/$ex.log" || true
               echo "::endgroup::"
             done
-            exit 1
           fi
