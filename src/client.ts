@@ -35,40 +35,6 @@ import type {
 } from "./types.js";
 
 /**
- * Projects a {@link CreateSandboxResponse} onto a {@link SandboxView} so a
- * freshly-created {@link Sandbox} handle can be seeded without a follow-up GET.
- *
- * A 200 from POST /v1/sandboxes is itself the readiness signal — the host
- * blocks until the VM has booted and its in-guest agent answered a probe — so
- * `status` is `running`. `created_at` / `running_at` are stamped client-side;
- * they are accurate to within the create round-trip and are corrected by any
- * later `refresh()`. `ingress_enabled` is inferred from the presence of the
- * server-computed ingress template.
- */
-function createResponseToView(created: CreateSandboxResponse): SandboxView {
-  const nowIso = new Date().toISOString();
-  return {
-    id: created.id,
-    status: "running",
-    ip: created.ip,
-    name: created.name,
-    vcpu: created.vcpu,
-    mem_mib: created.mem_mib,
-    disk_mib: created.disk_mib,
-    created_at: nowIso,
-    running_at: nowIso,
-    ingress_enabled: created.ingress_url_template !== undefined,
-    shape: created.shape,
-    rootfs: created.rootfs,
-    spawn_ms: created.spawn_ms,
-    egress: created.egress,
-    ...(created.ingress_url_template !== undefined
-      ? { ingress_url_template: created.ingress_url_template }
-      : {}),
-  };
-}
-
-/**
  * Template (custom rootfs) operations. Reached via `client.templates`.
  *
  * Every method also throws {@link CreateosSandboxServerError} on a 5xx response and
@@ -615,7 +581,7 @@ export class CreateosSandboxClient {
    * @throws {CreateosSandboxValidationError} when shape or rootfs are unknown.
    * @throws {CreateosSandboxAuthError} when the API key is missing or revoked.
    * @throws {CreateosSandboxPermissionError} when the caller hits a quota.
-   * @throws {CreateosSandboxTimeoutError} when the per-request timeout or wait budget elapses.
+   * @throws {CreateosSandboxTimeoutError} when the per-request timeout elapses.
    *
    * @example
    * const sandbox = await box.createSandbox({
@@ -629,18 +595,29 @@ export class CreateosSandboxClient {
     options: CreateSandboxOptions = {},
   ): Promise<Sandbox> {
     // POST /v1/sandboxes is synchronous end-to-end: control forwards to the
-    // owning host, which only returns 200 after the VM has booted AND its
-    // in-guest agent has answered a readiness probe. A successful create
-    // therefore already means `running` — there is nothing left to poll for.
-    // Seed the handle straight from the create response, skipping both the
-    // redundant GET and the status poll (each was a full API round-trip on the
-    // hot path). `wait` / `waitTimeoutMs` remain accepted for source
-    // compatibility but are inert: the POST cannot return before running.
+    // owning host, which returns 200 only after the VM has booted, its
+    // in-guest agent has answered a readiness probe, AND the durable row has
+    // been written `running`. So a single follow-up GET returns the canonical,
+    // already-`running` view — we fetch it rather than fabricate one, and no
+    // status poll is needed (the row cannot still be `creating` once the POST
+    // has returned). `wait` / `waitTimeoutMs` are accepted but deprecated
+    // no-ops for this reason; bound the call with `timeoutMs` / `signal`.
     const created = await this.http.request<CreateSandboxResponse>("POST", "/v1/sandboxes", {
       ...options,
       body: request,
     });
-    return new Sandbox(this.http, createResponseToView(created));
+    const view = await this.http.request<SandboxView>(
+      "GET",
+      `/v1/sandboxes/${encodePath(created.id)}`,
+      options,
+    );
+    // The create response computes ingress_url_template synchronously; a view
+    // fetched microseconds later may not carry it yet, so seed it across.
+    const seeded =
+      view.ingress_url_template === undefined && created.ingress_url_template !== undefined
+        ? { ...view, ingress_url_template: created.ingress_url_template }
+        : view;
+    return new Sandbox(this.http, seeded);
   }
 
   /**

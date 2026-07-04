@@ -737,11 +737,26 @@ export interface ReadyzResponse {
 
 // ── Handle option types ─────────────────────────────────────────────────
 
-/** Options for `createSandbox` / `Sandbox.create`: per-request overrides plus the wait policy. */
+/**
+ * Options for `createSandbox` / `Sandbox.create`: per-request overrides
+ * (headers, `timeoutMs`, `signal`, retry) from {@link RequestOptions}.
+ *
+ * `createSandbox` is synchronous — the control plane holds the create request
+ * open until the sandbox is `running` — so there is no client-side wait to
+ * configure. Bound or cancel the call with `timeoutMs` / `signal`.
+ */
 export interface CreateSandboxOptions extends RequestOptions {
-  /** Wait until the sandbox reaches `running` before resolving. Default true. */
+  /**
+   * @deprecated Has no effect. `createSandbox` resolves only once the sandbox
+   * is `running` (the POST does not return earlier), so there is nothing to
+   * wait for. Use `timeoutMs` / `signal` to bound or cancel the call instead.
+   * Scheduled for removal in a future minor.
+   */
   wait?: boolean;
-  /** Budget for the wait, in ms. Default 120000. */
+  /**
+   * @deprecated Has no effect. See {@link CreateSandboxOptions.wait}; use
+   * `timeoutMs` to bound the create call.
+   */
   waitTimeoutMs?: number;
 }
 

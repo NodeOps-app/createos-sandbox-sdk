@@ -18,6 +18,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-07-04
+
+Faster sandbox creation and a cleaner create contract.
+
+### Changed
+
+- **`createSandbox` / `Sandbox.create` no longer run a readiness poll.** The
+  old path issued `POST /v1/sandboxes`, then a `GET`, then polled
+  `waitUntilRunning` at a 250 ms interval. The POST is synchronous end-to-end —
+  the control plane holds it open until the VM has booted, its in-guest agent
+  has answered a readiness probe, and the durable row has been written
+  `running` — so a single authoritative `GET` already returns the
+  already-`running` view and the poll is redundant. The handle is seeded from
+  that server view (it is never fabricated client-side). Removes up to ~250 ms
+  of poll quantization per create.
+
+### Deprecated
+
+- **`wait` / `waitTimeoutMs` on `CreateSandboxOptions`.** They have no effect:
+  `createSandbox` cannot return before the sandbox is `running`, so there is
+  nothing to wait for. Bound or cancel the call with the per-request
+  `timeoutMs` / `signal` instead. `waitUntilRunning` and the other `waitUntil*`
+  helpers are unchanged and still back the fork / resume / pause waits.
+  Scheduled for removal in a future minor.
+
 ## [0.6.0] — 2026-06-10
 
 Reconciled against the `createos-sandbox` control plane `main` — response-

@@ -35,17 +35,19 @@ describe("Sandbox static factories", () => {
     expect(sandbox.status).toBe("running");
   });
 
-  test("Sandbox.create issues a single POST and seeds `running`", async () => {
+  test("Sandbox.create issues POST then a single GET (no readiness poll)", async () => {
     const calls: string[] = [];
-    const fetchCreate = ((_url: string, init: RequestInit) => {
+    const fetchImpl = ((_url: string, init: RequestInit) => {
       calls.push(init.method ?? "");
-      return Promise.resolve(success(CREATE_RESPONSE));
+      return Promise.resolve(
+        init.method === "POST" ? success(CREATE_RESPONSE) : success(RUNNING_VIEW),
+      );
     }) as unknown as typeof fetch;
     const sandbox = await Sandbox.create(
       { shape: "s" },
-      { apiKey: "sk", baseUrl: BASE, fetch: fetchCreate },
+      { apiKey: "sk", baseUrl: BASE, fetch: fetchImpl },
     );
     expect(sandbox.status).toBe("running");
-    expect(calls).toEqual(["POST"]);
+    expect(calls).toEqual(["POST", "GET"]);
   });
 });

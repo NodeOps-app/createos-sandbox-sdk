@@ -164,8 +164,6 @@ export class Sandbox {
     options: CreateosSandboxClientOptions & CreateSandboxOptions = {},
   ): Promise<Sandbox> {
     const createOpts: CreateSandboxOptions = pickRequestOpts(options);
-    if (options.wait !== undefined) createOpts.wait = options.wait;
-    if (options.waitTimeoutMs !== undefined) createOpts.waitTimeoutMs = options.waitTimeoutMs;
     return createClient(options).createSandbox(request, createOpts);
   }
 

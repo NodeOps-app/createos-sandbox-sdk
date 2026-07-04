@@ -59,9 +59,10 @@ const sandbox = await client.createSandbox({
 console.log("ready:", sandbox.id, sandbox.status);
 ```
 
-`createSandbox` blocks until the sandbox is `running` by default. Pass
-`{ wait: false }` to return as soon as the row exists and poll yourself with
-[`waitUntilRunning`](./reference/sandbox.md). Pick a `shape` from
+`createSandbox` resolves only once the sandbox is `running` — the control
+plane holds the create request open until then, so there is nothing to poll.
+(The legacy `wait` / `waitTimeoutMs` options are deprecated no-ops; use
+`timeoutMs` / `signal` to bound or cancel the call.) Pick a `shape` from
 [`client.listShapes()`](./reference/client.md) and a `rootfs` from
 [`client.listRootfs()`](./reference/client.md).
 
