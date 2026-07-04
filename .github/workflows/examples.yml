@@ -15,6 +15,11 @@ name: examples
 
 on:
   workflow_dispatch:
+    inputs:
+      parallelism:
+        description: "Number of shards to split examples across (each shard is its own runner pod)"
+        type: string
+        default: "10"
   schedule:
     - cron: "17 3 * * *" # nightly 03:17 UTC
   push:
@@ -42,6 +47,8 @@ jobs:
     outputs:
       examples: ${{ steps.list.outputs.examples }}
       cache-key: ${{ steps.key.outputs.key }}
+      shards: ${{ steps.shards.outputs.shards }}
+      shard-count: ${{ steps.shards.outputs.shard-count }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: list
@@ -55,6 +62,18 @@ jobs:
       - id: key
         run: |
           echo "key=examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}" >> "$GITHUB_OUTPUT"
+
+      # Parallelism is decided here, not hardcoded in the run job: N shards ->
+      # N independent runner pods in the matrix below, each handling its own
+      # slice of the example set instead of stacking concurrent `bun index.ts`
+      # processes on a single pod.
+      - id: shards
+        env:
+          PARALLELISM: ${{ github.event.inputs.parallelism }}
+        run: |
+          n="${PARALLELISM:-10}"
+          echo "shard-count=$n" >> "$GITHUB_OUTPUT"
+          echo "shards=$(jq -nc --argjson n "$n" '[range($n)]')" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -87,10 +106,17 @@ jobs:
   run:
     needs: discover
     runs-on: arc-runner-set
-    # 5 concurrent waves × 20 min per example = up to 90 min worst-case
-    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.discover.outputs.shards) }}
+    # worst case: ceil(examples / shard-count) examples run serially per shard,
+    # 20 min timeout each (42 examples / 10 shards = 5 x 20 min)
+    timeout-minutes: 120
     env:
       EXAMPLES_JSON: ${{ needs.discover.outputs.examples }}
+      SHARD: ${{ matrix.shard }}
+      SHARD_COUNT: ${{ needs.discover.outputs.shard-count }}
       # createos-sandbox control plane (read by the SDK + most examples)
       CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
       CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
@@ -161,12 +187,19 @@ jobs:
           /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
           /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
 
-      - name: Run examples (parallel, max 5)
+      - name: Run examples (shard ${{ matrix.shard }}/${{ needs.discover.outputs.shard-count }})
         run: |
           mkdir -p /tmp/example-logs /tmp/example-fails
-          mapfile -t EXAMPLES < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
+          mapfile -t ALL < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
+          EXAMPLES=()
+          for i in "${!ALL[@]}"; do
+            (( i % SHARD_COUNT == SHARD )) && EXAMPLES+=("${ALL[$i]}")
+          done
+          printf '%s\n' "${EXAMPLES[@]}" > /tmp/shard-examples.txt
 
-          printf '%s\n' "${EXAMPLES[@]}" | xargs -n1 -P5 bash -c '
+          # -P1: parallelism is now expressed as shard count (job/pod level),
+          # not concurrent processes within a single pod.
+          printf '%s\n' "${EXAMPLES[@]}" | xargs -n1 -P1 bash -c '
             example="$1"
             log="/tmp/example-logs/$example.log"
             (cd "$GITHUB_WORKSPACE/examples/$example" && timeout 1200 bun index.ts) >"$log" 2>&1
@@ -179,13 +212,13 @@ jobs:
       - name: Report results
         if: always()
         run: |
-          mapfile -t EXAMPLES < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
+          mapfile -t EXAMPLES < /tmp/shard-examples.txt
           mapfile -t FAILED < <(ls /tmp/example-fails/ 2>/dev/null | sort)
           total=${#EXAMPLES[@]}
           nfailed=${#FAILED[@]}
 
           {
-            echo "## Examples: $(( total - nfailed ))/${total} passed"
+            echo "## Examples (shard ${SHARD}): $(( total - nfailed ))/${total} passed"
             echo ""
             echo "| Example | Result |"
             echo "| --- | --- |"
@@ -202,7 +235,7 @@ jobs:
           # sandbox quota/429s, play.min.io bucket purges) shouldn't red the
           # run. Surface them as warnings + full logs, but do not exit non-zero.
           if [[ $nfailed -gt 0 ]]; then
-            echo "::warning::${nfailed} of ${total} example(s) failed: ${FAILED[*]}"
+            echo "::warning::${nfailed} of ${total} example(s) failed in shard ${SHARD}: ${FAILED[*]}"
             for ex in "${FAILED[@]}"; do
               echo "::group::FAILED: $ex"
               cat "/tmp/example-logs/$ex.log" || true
