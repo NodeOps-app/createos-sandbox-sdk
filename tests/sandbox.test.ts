@@ -239,18 +239,13 @@ describe("ingress", () => {
     expect(sandbox.data.ingress_enabled).toBe(true);
   });
 
-  test("previewUrl renders the template from the canonical sandbox view", async () => {
-    // A running ingress-enabled view carries ingress_url_template (matches
-    // the live control plane), so the handle reads it straight from #data.
-    const client = makeClient((_url, init) =>
+  test("previewUrl renders the template from the create response", async () => {
+    // The control plane computes ingress_url_template synchronously and returns
+    // it in the create response, so the handle reads it straight from #data —
+    // no follow-up GET needed.
+    const client = makeClient(() =>
       Promise.resolve(
-        init.method === "POST"
-          ? success(CREATE_RESPONSE)
-          : success({
-              ...RUNNING_VIEW,
-              ingress_enabled: true,
-              ingress_url_template: "https://<port>-sb_1.box.test",
-            }),
+        success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
@@ -284,15 +279,9 @@ describe("ingress", () => {
   test("setIngress(false) invalidates the preview URL template", async () => {
     const client = makeClient((_url, init) =>
       Promise.resolve(
-        init.method === "POST"
-          ? success(CREATE_RESPONSE)
-          : init.method === "PATCH"
-            ? success({ ...RUNNING_VIEW, ingress_enabled: false })
-            : success({
-                ...RUNNING_VIEW,
-                ingress_enabled: true,
-                ingress_url_template: "https://<port>-sb_1.box.test",
-              }),
+        init.method === "PATCH"
+          ? success({ ...RUNNING_VIEW, ingress_enabled: false })
+          : success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" }),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });

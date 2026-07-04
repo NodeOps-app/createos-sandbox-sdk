@@ -42,6 +42,15 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
 
+Three read-only metrics endpoints landed upstream after the 0.6.0
+checkpoint (`3c3f4b5`) and are **not modeled yet** — plain-JSON GETs, so a
+coverage gap rather than a transport blocker:
+
+- `GET /v1/sandboxes/:id/metrics` — per-sandbox CPU + memory snapshot
+  (`SandboxMetricsView`), owner-gated.
+- `GET /v1/metrics` — per-user usage aggregate.
+- `GET /v1/metrics/timeseries` — per-user usage over a time window.
+
 ## Wire behavior surfaced to callers
 
 The current state of the server contract the SDK depends on. Operator-
@@ -107,7 +116,9 @@ All plain-JSON endpoints the server exposes are now modeled:
 - `POST /v1/sandboxes/:id/ssh-pubkeys` → `Sandbox.addSSHPubkeys()`.
 - `PATCH /v1/disks/:id` (S3 credential rotate) → `DisksApi.rotateCredentials()`.
 
-No user-facing plain-JSON endpoint on the server is currently unmodeled.
+The only user-facing plain-JSON endpoints currently unmodeled are the three
+metrics routes listed under "Endpoints not modeled" above (added after the
+0.6.0 checkpoint).
 
 ## Known wire drift (modeled types)
 

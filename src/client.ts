@@ -1,7 +1,7 @@
 // CreateosSandboxClient: the entry point. Owns transport configuration, catalog and
 // identity calls, the sandbox factory, and the templates / networks APIs.
 
-import { DEFAULT_WAIT_MS, resolveConfig } from "./config.js";
+import { resolveConfig } from "./config.js";
 import { errorFromResponse } from "./errors.js";
 import { encodePath, CreateosSandboxHttp } from "./http.js";
 import { Sandbox } from "./sandbox.js";
@@ -33,6 +33,40 @@ import type {
   TemplateView,
   WhoAmIView,
 } from "./types.js";
+
+/**
+ * Projects a {@link CreateSandboxResponse} onto a {@link SandboxView} so a
+ * freshly-created {@link Sandbox} handle can be seeded without a follow-up GET.
+ *
+ * A 200 from POST /v1/sandboxes is itself the readiness signal — the host
+ * blocks until the VM has booted and its in-guest agent answered a probe — so
+ * `status` is `running`. `created_at` / `running_at` are stamped client-side;
+ * they are accurate to within the create round-trip and are corrected by any
+ * later `refresh()`. `ingress_enabled` is inferred from the presence of the
+ * server-computed ingress template.
+ */
+function createResponseToView(created: CreateSandboxResponse): SandboxView {
+  const nowIso = new Date().toISOString();
+  return {
+    id: created.id,
+    status: "running",
+    ip: created.ip,
+    name: created.name,
+    vcpu: created.vcpu,
+    mem_mib: created.mem_mib,
+    disk_mib: created.disk_mib,
+    created_at: nowIso,
+    running_at: nowIso,
+    ingress_enabled: created.ingress_url_template !== undefined,
+    shape: created.shape,
+    rootfs: created.rootfs,
+    spawn_ms: created.spawn_ms,
+    egress: created.egress,
+    ...(created.ingress_url_template !== undefined
+      ? { ingress_url_template: created.ingress_url_template }
+      : {}),
+  };
+}
 
 /**
  * Template (custom rootfs) operations. Reached via `client.templates`.
@@ -594,35 +628,19 @@ export class CreateosSandboxClient {
     request: CreateSandboxRequest,
     options: CreateSandboxOptions = {},
   ): Promise<Sandbox> {
-    const { wait, waitTimeoutMs, ...reqOptions } = options;
+    // POST /v1/sandboxes is synchronous end-to-end: control forwards to the
+    // owning host, which only returns 200 after the VM has booted AND its
+    // in-guest agent has answered a readiness probe. A successful create
+    // therefore already means `running` — there is nothing left to poll for.
+    // Seed the handle straight from the create response, skipping both the
+    // redundant GET and the status poll (each was a full API round-trip on the
+    // hot path). `wait` / `waitTimeoutMs` remain accepted for source
+    // compatibility but are inert: the POST cannot return before running.
     const created = await this.http.request<CreateSandboxResponse>("POST", "/v1/sandboxes", {
-      ...reqOptions,
+      ...options,
       body: request,
     });
-    // Reuse reqOptions so the follow-up GET inherits the caller's headers,
-    // timeout and retry policy — not just the abort signal.
-    const view = await this.http.request<SandboxView>(
-      "GET",
-      `/v1/sandboxes/${encodePath(created.id)}`,
-      reqOptions,
-    );
-    // A freshly-created view may not carry the ingress template yet (still
-    // `creating`); the create response computed it synchronously, so seed it
-    // onto the canonical view when the GET hasn't populated it.
-    const seeded =
-      view.ingress_url_template === undefined && created.ingress_url_template !== undefined
-        ? { ...view, ingress_url_template: created.ingress_url_template }
-        : view;
-    const sandbox = new Sandbox(this.http, seeded);
-    if (wait !== false) {
-      await sandbox.waitUntilRunning({
-        timeoutMs: waitTimeoutMs ?? DEFAULT_WAIT_MS,
-        ...(options.signal ? { signal: options.signal } : {}),
-        // Carry headers/retry/per-request timeout into each poll refresh.
-        request: reqOptions,
-      });
-    }
-    return sandbox;
+    return new Sandbox(this.http, createResponseToView(created));
   }
 
   /**

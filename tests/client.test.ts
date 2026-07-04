@@ -19,19 +19,17 @@ describe("createSandbox", () => {
     expect(sandbox.ip).toBe("10.0.0.2");
   });
 
-  test("with wait:false issues POST then a single GET and skips polling", async () => {
+  test("issues a single POST and seeds `running` without a follow-up GET or poll", async () => {
     const calls: string[] = [];
     const client = makeClient((_url, init) => {
       calls.push(init.method ?? "");
-      return Promise.resolve(
-        init.method === "POST"
-          ? success(CREATE_RESPONSE)
-          : success({ ...RUNNING_VIEW, status: "creating" }),
-      );
+      return Promise.resolve(success(CREATE_RESPONSE));
     });
-    const sandbox = await client.createSandbox({ shape: "s" }, { wait: false });
-    expect(sandbox.status).toBe("creating");
-    expect(calls).toEqual(["POST", "GET"]);
+    const sandbox = await client.createSandbox({ shape: "s" });
+    // A 200 from POST /v1/sandboxes already means the VM is up and its agent
+    // answered a probe, so the handle is seeded `running` from that response.
+    expect(sandbox.status).toBe("running");
+    expect(calls).toEqual(["POST"]);
   });
 
   test("forwards a disks array in the create body", async () => {
