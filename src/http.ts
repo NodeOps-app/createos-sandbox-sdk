@@ -425,7 +425,11 @@ export class CreateosSandboxHttp {
     }
 
     try {
-      return await this.#config.fetch(prepared.url, init);
+      // Call through a local binding, not `this.#config.fetch(...)`: invoking
+      // fetch as a method rebinds its `this` to the config object, which the
+      // Cloudflare Workers runtime rejects with "Illegal invocation".
+      const doFetch = this.#config.fetch;
+      return await doFetch(prepared.url, init);
     } catch (err) {
       if (timeout?.signal.aborted === true && options.signal?.aborted !== true) {
         throw new CreateosSandboxTimeoutError(

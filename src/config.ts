@@ -58,7 +58,10 @@ export function readEnv(name: string): string | undefined {
 }
 
 export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedConfig {
-  const fetchFn = options.fetch ?? globalThis.fetch;
+  // Bind the global default to globalThis: some runtimes (Cloudflare Workers)
+  // throw "Illegal invocation" if fetch is later called with a different `this`.
+  // A caller-supplied fetch is used as-is.
+  const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   if (typeof fetchFn !== "function") {
     throw new CreateosSandboxError(
       "No fetch implementation available. Pass `fetch` in CreateosSandboxClientOptions or run on a platform with a global fetch.",
