@@ -5,21 +5,28 @@ name: examples
 # it, and destroys it in a `finally` block — so a green job means the example
 # worked against production.
 #
-# Cost note: every run spawns real VMs and makes paid LLM API calls.
+# Runner: our own createos self-hosted runner (createos-sandbox-ghar). Every job
+# runs on `runs-on: [createos]`, so the controller boots a throwaway createos
+# microVM per job — the CI itself runs inside a sandbox. One example per matrix
+# job, one microVM per example; the runner autoscaler handles concurrency, so
+# there is no manual sharding here.
+#
+# Reaper constraint: ghar destroys any runner VM older than REAPER_MAX_AGE_MS
+# (30 min in prod). Each job must finish well under that, hence one example per
+# job + a job `timeout-minutes` below the cutoff — never batch examples serially
+# into a single job or the reaper kills the VM mid-run.
+#
+# Cost note: every run spawns real VMs and makes paid LLM API calls, and 42
+# example jobs boot 42 microVMs at once against a shared MAX_CONCURRENT pool.
 # Triggers are kept deliberate: nightly, manual, and on push to main.
 #
 # No `pull_request` trigger by design. Examples run arbitrary `bun index.ts`
-# with real provider secrets on a self-hosted runner; firing that on PRs
-# would let any fork PR exfiltrate those secrets. Examples are verified on
-# push to main (post-merge) instead.
+# with real provider secrets; firing that on PRs would let any fork PR
+# exfiltrate those secrets. Examples are verified on push to main (post-merge)
+# instead.
 
 on:
   workflow_dispatch:
-    inputs:
-      parallelism:
-        description: "Number of shards to split examples across (each shard is its own runner pod)"
-        type: string
-        default: "10"
   schedule:
     - cron: "17 3 * * *" # nightly 03:17 UTC
   push:
@@ -40,15 +47,13 @@ jobs:
   # Build the example matrix from the examples/ directory so new examples are
   # picked up automatically — no edits to this file when one is added.
   # Discover also builds the SDK and installs example deps ONCE, seeding a
-  # shared cache. The matrix jobs restore dist/ + examples/node_modules from
-  # it instead of repeating `bun install` + `bun run build` 37 times.
+  # shared cache. The matrix jobs restore dist/ + the bun store from it instead
+  # of repeating `bun install` + `bun run build` 42 times.
   discover:
-    runs-on: arc-runner-set
+    runs-on: [createos]
     outputs:
       examples: ${{ steps.list.outputs.examples }}
       cache-key: ${{ steps.key.outputs.key }}
-      shards: ${{ steps.shards.outputs.shards }}
-      shard-count: ${{ steps.shards.outputs.shard-count }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - id: list
@@ -62,18 +67,6 @@ jobs:
       - id: key
         run: |
           echo "key=examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}" >> "$GITHUB_OUTPUT"
-
-      # Parallelism is decided here, not hardcoded in the run job: N shards ->
-      # N independent runner pods in the matrix below, each handling its own
-      # slice of the example set instead of stacking concurrent `bun index.ts`
-      # processes on a single pod.
-      - id: shards
-        env:
-          PARALLELISM: ${{ github.event.inputs.parallelism }}
-        run: |
-          n="${PARALLELISM:-10}"
-          echo "shard-count=$n" >> "$GITHUB_OUTPUT"
-          echo "shards=$(jq -nc --argjson n "$n" '[range($n)]')" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -105,18 +98,16 @@ jobs:
 
   run:
     needs: discover
-    runs-on: arc-runner-set
+    runs-on: [createos]
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJson(needs.discover.outputs.shards) }}
-    # worst case: ceil(examples / shard-count) examples run serially per shard,
-    # 20 min timeout each (42 examples / 10 shards = 5 x 20 min)
-    timeout-minutes: 120
+        example: ${{ fromJson(needs.discover.outputs.examples) }}
+    # One example per job; must stay under the ghar reaper's 30-min VM cutoff.
+    # The example itself is capped at `timeout 1200` (20 min) below, leaving
+    # setup headroom before this job timeout.
+    timeout-minutes: 25
     env:
-      EXAMPLES_JSON: ${{ needs.discover.outputs.examples }}
-      SHARD: ${{ matrix.shard }}
-      SHARD_COUNT: ${{ needs.discover.outputs.shard-count }}
       # createos-sandbox control plane (read by the SDK + most examples)
       CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
       CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
@@ -173,72 +164,37 @@ jobs:
         working-directory: examples
         run: bun install
 
-      # example 20 needs python3-venv; install once since the job runs all examples
-      - name: Set up Python
+      # example 20 needs python3-venv; only that job pays for the setup.
+      - name: Set up Python (example 20)
+        if: startsWith(matrix.example, '20-')
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
-      # example 38 mounts an S3 bucket; play.min.io purges buckets periodically
+      # example 38 mounts an S3 bucket; play.min.io purges buckets periodically.
       - name: Ensure S3 bucket (example 38)
+        if: startsWith(matrix.example, '38-')
         run: |
           curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
           chmod +x /tmp/mc
           /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
           /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
 
-      - name: Run examples (shard ${{ matrix.shard }}/${{ needs.discover.outputs.shard-count }})
+      - name: Run example ${{ matrix.example }}
+        env:
+          EXAMPLE: ${{ matrix.example }}
         run: |
-          mkdir -p /tmp/example-logs /tmp/example-fails
-          mapfile -t ALL < <(echo "$EXAMPLES_JSON" | jq -r '.[]')
-          EXAMPLES=()
-          for i in "${!ALL[@]}"; do
-            (( i % SHARD_COUNT == SHARD )) && EXAMPLES+=("${ALL[$i]}")
-          done
-          printf '%s\n' "${EXAMPLES[@]}" > /tmp/shard-examples.txt
-
-          # -P1: parallelism is now expressed as shard count (job/pod level),
-          # not concurrent processes within a single pod.
-          printf '%s\n' "${EXAMPLES[@]}" | xargs -n1 -P1 bash -c '
-            example="$1"
-            log="/tmp/example-logs/$example.log"
-            (cd "$GITHUB_WORKSPACE/examples/$example" && timeout 1200 bun index.ts) >"$log" 2>&1
-            rc=$?
-            [[ $rc -ne 0 ]] && echo "$rc" > "/tmp/example-fails/$example"
-            printf "[%s] %s\n" "$([ $rc -eq 0 ] && echo "OK  " || echo "FAIL")" "$example"
-            exit $rc
-          ' _ || true
-
-      - name: Report results
-        if: always()
-        run: |
-          mapfile -t EXAMPLES < /tmp/shard-examples.txt
-          mapfile -t FAILED < <(ls /tmp/example-fails/ 2>/dev/null | sort)
-          total=${#EXAMPLES[@]}
-          nfailed=${#FAILED[@]}
-
-          {
-            echo "## Examples (shard ${SHARD}): $(( total - nfailed ))/${total} passed"
-            echo ""
-            echo "| Example | Result |"
-            echo "| --- | --- |"
-            for ex in "${EXAMPLES[@]}"; do
-              if [[ -f "/tmp/example-fails/$ex" ]]; then
-                echo "| \`$ex\` | ❌ |"
-              else
-                echo "| \`$ex\` | ✅ |"
-              fi
-            done
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # Example failures are advisory: flaky external deps (LLM APIs,
-          # sandbox quota/429s, play.min.io bucket purges) shouldn't red the
-          # run. Surface them as warnings + full logs, but do not exit non-zero.
-          if [[ $nfailed -gt 0 ]]; then
-            echo "::warning::${nfailed} of ${total} example(s) failed in shard ${SHARD}: ${FAILED[*]}"
-            for ex in "${FAILED[@]}"; do
-              echo "::group::FAILED: $ex"
-              cat "/tmp/example-logs/$ex.log" || true
-              echo "::endgroup::"
-            done
+          set +e
+          (cd "examples/$EXAMPLE" && timeout 1200 bun index.ts)
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "## ✅ $EXAMPLE passed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## ❌ $EXAMPLE failed (rc=$rc)" >> "$GITHUB_STEP_SUMMARY"
+            # Example failures are advisory: flaky external deps (LLM APIs,
+            # sandbox quota/429s, play.min.io bucket purges) shouldn't red the
+            # run. Surface as a warning (full log is already in the job output),
+            # but exit 0 so the matrix stays green.
+            echo "::warning::example $EXAMPLE failed (rc=$rc)"
           fi
