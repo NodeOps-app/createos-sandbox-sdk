@@ -68,11 +68,6 @@ jobs:
         run: |
           echo "key=examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}" >> "$GITHUB_OUTPUT"
 
-      # The ghar-runner microVM ships without unzip; setup-bun needs it to
-      # extract the bun release zip. The runner runs as root — no sudo needed.
-      - name: Install unzip (runner image lacks it)
-        run: apt-get update -qq && apt-get install -y --no-install-recommends unzip
-
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: latest
@@ -136,11 +131,6 @@ jobs:
       S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      # The ghar-runner microVM ships without unzip; setup-bun needs it to
-      # extract the bun release zip. The runner runs as root — no sudo needed.
-      - name: Install unzip (runner image lacks it)
-        run: apt-get update -qq && apt-get install -y --no-install-recommends unzip
 
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
