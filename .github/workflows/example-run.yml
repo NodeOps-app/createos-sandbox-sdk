@@ -1,0 +1,139 @@
+name: example-run
+
+# Manual, single-example runner. Pick one example by number in the Actions tab
+# and run just that one end-to-end against the live createos-sandbox control
+# plane — the same `bun index.ts` (create → verify → destroy) that examples.yml
+# runs, but on demand for one example instead of the full nightly matrix.
+#
+# Runner + reaper constraints mirror examples.yml: `runs-on: [createos]` boots a
+# throwaway microVM, ghar reaps any runner VM older than REAPER_MAX_AGE_MS
+# (30 min prod), so the job stays under `timeout-minutes: 25` and the example
+# itself is capped at `timeout 1200` (20 min).
+#
+# No push/PR trigger by design: this runs arbitrary example code with real
+# provider secrets, so it is manual-only (workflow_dispatch). Unlike examples.yml
+# there is no 10/36/37 exclusion — a human explicitly picking a number can run
+# any example, including the ones the nightly matrix skips.
+
+on:
+  workflow_dispatch:
+    inputs:
+      example:
+        description: "Example number to run (e.g. 48 or 05)"
+        required: true
+        type: string
+
+concurrency:
+  group: example-run-${{ github.ref }}-${{ inputs.example }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # checkout only; no write scope needed
+
+jobs:
+  run:
+    runs-on: [createos]
+    # Must stay under the ghar reaper's 30-min VM cutoff; example capped at
+    # `timeout 1200` (20 min) below, leaving setup headroom.
+    timeout-minutes: 25
+    env:
+      # createos-sandbox control plane (read by the SDK + most examples)
+      CREATEOS_SANDBOX_API_KEY: ${{ secrets.CREATEOS_SANDBOX_API_KEY }}
+      CREATEOS_SANDBOX_BASE_URL: ${{ secrets.CREATEOS_SANDBOX_BASE_URL }}
+      # OpenAI / OpenAI-compatible
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_API_URL: ${{ secrets.OPENAI_API_URL }}
+      OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+      OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+      LLM_MODEL: ${{ secrets.LLM_MODEL }}
+      # Anthropic
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+      ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      # S3-compatible bucket (examples 26, 38, 48)
+      S3_BUCKET: ${{ secrets.S3_BUCKET }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+      S3_REGION: ${{ secrets.S3_REGION }}
+      S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+      S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Resolve the number the user typed (48, or 05/5) to the example dir name.
+      # Accepts a zero-padded or bare number; errors if it matches zero or >1 dir.
+      - id: resolve
+        env:
+          EXAMPLE_INPUT: ${{ inputs.example }}
+        run: |
+          # Reject anything but digits so the value can't break out of the glob.
+          if ! printf '%s' "$EXAMPLE_INPUT" | grep -qE '^[0-9]+$'; then
+            echo "::error::example must be a number (got '$EXAMPLE_INPUT')"
+            exit 1
+          fi
+          n="$EXAMPLE_INPUT"
+          matches=$(cd examples && ls -d "${n}"-*/ 2>/dev/null | sed 's#/##')
+          count=$(printf '%s' "$matches" | grep -c . || true)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::input '$n' matched $count examples (expected 1):"
+            printf '%s\n' "$matches"
+            exit 1
+          fi
+          echo "dir=$matches" >> "$GITHUB_OUTPUT"
+          echo "Resolved '$n' -> $matches" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - id: buncache
+        run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
+
+      # Restore the shared cache seeded by examples.yml's discover job (same key
+      # scheme). node_modules is NOT cached (the file:../ SDK symlink cycles);
+      # the warm install below relinks it, hitting the restored store not network.
+      - id: cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ${{ steps.buncache.outputs.dir }}
+            dist
+          key: examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}
+
+      # Build dist/ if the cache (and thus dist/) was missing.
+      - name: Build SDK (cache miss fallback)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          bun install
+          bun run build
+
+      # Warm install: links example deps from the restored store and recreates
+      # the createos-sandbox-sdk -> dist/ symlink. No network on a cache hit.
+      - name: Install example deps
+        working-directory: examples
+        run: bun install
+
+      # example 20 needs python3 + venv on PATH; distro python (setup-python's
+      # prebuilt binaries don't match the microVM runner OS).
+      - name: Set up Python (example 20)
+        if: startsWith(steps.resolve.outputs.dir, '20-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-venv python3-pip
+
+      # S3-mounting examples; play.min.io purges buckets periodically.
+      - name: Ensure S3 bucket (examples 26, 38, 48)
+        if: startsWith(steps.resolve.outputs.dir, '26-') || startsWith(steps.resolve.outputs.dir, '38-') || startsWith(steps.resolve.outputs.dir, '48-')
+        run: |
+          curl -sSfL https://dl.min.io/client/mc/release/linux-amd64/mc -o /tmp/mc
+          chmod +x /tmp/mc
+          /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
+          /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
+
+      - name: Run example ${{ steps.resolve.outputs.dir }}
+        env:
+          EXAMPLE: ${{ steps.resolve.outputs.dir }}
+        run: |
+          (cd "examples/$EXAMPLE" && timeout 1200 bun index.ts)
+          echo "## ✅ $EXAMPLE passed" >> "$GITHUB_STEP_SUMMARY"
