@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CreateOS · Agent Governance Mesh</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0b0f17;
+        color: #e6edf3;
+        font:
+          14px/1.5 ui-sans-serif,
+          system-ui,
+          sans-serif;
+      }
+      header {
+        padding: 18px 22px;
+        border-bottom: 1px solid #1f2937;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0;
+        font-weight: 650;
+      }
+      .grade {
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: #062e1a;
+        color: #34d399;
+        border: 1px solid #14532d;
+      }
+      .grade.bad {
+        background: #3f1d1d;
+        color: #f87171;
+        border-color: #7f1d1d;
+      }
+      main {
+        padding: 22px;
+        display: grid;
+        gap: 22px;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        max-width: 1200px;
+      }
+      section {
+        background: #0f1523;
+        border: 1px solid #1f2937;
+        border-radius: 12px;
+        padding: 16px;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin: 0 0 12px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td,
+      th {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid #161f2e;
+        font-variant-numeric: tabular-nums;
+      }
+      th {
+        color: #94a3b8;
+        font-weight: 500;
+        font-size: 12px;
+      }
+      .bar {
+        height: 8px;
+        border-radius: 999px;
+        background: #1f2937;
+        overflow: hidden;
+        min-width: 90px;
+      }
+      .bar > span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #f87171, #fbbf24, #34d399);
+      }
+      .pill {
+        font-size: 11px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        border: 1px solid;
+      }
+      .Verified,
+      .Trusted {
+        color: #34d399;
+        border-color: #14532d;
+        background: #062e1a;
+      }
+      .Provisional {
+        color: #fbbf24;
+        border-color: #78350f;
+        background: #2a1a06;
+      }
+      .Untrusted {
+        color: #f87171;
+        border-color: #7f1d1d;
+        background: #3f1d1d;
+      }
+      .allow {
+        color: #34d399;
+      }
+      .deny {
+        color: #f87171;
+        font-weight: 600;
+      }
+      code {
+        color: #93c5fd;
+      }
+      .muted {
+        color: #64748b;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, monospace;
+        font-size: 12px;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🛡️ CreateOS · Agent Governance Mesh</h1>
+      <span id="grade" class="grade">OWASP …</span>
+      <span class="muted" id="audit"></span>
+      <span class="muted" style="margin-left: auto" id="ts"></span>
+    </header>
+    <main>
+      <section>
+        <h2>Governed agents · zero-trust identity</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>agent</th>
+              <th>trust</th>
+              <th></th>
+              <th>tier</th>
+              <th>allow</th>
+              <th>deny</th>
+            </tr>
+          </thead>
+          <tbody id="agents">
+            <tr>
+              <td class="muted" colspan="6">waiting…</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Policy decisions (live)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>agent</th>
+              <th>tool</th>
+              <th>decision</th>
+              <th>reason</th>
+            </tr>
+          </thead>
+          <tbody id="decisions">
+            <tr>
+              <td class="muted" colspan="4">waiting…</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Context-poisoning / prompt-injection</h2>
+        <tbody id="poison">
+          <div class="muted">none detected</div>
+        </tbody>
+      </section>
+      <section>
+        <h2>OWASP LLM Top-10 · prompt-defense coverage</h2>
+        <table id="owasp">
+          <tbody>
+            <tr>
+              <td class="muted">loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+    <script>
+      const esc = (s) =>
+        String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+      async function tick() {
+        let s;
+        try {
+          s = await (await fetch("/state")).json();
+        } catch {
+          return;
+        }
+        const g = s.evidence.promptDefense;
+        const gb = document.getElementById("grade");
+        gb.textContent = `OWASP prompt-defense: ${g.grade} (${g.coverage})`;
+        gb.className = "grade" + (g.passes ? "" : " bad");
+        document.getElementById("audit").textContent =
+          `tamper-evident audit: ${s.audit.count} records · head ${String(s.audit.headHash).slice(0, 12)}…`;
+        document.getElementById("ts").textContent = new Date().toLocaleTimeString();
+        document.getElementById("agents").innerHTML =
+          (s.agents || [])
+            .map(
+              (a) =>
+                `<tr><td><code>${esc(a.id)}</code>${a.killed ? " 💀" : ""}</td><td>${a.trust}</td>
+           <td><div class="bar"><span style="width:${a.trust}%"></span></div></td>
+           <td><span class="pill ${a.tier}">${a.tier}</span></td><td>${a.allows}</td><td class="${a.denies ? "deny" : ""}">${a.denies}</td></tr>`,
+            )
+            .join("") || `<tr><td class="muted" colspan="6">no agents yet</td></tr>`;
+        document.getElementById("decisions").innerHTML =
+          (s.decisions || [])
+            .slice(0, 18)
+            .map(
+              (d) =>
+                `<tr><td><code>${esc(d.agentId)}</code></td><td>${esc(d.tool)}</td>
+           <td class="${d.decision}">${d.decision.toUpperCase()}</td><td class="muted">${esc(d.reason)}</td></tr>`,
+            )
+            .join("") || `<tr><td class="muted" colspan="4">no decisions yet</td></tr>`;
+        document.getElementById("poison").innerHTML =
+          (s.poisoningEvents || [])
+            .map(
+              (p) =>
+                `<div><span class="deny">${esc(p.severity)}</span> <code>${esc(p.agentId)}</code> — ${esc(p.patternName)}<br><span class="muted mono">${esc(p.evidence || "")}</span></div>`,
+            )
+            .join("") || `<div class="muted">none detected</div>`;
+        document.getElementById("owasp").innerHTML =
+          "<tbody>" +
+          (g.owaspVectors || [])
+            .map(
+              (v) =>
+                `<tr><td class="mono">${esc(v.owasp)}</td><td>${esc(v.id)}</td><td class="${v.defended ? "allow" : "deny"}">${v.defended ? "defended" : "gap"}</td></tr>`,
+            )
+            .join("") +
+          "</tbody>";
+      }
+      tick();
+      setInterval(tick, 2000);
+    </script>
+  </body>
+</html>

@@ -800,6 +800,49 @@
       "ci": true,
       "status": "stable",
       "notes": "ai and @ai-sdk/openai are installed inside the sandbox, not on the host. ci=false because it needs an external LLM proxy."
+    },
+    {
+      "id": "48",
+      "slug": "agent-governance-mesh",
+      "dir": "48-agent-governance-mesh",
+      "title": "Agent governance mesh (Microsoft AGT)",
+      "summary": "Enforce the Microsoft Agent Governance Toolkit across a fleet of networked sandboxes: a policy-engine gov sandbox governs egress-locked agents over a private overlay, with prompt-injection detection, an OWASP prompt-defense gate, a tamper-evident audit log on an S3 disk, a live ingress dashboard, and an SRE kill-switch — provisioning template + network + disk fresh and reaping them all on exit.",
+      "primitives": [
+        "templates.create",
+        "templates.delete",
+        "networks.create",
+        "networks.get",
+        "networks.delete",
+        "disks.create",
+        "disks.delete",
+        "createSandbox",
+        "getEgress",
+        "previewUrl",
+        "files.upload",
+        "files.download",
+        "pause",
+        "fork",
+        "detachDisk",
+        "destroy"
+      ],
+      "deps": [],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_AUTH_TOKEN",
+        "ANTHROPIC_MODEL",
+        "S3_BUCKET",
+        "S3_ENDPOINT",
+        "S3_REGION",
+        "S3_ACCESS_KEY",
+        "S3_SECRET_KEY",
+        "S3_USE_PATH_STYLE"
+      ],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "requires-extra-setup",
+      "notes": "Needs an S3-compatible bucket (e.g. play.min.io) and an Anthropic-compatible LLM proxy. Builds a custom template + overlay network + S3 disk fresh, then reaps them all on exit."
     }
   ]
 }
