@@ -24,8 +24,8 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 33 | [33-codex-cli](../examples/33-codex-cli/) | Run the OpenAI Codex CLI in a sandbox to execute a task. | — |
 | 34 | [34-openclaw-gateway](../examples/34-openclaw-gateway/) | Run the OpenClaw gateway over ingress and verify /v1/models. | — |
 | 35 | [35-aio-sandbox](../examples/35-aio-sandbox/) | All-in-one tour exercising every core primitive in one run. | — |
-| 36 | [36-self-hosted-agent-worker](../examples/36-self-hosted-agent-worker/) | Back a Claude Managed Agent with one persistent VM for tool execution. | extra setup |
-| 37 | [37-self-hosted-sandbox-per-session](../examples/37-self-hosted-sandbox-per-session/) | Back a Claude Managed Agent with a fresh VM per session. | extra setup |
+| 36 | [36-self-hosted-agent-worker](../examples/36-self-hosted-agent-worker/) | Back a Claude Managed Agent with one persistent sandbox for tool execution. | extra setup |
+| 37 | [37-self-hosted-sandbox-per-session](../examples/37-self-hosted-sandbox-per-session/) | Back a Claude Managed Agent with a fresh sandbox per session. | extra setup |
 | 44 | [44-claude-changelog-generator](../examples/44-claude-changelog-generator/) | Clone a public git repo inside a sandbox, run the commit log through the Claude Messages API, and download the generated CHANGELOG.md. | extra setup |
 | 45 | [45-claude-github-wiki](../examples/45-claude-github-wiki/) | Clone a public GitHub repo into a sandbox and run a Claude tool-use agent that reads the file tree to answer questions about the codebase. | — |
 | 46 | [46-mastra-agent](../examples/46-mastra-agent/) | Install the Mastra TypeScript agent framework inside a createos-sandbox VM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response. | — |

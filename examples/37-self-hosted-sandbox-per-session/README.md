@@ -1,14 +1,15 @@
-# 37 — Self-hosted Managed Agent, one VM per session
+# 37 — Self-hosted Managed Agent (a fresh sandbox per session)
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
-where Anthropic keeps the orchestration but each agent **session executes in its
-own fresh createos-sandbox VM**. The host runs a control-plane-only work poller; for every
-claimed session it spawns a sandbox, runs the worker inside it, and destroys the
-sandbox when the session finishes. True per-session isolation — the same model
-the Modal / Daytona / Vercel self-hosted guides use, with createos-sandbox as the sandbox.
+where Anthropic keeps the orchestration but each agent **session executes in
+its own fresh sandbox**. The host runs a control-plane-only work poller; for
+every claimed session it spawns a sandbox, runs the worker inside it, and
+destroys the sandbox when the session finishes. True per-session isolation —
+the same model the Modal / Daytona / Vercel self-hosted guides use, with
+createos-sandbox as the sandbox.
 
 This is the per-session-spawn topology. For a single always-on worker that
-handles every session in one VM, see `36-self-hosted-agent-worker`.
+handles every session in one sandbox, see `36-self-hosted-agent-worker`.
 
 ## Setup — credentials
 
@@ -82,21 +83,28 @@ bun index.ts
    sending each a prompt (which starts a run and enqueues a work item).
 2. Runs `work.poller({ drain: true })` on the host — control-plane only; it
    claims each work item with the environment key.
-3. For each claimed session: spawns a fresh createos-sandbox VM, installs `ant`, and runs
+3. For each claimed session: spawns a fresh sandbox, installs `ant`, and runs
    `ant beta:worker run`, which attaches to that exact session, executes the
-   agent's tool calls in-VM, posts results back, and exits on idle.
-4. Downloads `/workspace/report.txt` from the per-session VM to prove the work
-   ran inside createos-sandbox, then destroys the VM.
+   agent's tool calls in-sandbox, posts results back, and exits on idle.
+4. Downloads `/workspace/report.txt` from the per-session sandbox to prove
+   the work ran inside createos-sandbox, then destroys the sandbox.
 
 ## createos-sandbox primitives exercised
 
-| primitive                                 | SDK call                                                |
-| ----------------------------------------- | ------------------------------------------------------- |
-| one sandbox per claimed session           | `Sandbox.create({ shape, rootfs, envs })`               |
-| forward the claimed work item into the VM | `envs: { ANTHROPIC_SESSION_ID, ANTHROPIC_WORK_ID, … }`  |
-| run the per-session worker                | `sandbox.runCommand("bash", ["ant beta:worker run …"])` |
-| read tool output back out of the VM       | `sandbox.files.download("/workspace/report.txt")`       |
-| per-session teardown                      | `sandbox.destroy()`                                     |
+| primitive                                      | SDK call                                                |
+| ---------------------------------------------- | ------------------------------------------------------- |
+| one sandbox per claimed session                | `Sandbox.create({ shape, rootfs, envs })`               |
+| forward the claimed work item into the sandbox | `envs: { ANTHROPIC_SESSION_ID, ANTHROPIC_WORK_ID, … }`  |
+| run the per-session worker                     | `sandbox.runCommand("bash", ["ant beta:worker run …"])` |
+| read tool output back out of the sandbox       | `sandbox.files.download("/workspace/report.txt")`       |
+| per-session teardown                           | `sandbox.destroy()`                                     |
+
+## See also
+
+- `36-self-hosted-agent-worker` — one persistent worker instead.
+- The `createos-sandbox` Claude Code plugin solves a different problem: it
+  offloads work off *your* machine into a sandbox from inside Claude Code. The
+  examples here are the programmatic path, for agents you host yourself.
 
 ## Versions captured at build time
 

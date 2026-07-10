@@ -1,15 +1,15 @@
 /**
- * Self-hosted Managed Agent — a FRESH createos-sandbox VM per session.
+ * Self-hosted Managed Agent — a fresh sandbox per session.
  *
  * Same self-hosted-execution idea as example 36, but with the opposite
  * lifecycle: instead of one always-on worker claiming every session, the host
  * here polls the environment queue and spawns a brand-new sandbox for each
  * claimed session, runs `ant beta:worker run` (which attaches to exactly that
- * one work item and exits at idle), then destroys the VM. The host poller is
- * control-plane only and holds the environment key; the agent's tool calls run
- * inside the per-session sandbox. Use this model for clean per-task isolation
- * and no idle VM cost; use 36 when you want a warm worker and lower per-session
- * startup latency.
+ * one work item and exits at idle), then destroys the sandbox. The host
+ * poller is control-plane only and holds the environment key; the agent's
+ * tool calls run inside the per-session sandbox. Use this model for clean
+ * per-task isolation and no idle sandbox cost; use 36 when you want a warm
+ * worker and lower per-session startup latency.
  *
  * Run:   bun 37-self-hosted-sandbox-per-session/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (the repo symlinks .env -> ../.env), plus a
@@ -92,9 +92,9 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
 // The agent only has its sandbox tools — no python preinstalled in devbox, so
 // the task is pure shell. GOTCHA: the Managed Agents worker rejects an empty
 // tool-result text with a 400 when it posts the result back. `tee` defends
-// against that — it both writes the file (proof the tool ran inside the createos-sandbox
-// VM, since `uname` reports the guest kernel) AND echoes to stdout, so the
-// tool result is guaranteed non-empty. Any bash tool call here must print
+// against that — it both writes the file (proof the tool ran inside the
+// sandbox, since `uname` reports the guest kernel) AND echoes to stdout, so
+// the tool result is guaranteed non-empty. Any bash tool call here must print
 // something; a silent command would 400 the session.
 const PROMPT =
   "Use your bash tool to run exactly this command: `uname -a | tee /workspace/report.txt`. " +
@@ -103,18 +103,18 @@ const PROMPT =
 const { apiKey, environmentId, environmentKey } = loadAnt();
 const anthropic = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL });
 
-// One claimed session → one fresh createos-sandbox VM. The host poller is control-plane
+// One claimed session → one fresh sandbox. The host poller is control-plane
 // only (it holds the environment key and claims work); the agent's tool calls
 // run inside the per-session sandbox via `ant beta:worker run`, which attaches
 // to exactly the claimed work item and exits when the session goes idle.
 async function handleSession(sessionId: string, workId: string): Promise<void> {
-  console.log(`\n  ▸ claimed session ${sessionId} (work ${workId}) — spawning a VM…`);
+  console.log(`\n  ▸ claimed session ${sessionId} (work ${workId}) — spawning a sandbox…`);
   const sandbox = await createSandbox({
     shape: SHAPE,
     rootfs: "devbox:1",
     name: `shs-sess-${Date.now() % 100000}`,
     // Per-session credentials: the environment key plus the specific item to
-    // attach to. Only the environment key — never the org key — enters the VM.
+    // attach to. Only the environment key — never the org key — enters the sandbox.
     envs: {
       ANTHROPIC_BASE_URL,
       ANTHROPIC_ENVIRONMENT_ID: environmentId,
@@ -133,7 +133,7 @@ curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT
       { timeoutMs: 180_000 },
     );
     console.log(
-      "    running ant beta:worker run (attaches to the claimed session, executes tool calls in-VM)…",
+      "    running ant beta:worker run (attaches to the claimed session, executes tool calls in-sandbox)…",
     );
     // The worker attaches to exactly this session (via ANTHROPIC_SESSION_ID /
     // ANTHROPIC_WORK_ID) and blocks until idle. Run it in the background and
@@ -157,7 +157,7 @@ curl -fsSL "https://github.com/anthropics/anthropic-cli/releases/download/v${ANT
         `report.txt never appeared. worker log:\n${(await sandbox.sh("tail -8 /tmp/worker.log")).result.stdout}`,
       );
     }
-    console.log("    ── /workspace/report.txt (written inside this per-session VM) ──");
+    console.log("    ── /workspace/report.txt (written inside this per-session sandbox) ──");
     for (const line of report.trimEnd().split("\n")) console.log(`      ${line}`);
   } finally {
     await sandbox.destroy().catch((err) => {
@@ -171,13 +171,13 @@ console.log("[1/3] creating agent + 2 sessions on the self-hosted environment…
 const agent = await anthropic.beta.agents.create({
   name: `createos-sandbox-per-session-${Date.now() % 100000}`,
   model: AGENT_MODEL,
-  system: `You are a terse assistant running inside a createos-sandbox VM. Your working directory is ${WORKDIR}.`,
+  system: `You are a terse assistant running inside a createos-sandbox. Your working directory is ${WORKDIR}.`,
   tools: [{ type: "agent_toolset_20260401" }],
 });
 console.log(`      agent ${agent.id}`);
 
 // Each session starts a run (and so enqueues a work item) once it gets a user
-// message. Two sessions ⇒ two work items ⇒ two independent VMs.
+// message. Two sessions ⇒ two work items ⇒ two independent sandboxes.
 for (let i = 0; i < 2; i++) {
   const session = await anthropic.beta.sessions.create({
     agent: agent.id,
@@ -189,20 +189,18 @@ for (let i = 0; i < 2; i++) {
   console.log(`      session ${session.id} queued`);
 }
 
-console.log(
-  "\n[2/3] polling the environment queue; one fresh createos-sandbox VM per claimed session…",
-);
+console.log("\n[2/3] polling the environment queue; one fresh sandbox per claimed session…");
 let handled = 0;
 for await (const work of anthropic.beta.environments.work.poller({
   environmentId,
   environmentKey,
   blockMs: 999,
   drain: true, // stop once the queue is empty instead of long-polling forever
-  autoStop: false, // the worker inside the VM owns the stop call
+  autoStop: false, // the worker inside the sandbox owns the stop call
 })) {
   if (work.data.type !== "session") continue;
   await handleSession(work.data.id, work.id);
   handled++;
 }
 
-console.log(`\n[3/3] done — ${handled} session(s) executed, each in its own VM.`);
+console.log(`\n[3/3] done — ${handled} session(s) executed, each in its own sandbox.`);

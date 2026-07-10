@@ -1,14 +1,15 @@
 /**
- * Self-hosted agent worker — back a Claude Managed Agent with ONE persistent
- * createos-sandbox VM.
+ * Self-hosted agent worker — back a Claude Managed Agent with one persistent
+ * sandbox.
  *
  * Boots a single long-lived sandbox, installs the `ant` CLI, and runs
  * `ant beta:worker poll` inside it as an always-on daemon. That worker claims
  * every session assigned to the self-hosted environment and executes the
- * agent's tool calls locally, so agent code, files, and egress never leave the
- * createos-sandbox boundary. The script then drives one agent session and proves the work
- * ran in-VM by reading the file the tool wrote. Contrast with example 37, which
- * spawns a FRESH VM per session instead of reusing one persistent worker.
+ * agent's tool calls locally, so agent code, files, and egress never leave
+ * the createos-sandbox boundary. The script then drives one agent session
+ * and proves the work ran in-sandbox by reading the file the tool wrote.
+ * Contrast with example 37, which spawns a fresh sandbox per session instead
+ * of reusing one persistent worker.
  *
  * Run:   bun 36-self-hosted-agent-worker/index.ts
  * Needs: CREATEOS_SANDBOX_BASE_URL + CREATEOS_SANDBOX_API_KEY (the repo symlinks .env -> ../.env), plus a
@@ -91,9 +92,9 @@ async function createSandbox(opts: Parameters<typeof Sandbox.create>[0]): Promis
 // The agent only has its sandbox tools — no python preinstalled in devbox, so
 // the task is pure shell. GOTCHA: the Managed Agents worker rejects an empty
 // tool-result text with a 400 when it posts the result back. `tee` defends
-// against that — it both writes the file (proof the tool ran inside the createos-sandbox
-// VM, since `uname` reports the guest kernel) AND echoes to stdout, so the
-// tool result is guaranteed non-empty. Any bash tool call here must print
+// against that — it both writes the file (proof the tool ran inside the
+// sandbox, since `uname` reports the guest kernel) AND echoes to stdout, so
+// the tool result is guaranteed non-empty. Any bash tool call here must print
 // something; a silent command would 400 the session.
 const PROMPT =
   "Use your bash tool to run exactly this command: `uname -a | tee /workspace/report.txt`. " +
@@ -102,7 +103,7 @@ const PROMPT =
 const { apiKey, environmentId, environmentKey } = loadAnt();
 const anthropic = new Anthropic({ apiKey, baseURL: ANTHROPIC_BASE_URL });
 
-// One long-lived createos-sandbox VM is the self-hosted execution boundary. The worker
+// One long-lived sandbox is the self-hosted execution boundary. The worker
 // inside it claims every session assigned to the environment and runs the
 // agent's tool calls locally — agent code, files and egress never leave createos-sandbox.
 console.log("[1/6] creating createos-sandbox sandbox (the self-hosted execution boundary)…");
@@ -146,7 +147,7 @@ ant --version`,
   const agent = await anthropic.beta.agents.create({
     name: `createos-sandbox-worker-${Date.now() % 100000}`,
     model: AGENT_MODEL,
-    system: `You are a terse assistant running inside a createos-sandbox VM. Your working directory is ${WORKDIR}.`,
+    system: `You are a terse assistant running inside a createos-sandbox. Your working directory is ${WORKDIR}.`,
     tools: [{ type: "agent_toolset_20260401" }],
   });
   const session = await anthropic.beta.sessions.create({
@@ -179,7 +180,7 @@ ant --version`,
   }
 
   console.log(
-    "\n[6/6] proof the work ran inside createos-sandbox — reading /workspace from the VM:",
+    "\n[6/6] proof the work ran inside createos-sandbox — reading /workspace from the sandbox:",
   );
   // The worker writes the file just after the session goes idle, so the read
   // can briefly race ahead of it — retry until it lands.

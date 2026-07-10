@@ -1,13 +1,13 @@
-# 36 — Self-hosted Managed Agent worker (one createos-sandbox VM)
+# 36 — Self-hosted Managed Agent worker (one persistent sandbox)
 
 Runs a [Claude Managed Agent](https://platform.claude.com/docs/en/managed-agents/self-hosted-sandboxes)
-where Anthropic keeps the orchestration but **tool execution happens inside an
-createos-sandbox VM you control**. One long-lived sandbox runs an always-on environment
+where Anthropic keeps the orchestration but **tool execution happens inside a
+sandbox you control**. One long-lived sandbox runs an always-on environment
 worker that claims every session assigned to the environment and executes the
 agent's tool calls locally — agent code, files, and network egress never leave
 createos-sandbox.
 
-This is the always-on, single-worker topology. For one fresh VM per
+This is the always-on, single-worker topology. For one fresh sandbox per
 session, see `37-self-hosted-sandbox-per-session`.
 
 ## Setup — credentials
@@ -77,28 +77,36 @@ bun index.ts
 
 ## What it does
 
-1. Creates one createos-sandbox VM — the self-hosted execution boundary.
+1. Creates one sandbox — the self-hosted execution boundary.
 2. Installs the `ant` CLI and starts `ant beta:worker poll` in the background
    (claims sessions, runs an in-process tool runner for each).
 3. Creates a Managed Agent and a session bound to the `self_hosted` environment.
 4. Streams the session: agent reasoning and tool calls print live; the tool
-   calls actually run inside the VM.
-5. Downloads `/workspace/report.txt` straight from the VM to prove the work
-   executed inside createos-sandbox (the file contains the guest's `uname -a`).
+   calls actually run inside the sandbox.
+5. Downloads `/workspace/report.txt` straight from the sandbox to prove the
+   work executed inside createos-sandbox (the file contains the guest's
+   `uname -a`).
 
 ## createos-sandbox primitives exercised
 
-| primitive                           | SDK call                                              |
-| ----------------------------------- | ----------------------------------------------------- |
-| create the execution boundary       | `Sandbox.create({ shape, rootfs, envs })`             |
-| inject the environment key          | `envs` on create (read by `ant` from the environment) |
-| install + daemonize the worker      | `sandbox.runCommand("bash", […])` + `nohup setsid`    |
-| read tool output back out of the VM | `sandbox.files.download("/workspace/report.txt")`     |
-| teardown                            | `sandbox.destroy()`                                   |
+| primitive                                | SDK call                                              |
+| ---------------------------------------- | ----------------------------------------------------- |
+| create the execution boundary            | `Sandbox.create({ shape, rootfs, envs })`             |
+| inject the environment key               | `envs` on create (read by `ant` from the environment) |
+| install + daemonize the worker           | `sandbox.runCommand("bash", […])` + `nohup setsid`    |
+| read tool output back out of the sandbox | `sandbox.files.download("/workspace/report.txt")`     |
+| teardown                                 | `sandbox.destroy()`                                   |
 
 The worker itself is the `ant` CLI; the SDK also ships an in-process
 `EnvironmentWorker` (`@anthropic-ai/sdk/helpers/beta/environments`) if you prefer
 to run the tool loop in TypeScript instead of shelling out to `ant`.
+
+## See also
+
+- `37-self-hosted-sandbox-per-session` — a fresh sandbox per session.
+- The `createos-sandbox` Claude Code plugin solves a different problem: it
+  offloads work off *your* machine into a sandbox from inside Claude Code. The
+  examples here are the programmatic path, for agents you host yourself.
 
 ## Versions captured at build time
 

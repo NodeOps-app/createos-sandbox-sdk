@@ -25,6 +25,7 @@ pnpm-debug.log*
 # Environment files
 .env
 .env.*
+.env-*
 !.env.example
 
 # Editor and OS files
