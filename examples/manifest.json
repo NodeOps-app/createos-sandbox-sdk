@@ -882,6 +882,34 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs Anthropic managed-agents access."
+    },
+    {
+      "id": "50",
+      "slug": "cloud-agent-sandbox-tool",
+      "dir": "50-cloud-agent-sandbox-tool",
+      "title": "Sandbox as an agent tool (per session)",
+      "summary": "Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls.",
+      "primitives": ["createSandbox", "runCommand", "files.download", "destroy"],
+      "deps": ["@anthropic-ai/sdk"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs Anthropic managed-agents access (organization key only — no environment key)."
+    },
+    {
+      "id": "51",
+      "slug": "cloud-agent-sandbox-per-call",
+      "dir": "51-cloud-agent-sandbox-per-call",
+      "title": "Sandbox as an agent tool (per call)",
+      "summary": "Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns.",
+      "primitives": ["createSandbox", "runCommand", "destroy"],
+      "deps": ["@anthropic-ai/sdk"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "ANTHROPIC_API_KEY"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs Anthropic managed-agents access (organization key only — no environment key)."
     }
   ]
 }

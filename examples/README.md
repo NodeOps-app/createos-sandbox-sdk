@@ -73,6 +73,8 @@ bun 01-hello-world/index.ts
 | 47 | [47-effective-agents-patterns](47-effective-agents-patterns/) | Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy. | createSandbox, files.upload, runCommand, sh, destroy | — |
 | 48 | [48-agent-governance-mesh](48-agent-governance-mesh/) | Enforce the Microsoft Agent Governance Toolkit across a fleet of networked sandboxes: a policy-engine gov sandbox governs egress-locked agents over a private overlay, with prompt-injection detection, an OWASP prompt-defense gate, a tamper-evident audit log on an S3 disk, a live ingress dashboard, and an SRE kill-switch — provisioning template + network + disk fresh and reaping them all on exit. | templates.create, templates.delete, networks.create, networks.get, networks.delete, disks.create, disks.delete, createSandbox, getEgress, previewUrl, files.upload, files.download, pause, fork, detachDisk, destroy | extra |
 | 49 | [49-egress-locked-agent-worker](49-egress-locked-agent-worker/) | Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet. | createSandbox, runCommand, setEgress, getEgress, files.download, destroy | extra |
+| 50 | [50-cloud-agent-sandbox-tool](50-cloud-agent-sandbox-tool/) | Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls. | createSandbox, runCommand, files.download, destroy | extra |
+| 51 | [51-cloud-agent-sandbox-per-call](51-cloud-agent-sandbox-per-call/) | Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns. | createSandbox, runCommand, destroy | extra |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -91,6 +93,8 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **47 effective-agents-patterns** — ai and @ai-sdk/openai are installed inside the sandbox, not on the host. ci=false because it needs an external LLM proxy.
 - **48 agent-governance-mesh** — **needs extra setup** — Needs an S3-compatible bucket (e.g. play.min.io) and an Anthropic-compatible LLM proxy. Builds a custom template + overlay network + S3 disk fresh, then reaps them all on exit.
 - **49 egress-locked-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
+- **50 cloud-agent-sandbox-tool** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
+- **51 cloud-agent-sandbox-per-call** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
 
 <!-- END GENERATED: examples -->
 
