@@ -105,6 +105,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [46-mastra-agent](examples/46-mastra-agent/) — Install the Mastra TypeScript agent framework inside a createos-sandbox VM, upload an agent script, run it against an OpenAI-compatible provider, and capture the response.
 - [47-effective-agents-patterns](examples/47-effective-agents-patterns/) — Run three LLM agent patterns (prompt-chaining, routing, parallelization) using the Vercel AI SDK inside a createos-sandbox sandbox, with an OpenAI-compatible model proxy.
 - [48-agent-governance-mesh](examples/48-agent-governance-mesh/) — Enforce the Microsoft Agent Governance Toolkit across a fleet of networked sandboxes: a policy-engine gov sandbox governs egress-locked agents over a private overlay, with prompt-injection detection, an OWASP prompt-defense gate, a tamper-evident audit log on an S3 disk, a live ingress dashboard, and an SRE kill-switch — provisioning template + network + disk fresh and reaping them all on exit.
+- [49-egress-locked-agent-worker](examples/49-egress-locked-agent-worker/) — Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

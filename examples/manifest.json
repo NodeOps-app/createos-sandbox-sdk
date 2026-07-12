@@ -855,6 +855,33 @@
       "ci": true,
       "status": "requires-extra-setup",
       "notes": "Needs an S3-compatible bucket (e.g. play.min.io) and an Anthropic-compatible LLM proxy. Builds a custom template + overlay network + S3 disk fresh, then reaps them all on exit."
+    },
+    {
+      "id": "49",
+      "slug": "egress-locked-agent-worker",
+      "dir": "49-egress-locked-agent-worker",
+      "title": "Egress-locked agent worker",
+      "summary": "Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet.",
+      "primitives": [
+        "createSandbox",
+        "runCommand",
+        "setEgress",
+        "getEgress",
+        "files.download",
+        "destroy"
+      ],
+      "deps": ["@anthropic-ai/sdk"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "ANTHROPIC_API_KEY",
+        "ANTHROPIC_ENVIRONMENT_ID",
+        "ANTHROPIC_ENVIRONMENT_KEY"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs Anthropic managed-agents access."
     }
   ]
 }

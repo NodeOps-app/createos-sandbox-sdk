@@ -1,0 +1,9 @@
+createos-sandbox-sdk: 0.6.1
+control-plane-url: https://createos-sandbox.example.com
+region: default
+captured-date: 2026-07-11
+rootfs: devbox:1
+shape: s-4vcpu-4gb
+ant-cli: 1.10.0
+anthropic-sdk: 0.98.0
+verified end-to-end: yes
