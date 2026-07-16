@@ -1,6 +1,6 @@
 {
   "name": "@nodeops-createos/sandbox",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "TypeScript SDK for the createos-sandbox VM sandbox control plane.",
   "keywords": [
     "compute",
@@ -69,7 +69,7 @@
   },
   "optionalDependencies": {
     "@types/node": "26.1.1",
-    "undici": "8.7.0"
+    "undici": "^7.28.0"
   },
   "engines": {
     "node": ">=20"
