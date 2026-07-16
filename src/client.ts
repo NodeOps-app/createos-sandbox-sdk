@@ -597,27 +597,23 @@ export class CreateosSandboxClient {
     // POST /v1/sandboxes is synchronous end-to-end: control forwards to the
     // owning host, which returns 200 only after the VM has booted, its
     // in-guest agent has answered a readiness probe, AND the durable row has
-    // been written `running`. So a single follow-up GET returns the canonical,
-    // already-`running` view — we fetch it rather than fabricate one, and no
-    // status poll is needed (the row cannot still be `creating` once the POST
-    // has returned). `wait` / `waitTimeoutMs` are accepted but deprecated
+    // been written `running`. The POST response body carries every field a
+    // `SandboxView` needs (id, name, ip, shape, rootfs, vcpu, mem_mib,
+    // disk_mib, spawn_ms, egress, ssh_pubkeys, bandwidth_*, and — when the
+    // caller opted in — ingress_url_template). So there is nothing a
+    // follow-up GET would add; we trust the POST response and skip the
+    // extra round-trip. `wait` / `waitTimeoutMs` are accepted but deprecated
     // no-ops for this reason; bound the call with `timeoutMs` / `signal`.
-    const created = await this.http.request<CreateSandboxResponse>("POST", "/v1/sandboxes", {
-      ...options,
-      body: request,
-    });
-    const view = await this.http.request<SandboxView>(
-      "GET",
-      `/v1/sandboxes/${encodePath(created.id)}`,
-      options,
+    const { wait: _wait, waitTimeoutMs: _waitTimeoutMs, ...reqOptions } = options;
+    const created = await this.http.request<CreateSandboxResponse>(
+      "POST",
+      "/v1/sandboxes",
+      { ...reqOptions, body: request },
     );
-    // The create response computes ingress_url_template synchronously; a view
-    // fetched microseconds later may not carry it yet, so seed it across.
-    const seeded =
-      view.ingress_url_template === undefined && created.ingress_url_template !== undefined
-        ? { ...view, ingress_url_template: created.ingress_url_template }
-        : view;
-    return new Sandbox(this.http, seeded);
+    // CreateSandboxResponse is a superset of SandboxView for the fields
+    // Sandbox needs to operate; the cast is a nominal-vs-structural bridge,
+    // not a runtime change.
+    return new Sandbox(this.http, created as unknown as SandboxView);
   }
 
   /**

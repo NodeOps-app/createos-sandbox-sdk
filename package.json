@@ -69,5 +69,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "optionalDependencies": {
+    "@types/node": "^26.1.1",
+    "undici": "^7.28.0"
   }
 }

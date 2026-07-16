@@ -42,6 +42,7 @@ export interface ResolvedConfig {
   authHeaders: HeadersInit | undefined;
   baseUrl: string;
   fetch: typeof fetch;
+  _customFetch: boolean;
   defaultHeaders: HeadersInit;
   timeoutMs: number;
   retry: Required<RetryOptions> | false;
@@ -61,6 +62,7 @@ export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedCo
   // Bind the global default to globalThis: some runtimes (Cloudflare Workers)
   // throw "Illegal invocation" if fetch is later called with a different `this`.
   // A caller-supplied fetch is used as-is.
+  const _customFetch = options.fetch !== undefined;
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   if (typeof fetchFn !== "function") {
     throw new CreateosSandboxError(
@@ -111,6 +113,7 @@ export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedCo
     authHeaders: options.authHeaders,
     baseUrl,
     fetch: fetchFn,
+    _customFetch,
     defaultHeaders: options.headers ?? {},
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     retry,

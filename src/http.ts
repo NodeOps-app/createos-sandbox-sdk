@@ -70,11 +70,37 @@ export class CreateosSandboxHttp {
   readonly baseUrl: string;
   readonly #config: ResolvedConfig;
   readonly #baseOrigin: string;
+  #undiciReady: Promise<((url: string, init: RequestInit) => Promise<Response>) | null> | null = null;
 
   constructor(config: ResolvedConfig) {
     this.#config = config;
     this.baseUrl = config.baseUrl;
     this.#baseOrigin = new URL(config.baseUrl).origin;
+    // Only try to load undici when the caller didn't inject a custom fetch
+    // (Cloudflare Workers, browsers, tests). Fire-and-forget: first request
+    // may use global fetch; subsequent requests use the pooled H2 agent.
+    if (!config._customFetch) {
+      this.#undiciReady = this.#loadUndici();
+    }
+  }
+
+  async #loadUndici(): Promise<((url: string, init: RequestInit) => Promise<Response>) | null> {
+    try {
+      const undici = await import("undici");
+      const dispatcher = new undici.Agent({
+        allowH2: true,
+        connections: 32,
+        keepAliveTimeout: 60_000,
+        keepAliveMaxTimeout: 600_000,
+      });
+      // Piggyback warmup: fire a HEAD to the origin so the H2 socket is hot
+      // by the time the first real request lands. Best-effort; ignore errors.
+      const uf = undici.fetch as unknown as (url: string, init: RequestInit & { dispatcher?: unknown }) => Promise<Response>;
+      uf(`${this.#baseOrigin}/healthz`, { method: "GET", dispatcher }).catch(() => {});
+      return (url: string, init: RequestInit) => uf(url, { ...init, dispatcher });
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -425,10 +451,13 @@ export class CreateosSandboxHttp {
     }
 
     try {
-      // Call through a local binding, not `this.#config.fetch(...)`: invoking
-      // fetch as a method rebinds its `this` to the config object, which the
-      // Cloudflare Workers runtime rejects with "Illegal invocation".
-      const doFetch = this.#config.fetch;
+      // Prefer the pooled undici H2 agent when it's ready (Node). Fall back
+      // to the resolved global fetch on browser/CF or before undici loads.
+      let doFetch: (url: string, init: RequestInit) => Promise<Response> = this.#config.fetch;
+      if (this.#undiciReady) {
+        const uf = await this.#undiciReady;
+        if (uf) doFetch = uf;
+      }
       return await doFetch(prepared.url, init);
     } catch (err) {
       if (timeout?.signal.aborted === true && options.signal?.aborted !== true) {
