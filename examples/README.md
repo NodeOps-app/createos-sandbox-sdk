@@ -75,6 +75,7 @@ bun 01-hello-world/index.ts
 | 49 | [49-egress-locked-agent-worker](49-egress-locked-agent-worker/) | Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet. | createSandbox, runCommand, setEgress, getEgress, files.download, destroy | extra |
 | 50 | [50-cloud-agent-sandbox-tool](50-cloud-agent-sandbox-tool/) | Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls. | createSandbox, runCommand, files.download, destroy | extra |
 | 51 | [51-cloud-agent-sandbox-per-call](51-cloud-agent-sandbox-per-call/) | Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns. | createSandbox, runCommand, destroy | extra |
+| 52 | [52-self-signal-pause-delete](52-self-signal-pause-delete/) | A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside. | createSandbox, files.upload, runCommand, selfPause, selfDelete, waitUntilPaused, files.download, destroy | extra |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -95,6 +96,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **49 egress-locked-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **50 cloud-agent-sandbox-tool** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
 - **51 cloud-agent-sandbox-per-call** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
+- **52 self-signal-pause-delete** — **needs extra setup** — The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published.
 
 <!-- END GENERATED: examples -->
 

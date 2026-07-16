@@ -108,6 +108,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [49-egress-locked-agent-worker](examples/49-egress-locked-agent-worker/) — Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet.
 - [50-cloud-agent-sandbox-tool](examples/50-cloud-agent-sandbox-tool/) — Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls.
 - [51-cloud-agent-sandbox-per-call](examples/51-cloud-agent-sandbox-per-call/) — Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns.
+- [52-self-signal-pause-delete](examples/52-self-signal-pause-delete/) — A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

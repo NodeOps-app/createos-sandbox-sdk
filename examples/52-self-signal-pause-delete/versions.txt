@@ -1,0 +1,10 @@
+createos-sandbox-sdk: 0.7.0
+control-plane-url: https://createos-sandbox.example.com
+region: default
+captured-date: 2026-07-16
+rootfs: devbox:1
+shape: s-1vcpu-1gb
+in-sandbox runtime: bun (devbox:1 ships bun + node via asdf shims)
+self-signal endpoint: http://127.0.0.1:1029/self/{pause,delete} (loopback, verified live)
+verified end-to-end: partial — loopback pause/delete confirmed live; in-guest
+  bun add of selfPause/selfDelete needs 0.7.0 published to npm first

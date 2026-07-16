@@ -910,6 +910,29 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs Anthropic managed-agents access (organization key only — no environment key)."
+    },
+    {
+      "id": "52",
+      "slug": "self-signal-pause-delete",
+      "dir": "52-self-signal-pause-delete",
+      "title": "Self-signal: pause or delete from inside",
+      "summary": "A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside.",
+      "primitives": [
+        "createSandbox",
+        "files.upload",
+        "runCommand",
+        "selfPause",
+        "selfDelete",
+        "waitUntilPaused",
+        "files.download",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published."
     }
   ]
 }
