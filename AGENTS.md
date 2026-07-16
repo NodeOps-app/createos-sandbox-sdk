@@ -64,6 +64,21 @@ private helper, test-only — is **not** a shared surface, so skip the mesh for 
 5. **Use the `sync-docs` skill** to execute SDK / CLI / website reconciliation
    against upstream `fc` where it applies.
 
+### Downstream reference implementations (not mesh-protocol members)
+
+Two public repos consume this SDK directly and are worth checking before a
+public-method change ships, even though neither owns shared surface and
+both sit outside the formal 5-repo protocol above:
+
+- **createos-plugin** (`../createos-plugin/createos-sandbox`) — Claude Code
+  plugin; wraps the `createos` CLI, not this SDK, but shares the same
+  control-plane contract.
+- **createos-sandbox-ghar** (`../createos-sandbox-ghar`) — Cloudflare
+  Worker that autoscales ephemeral GitHub Actions runners on CreateOS
+  Sandbox microVMs; builds its sandbox client directly on this SDK
+  (`src/createos.ts`) and also shells out to `createos-cli` in its daily
+  template-rebuild job.
+
 ## Commands
 
 ```sh

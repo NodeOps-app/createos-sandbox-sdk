@@ -605,15 +605,22 @@ export class CreateosSandboxClient {
     // extra round-trip. `wait` / `waitTimeoutMs` are accepted but deprecated
     // no-ops for this reason; bound the call with `timeoutMs` / `signal`.
     const { wait: _wait, waitTimeoutMs: _waitTimeoutMs, ...reqOptions } = options;
-    const created = await this.http.request<CreateSandboxResponse>(
-      "POST",
-      "/v1/sandboxes",
-      { ...reqOptions, body: request },
-    );
-    // CreateSandboxResponse is a superset of SandboxView for the fields
-    // Sandbox needs to operate; the cast is a nominal-vs-structural bridge,
-    // not a runtime change.
-    return new Sandbox(this.http, created as unknown as SandboxView);
+    const created = await this.http.request<CreateSandboxResponse>("POST", "/v1/sandboxes", {
+      ...reqOptions,
+      body: request,
+    });
+    // CreateSandboxResponse carries the operational fields (id, ip, shape,
+    // ingress_url_template, …) but omits the SandboxView-only `status` and
+    // `ingress_enabled`. Seed both from what the synchronous POST guarantees:
+    // the row is already `running`, and ingress reflects the caller's request.
+    // This keeps the handle usable (status checks, previewUrl) without a
+    // follow-up GET.
+    const seeded: SandboxView = {
+      ...(created as unknown as SandboxView),
+      status: "running",
+      ingress_enabled: request.ingress_enabled ?? false,
+    };
+    return new Sandbox(this.http, seeded);
   }
 
   /**

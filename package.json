@@ -1,6 +1,6 @@
 {
   "name": "@nodeops-createos/sandbox",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "TypeScript SDK for the createos-sandbox VM sandbox control plane.",
   "keywords": [
     "compute",
@@ -63,15 +63,15 @@
   "devDependencies": {
     "@types/bun": "1.3.14",
     "oxfmt": "^0.54.0",
-    "oxlint": "^1.69.0",
+    "oxlint": "^1.74.0",
     "typedoc": "0.28.19",
     "typescript": "^6.0.3"
   },
+  "optionalDependencies": {
+    "@types/node": "26.1.1",
+    "undici": "8.7.0"
+  },
   "engines": {
     "node": ">=20"
-  },
-  "optionalDependencies": {
-    "@types/node": "^26.1.1",
-    "undici": "^7.28.0"
   }
 }
