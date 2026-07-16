@@ -61,6 +61,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 41 | [41-python-pdf-extractor](../examples/41-python-pdf-extractor/) | Upload a fillable PDF into a sandbox, pip-install PyMuPDF, extract every form-field name and value to JSON, and download the result — no external API required. | — |
 | 42 | [42-doc-to-markdown](../examples/42-doc-to-markdown/) | Upload a local document (HTML, DOCX, PDF, …) into a createos-sandbox sandbox, convert it to Markdown with Microsoft MarkItDown (pip-installed inside the guest), and download the result. | — |
 | 43 | [43-crawl4ai-crawler](../examples/43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a VM, crawl a public URL to Markdown, download the output to the host. | — |
+| 52 | [52-self-signal-pause-delete](../examples/52-self-signal-pause-delete/) | A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside. | extra setup |
 
 ## Disks, networks & templates
 
@@ -95,6 +96,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **49 egress-locked-agent-worker** — **needs extra setup** — Needs Anthropic managed-agents access.
 - **50 cloud-agent-sandbox-tool** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
 - **51 cloud-agent-sandbox-per-call** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
+- **52 self-signal-pause-delete** — **needs extra setup** — The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published.
 
 ## See also
 
