@@ -6,6 +6,7 @@ export {
   DisksApi,
 } from "./client.js";
 export { Sandbox, SandboxFiles } from "./sandbox.js";
+export { selfPause, selfDelete } from "./self.js";
 export { CreateosSandboxHttp } from "./http.js";
 export type { HttpRequestOptions, Query, QueryValue } from "./http.js";
 export { VERSION } from "./config.js";

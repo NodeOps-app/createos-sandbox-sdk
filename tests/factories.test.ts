@@ -35,7 +35,7 @@ describe("Sandbox static factories", () => {
     expect(sandbox.status).toBe("running");
   });
 
-  test("Sandbox.create issues POST then a single GET (no readiness poll)", async () => {
+  test("Sandbox.create issues a single POST (no readiness poll, no follow-up GET)", async () => {
     const calls: string[] = [];
     const fetchImpl = ((_url: string, init: RequestInit) => {
       calls.push(init.method ?? "");
@@ -48,6 +48,6 @@ describe("Sandbox static factories", () => {
       { apiKey: "sk", baseUrl: BASE, fetch: fetchImpl },
     );
     expect(sandbox.status).toBe("running");
-    expect(calls).toEqual(["POST", "GET"]);
+    expect(calls).toEqual(["POST"]);
   });
 });

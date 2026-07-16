@@ -19,7 +19,7 @@ describe("createSandbox", () => {
     expect(sandbox.ip).toBe("10.0.0.2");
   });
 
-  test("issues POST then a single GET (no readiness poll) and seeds the server view", async () => {
+  test("issues a single POST (no readiness poll, no follow-up GET)", async () => {
     const calls: string[] = [];
     const client = makeClient((_url, init) => {
       calls.push(init.method ?? "");
@@ -28,10 +28,11 @@ describe("createSandbox", () => {
       );
     });
     const sandbox = await client.createSandbox({ shape: "s" });
-    // The synchronous POST guarantees the row is already `running`, so one GET
-    // returns the authoritative view — no poll loop, and no fabricated view.
+    // The synchronous POST guarantees the row is already `running`, so the
+    // create response is authoritative — no poll loop and no follow-up GET.
+    // `status` is seeded onto the handle from that guarantee.
     expect(sandbox.status).toBe("running");
-    expect(calls).toEqual(["POST", "GET"]);
+    expect(calls).toEqual(["POST"]);
   });
 
   test("forwards a disks array in the create body", async () => {

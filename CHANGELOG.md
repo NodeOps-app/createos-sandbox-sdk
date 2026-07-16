@@ -18,6 +18,40 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-16
+
+HTTP/2 connection pooling, a leaner create round-trip, and an in-sandbox
+self-signal API.
+
+### Added
+
+- **HTTP/2 connection pooling (Node).** When the caller has not injected a
+  custom `fetch`, the transport lazily loads `undici` and routes requests
+  through a shared pooled H2 `Agent` (32 connections, keep-alive), with a
+  best-effort origin warm-up. Falls back to the global `fetch` on
+  browser / Cloudflare Workers / Deno, in tests, or if `undici` is
+  unavailable — so it is a transparent latency win where it applies and a
+  no-op everywhere else. `undici` and `@types/node` are declared as
+  **optional** dependencies; nothing is required at runtime.
+- **`selfPause` / `selfDelete`.** A workload running *inside* a sandbox can
+  now pause or delete its own sandbox by signalling the loopback agent — no
+  client, config, or credentials. Both accept an optional `reason` label.
+  They only work from inside a sandbox; elsewhere they fail with a
+  connection error.
+
+### Changed
+
+- **`createSandbox` / `Sandbox.create` drop the follow-up `GET`.** The
+  synchronous `POST /v1/sandboxes` already returns the operational view, so
+  the handle is built from the create response alone — removing a full
+  round-trip per create. The `POST` response omits the `SandboxView`-only
+  `status` and `ingress_enabled`; the SDK seeds them from what the
+  synchronous create guarantees (`status: "running"`) and from the request
+  (`ingress_enabled`). This reverses 0.6.1's "never fabricated client-side"
+  note for those two fields — every other field still comes straight from
+  the server. `previewUrl()` and `status` remain usable on the returned
+  handle with no extra call.
+
 ## [0.6.1] — 2026-07-04
 
 Faster sandbox creation and a cleaner create contract.

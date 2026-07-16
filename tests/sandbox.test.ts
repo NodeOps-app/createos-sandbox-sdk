@@ -239,18 +239,15 @@ describe("ingress", () => {
     expect(sandbox.data.ingress_enabled).toBe(true);
   });
 
-  test("previewUrl renders the template from the canonical sandbox view", async () => {
-    // The ingress-enabled running view (fetched by the create GET) carries
-    // ingress_url_template, so the handle reads it straight from #data.
+  test("previewUrl renders the template from the create response", async () => {
+    // The synchronous POST response carries ingress_url_template when the
+    // caller opted into ingress; createSandbox seeds ingress_enabled from the
+    // request, so the handle can render the preview URL with no follow-up GET.
     const client = makeClient((_url, init) =>
       Promise.resolve(
         init.method === "POST"
-          ? success(CREATE_RESPONSE)
-          : success({
-              ...RUNNING_VIEW,
-              ingress_enabled: true,
-              ingress_url_template: "https://<port>-sb_1.box.test",
-            }),
+          ? success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" })
+          : success(RUNNING_VIEW),
       ),
     );
     const sandbox = await client.createSandbox({ shape: "s", ingress_enabled: true });
@@ -259,10 +256,10 @@ describe("ingress", () => {
     expect(sandbox.previewUrl(8080, { scheme: "http" })).toBe("http://8080-sb_1.box.test");
   });
 
-  test("previewUrl falls back to the create-response template when the view lacks it", async () => {
-    // The create response computes ingress_url_template synchronously; if the
-    // GET-fetched view hasn't populated it yet, that value is seeded onto the
-    // handle so previewUrl works immediately.
+  test("previewUrl uses the create-response template even when the create body omits ingress_enabled", async () => {
+    // The create response computes ingress_url_template synchronously but omits
+    // the SandboxView-only ingress_enabled flag; createSandbox seeds that flag
+    // from the request so previewUrl works immediately without a follow-up GET.
     const client = makeClient((_url, init) =>
       Promise.resolve(
         init.method === "POST"
@@ -283,7 +280,7 @@ describe("ingress", () => {
     const client = makeClient((_url, init) =>
       Promise.resolve(
         init.method === "POST"
-          ? success(CREATE_RESPONSE)
+          ? success({ ...CREATE_RESPONSE, ingress_url_template: "https://<port>-sb_1.box.test" })
           : init.method === "PATCH"
             ? success({ ...RUNNING_VIEW, ingress_enabled: false })
             : success({

@@ -6,7 +6,7 @@ import { runtimeTag } from "./runtime.js";
 import type { ClientHooks, CreateosSandboxClientOptions, RetryOptions } from "./types.js";
 
 /** SDK version, stamped into the User-Agent header. Keep in sync with package.json. */
-export const VERSION = "0.6.0";
+export const VERSION = "0.7.0";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
@@ -42,7 +42,8 @@ export interface ResolvedConfig {
   authHeaders: HeadersInit | undefined;
   baseUrl: string;
   fetch: typeof fetch;
-  _customFetch: boolean;
+  /** True when the caller injected a `fetch`; disables undici auto-loading. */
+  customFetch: boolean;
   defaultHeaders: HeadersInit;
   timeoutMs: number;
   retry: Required<RetryOptions> | false;
@@ -62,7 +63,7 @@ export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedCo
   // Bind the global default to globalThis: some runtimes (Cloudflare Workers)
   // throw "Illegal invocation" if fetch is later called with a different `this`.
   // A caller-supplied fetch is used as-is.
-  const _customFetch = options.fetch !== undefined;
+  const customFetch = options.fetch !== undefined;
   const fetchFn = options.fetch ?? globalThis.fetch.bind(globalThis);
   if (typeof fetchFn !== "function") {
     throw new CreateosSandboxError(
@@ -113,7 +114,7 @@ export function resolveConfig(options: CreateosSandboxClientOptions): ResolvedCo
     authHeaders: options.authHeaders,
     baseUrl,
     fetch: fetchFn,
-    _customFetch,
+    customFetch,
     defaultHeaders: options.headers ?? {},
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     retry,

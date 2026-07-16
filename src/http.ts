@@ -70,7 +70,8 @@ export class CreateosSandboxHttp {
   readonly baseUrl: string;
   readonly #config: ResolvedConfig;
   readonly #baseOrigin: string;
-  #undiciReady: Promise<((url: string, init: RequestInit) => Promise<Response>) | null> | null = null;
+  #undiciReady: Promise<((url: string, init: RequestInit) => Promise<Response>) | null> | null =
+    null;
 
   constructor(config: ResolvedConfig) {
     this.#config = config;
@@ -79,7 +80,7 @@ export class CreateosSandboxHttp {
     // Only try to load undici when the caller didn't inject a custom fetch
     // (Cloudflare Workers, browsers, tests). Fire-and-forget: first request
     // may use global fetch; subsequent requests use the pooled H2 agent.
-    if (!config._customFetch) {
+    if (!config.customFetch) {
       this.#undiciReady = this.#loadUndici();
     }
   }
@@ -95,7 +96,10 @@ export class CreateosSandboxHttp {
       });
       // Piggyback warmup: fire a HEAD to the origin so the H2 socket is hot
       // by the time the first real request lands. Best-effort; ignore errors.
-      const uf = undici.fetch as unknown as (url: string, init: RequestInit & { dispatcher?: unknown }) => Promise<Response>;
+      const uf = undici.fetch as unknown as (
+        url: string,
+        init: RequestInit & { dispatcher?: unknown },
+      ) => Promise<Response>;
       uf(`${this.#baseOrigin}/healthz`, { method: "GET", dispatcher }).catch(() => {});
       return (url: string, init: RequestInit) => uf(url, { ...init, dispatcher });
     } catch {
