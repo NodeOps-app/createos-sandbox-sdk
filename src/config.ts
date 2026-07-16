@@ -6,7 +6,7 @@ import { runtimeTag } from "./runtime.js";
 import type { ClientHooks, CreateosSandboxClientOptions, RetryOptions } from "./types.js";
 
 /** SDK version, stamped into the User-Agent header. Keep in sync with package.json. */
-export const VERSION = "0.7.0";
+export const VERSION = "0.7.1";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 
