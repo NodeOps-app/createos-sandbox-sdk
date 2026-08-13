@@ -47,6 +47,14 @@ interface PreparedRequest {
   hookMeta: { url: string; method: string; headers: Record<string, string> } | undefined;
 }
 
+interface NodeTransport {
+  fetch: (url: string, init: RequestInit) => Promise<Response>;
+  prewarm: () => Promise<void>;
+}
+
+const NODE_POOL_CONNECTIONS = 48;
+const sharedNodeTransports = new Map<string, Promise<NodeTransport | null>>();
+
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
 const IDEMPOTENT = new Set(["GET", "HEAD", "PUT", "DELETE"]);
 
@@ -70,8 +78,7 @@ export class CreateosSandboxHttp {
   readonly baseUrl: string;
   readonly #config: ResolvedConfig;
   readonly #baseOrigin: string;
-  #undiciReady: Promise<((url: string, init: RequestInit) => Promise<Response>) | null> | null =
-    null;
+  #undiciReady: Promise<NodeTransport | null> | null = null;
 
   constructor(config: ResolvedConfig) {
     this.#config = config;
@@ -85,26 +92,23 @@ export class CreateosSandboxHttp {
     }
   }
 
-  async #loadUndici(): Promise<((url: string, init: RequestInit) => Promise<Response>) | null> {
-    try {
-      const undici = await import("undici");
-      const dispatcher = new undici.Agent({
-        allowH2: true,
-        connections: 32,
-        keepAliveTimeout: 60_000,
-        keepAliveMaxTimeout: 600_000,
-      });
-      // Piggyback warmup: fire a HEAD to the origin so the H2 socket is hot
-      // by the time the first real request lands. Best-effort; ignore errors.
-      const uf = undici.fetch as unknown as (
-        url: string,
-        init: RequestInit & { dispatcher?: unknown },
-      ) => Promise<Response>;
-      uf(`${this.#baseOrigin}/healthz`, { method: "GET", dispatcher }).catch(() => {});
-      return (url: string, init: RequestInit) => uf(url, { ...init, dispatcher });
-    } catch {
-      return null;
+  #loadUndici(): Promise<NodeTransport | null> {
+    let ready = sharedNodeTransports.get(this.#baseOrigin);
+    if (!ready) {
+      ready = createNodeTransport(this.#baseOrigin);
+      sharedNodeTransports.set(this.#baseOrigin, ready);
     }
+    return ready;
+  }
+
+  /**
+   * Opens the Node transport's connection pool before latency-sensitive work.
+   * No-op when a custom fetch is configured or Undici is unavailable.
+   */
+  async prewarm(): Promise<void> {
+    if (!this.#undiciReady) return;
+    const transport = await this.#undiciReady;
+    await transport?.prewarm();
   }
 
   /**
@@ -459,8 +463,8 @@ export class CreateosSandboxHttp {
       // to the resolved global fetch on browser/CF or before undici loads.
       let doFetch: (url: string, init: RequestInit) => Promise<Response> = this.#config.fetch;
       if (this.#undiciReady) {
-        const uf = await this.#undiciReady;
-        if (uf) doFetch = uf;
+        const transport = await this.#undiciReady;
+        if (transport) doFetch = transport.fetch;
       }
       return await doFetch(prepared.url, init);
     } catch (err) {
@@ -546,6 +550,48 @@ export class CreateosSandboxHttp {
       return base;
     }
     return mergeRetry(perRequest, base || DEFAULT_RETRY);
+  }
+}
+
+async function createNodeTransport(origin: string): Promise<NodeTransport | null> {
+  try {
+    const undici = await import("undici");
+    const dispatcher = new undici.Pool(origin, {
+      allowH2: true,
+      connections: NODE_POOL_CONNECTIONS,
+      pipelining: 1,
+      keepAliveTimeout: 60_000,
+      keepAliveMaxTimeout: 600_000,
+    });
+    const uf = undici.fetch as unknown as (
+      url: string,
+      init: RequestInit & { dispatcher?: unknown },
+    ) => Promise<Response>;
+
+    let prewarmReady: Promise<void> | undefined;
+    const prewarm = (): Promise<void> => {
+      prewarmReady ??= Promise.all(
+        Array.from({ length: NODE_POOL_CONNECTIONS }, async () => {
+          const response = await dispatcher.request({ method: "GET", path: "/healthz" });
+          await response.body.arrayBuffer();
+        }),
+      ).then(() => undefined);
+      return prewarmReady;
+    };
+
+    // Preserve the previous best-effort single-socket warmup for ordinary
+    // callers. Burst-sensitive callers explicitly await client.prewarm().
+    dispatcher
+      .request({ method: "GET", path: "/healthz" })
+      .then((response) => response.body.arrayBuffer())
+      .catch(() => undefined);
+
+    return {
+      fetch: (url: string, init: RequestInit) => uf(url, { ...init, dispatcher }),
+      prewarm,
+    };
+  } catch {
+    return null;
   }
 }
 

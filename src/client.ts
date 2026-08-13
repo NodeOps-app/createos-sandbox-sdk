@@ -444,6 +444,19 @@ export class CreateosSandboxClient {
     return this.http.baseUrl;
   }
 
+  /**
+   * Opens the shared Node.js HTTP connection pool before latency-sensitive
+   * burst work. Await this outside the measured/request-critical path.
+   * No-op in browsers, Workers, or when a custom `fetch` is configured.
+   *
+   * @example
+   * await box.prewarm();
+   * await Promise.all(jobs.map(() => box.createSandbox({ shape: "s-1vcpu-1gb" })));
+   */
+  prewarm(): Promise<void> {
+    return this.http.prewarm();
+  }
+
   // ── health / identity ─────────────────────────────────────────────────
 
   /**

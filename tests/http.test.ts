@@ -187,6 +187,19 @@ describe("retry policy", () => {
   });
 });
 
+describe("transport prewarm", () => {
+  test("is a no-op when the caller supplies a custom fetch", async () => {
+    let calls = 0;
+    const client = makeClient(() => {
+      calls += 1;
+      return Promise.resolve(success(WHOAMI_OK));
+    });
+
+    await client.prewarm();
+    expect(calls).toBe(0);
+  });
+});
+
 describe("parseRetryAfterSeconds", () => {
   test("parses delta-seconds", () => {
     expect(parseRetryAfterSeconds("7")).toBe(7);
