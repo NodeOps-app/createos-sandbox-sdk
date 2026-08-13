@@ -1,13 +1,16 @@
+import * as http from "node:http";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   CreateosSandboxClient,
   CreateosSandboxConnectionError,
   CreateosSandboxError,
+  CreateosSandboxHttp,
   CreateosSandboxRateLimitError,
   CreateosSandboxServerError,
   CreateosSandboxTimeoutError,
   VERSION,
 } from "../src/index.ts";
+import { resolveConfig } from "../src/config.ts";
 import { parseRetryAfterSeconds } from "../src/errors.ts";
 import {
   BASE,
@@ -197,6 +200,50 @@ describe("transport prewarm", () => {
 
     await client.prewarm();
     expect(calls).toBe(0);
+  });
+});
+
+describe("node transport (real server, no injected fetch)", () => {
+  let server: http.Server;
+  let origin: string;
+
+  beforeEach(async () => {
+    server = http.createServer((req, res) => {
+      if (req.url === "/echo") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ status: "success", data: { ok: true, method: req.method } }));
+        return;
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("server has no port");
+    origin = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  test("GET falls back to the global fetch when the Node pool fails to initialize", async () => {
+    const client = new CreateosSandboxHttp(resolveConfig({ baseUrl: origin, apiKey: "sk" }));
+    const data = await client.request<{ ok: boolean; method: string }>("GET", "/echo");
+    expect(data).toEqual({ ok: true, method: "GET" });
+  });
+
+  test("POST with a JSON body falls back to the global fetch", async () => {
+    const client = new CreateosSandboxHttp(resolveConfig({ baseUrl: origin, apiKey: "sk" }));
+    const data = await client.request<{ ok: boolean; method: string }>("POST", "/echo", {
+      body: { hello: "world" },
+    });
+    expect(data).toEqual({ ok: true, method: "POST" });
+  });
+
+  test("prewarm resolves without effect when the pool never initialized", async () => {
+    const client = new CreateosSandboxHttp(resolveConfig({ baseUrl: origin, apiKey: "sk" }));
+    await expect(client.prewarm()).resolves.toBeUndefined();
   });
 });
 

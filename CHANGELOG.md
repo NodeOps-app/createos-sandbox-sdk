@@ -18,6 +18,31 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-08-13
+
+### Changed
+
+- **Node transport prefers a direct `node:http2` session over the pooled
+  `undici` fetch**, falling back to the `undici` pool when the request body
+  isn't a buffered `string` / `Uint8Array` (or when `node:http2` /
+  `undici` fail to load).
+
+### Known issues
+
+- The Node connection pool (and therefore `prewarm()` and this release's
+  direct `node:http2` transport) does not currently activate — a
+  callback-less `dispatcher.request()` call in pool setup throws and is
+  silently swallowed, so every request has always fallen back to the
+  plain global/injected `fetch` since 0.7.0, including this release.
+  Harmless to callers (requests still succeed) but the pooling/prewarm
+  optimization is currently a no-op. Tracked in
+  [#37](https://github.com/NodeOps-app/createos-sandbox-sdk/issues/37).
+- Once #37 is fixed and the pool actually activates, the direct
+  `node:http2` transport buffers the full response before resolving,
+  breaking live/incremental NDJSON streaming (`streamCommand`, log
+  tailing). Tracked in
+  [#36](https://github.com/NodeOps-app/createos-sandbox-sdk/issues/36).
+
 ## [0.8.0] — 2026-08-13
 
 A shared Node connection pool and an explicit prewarm hook for burst work.

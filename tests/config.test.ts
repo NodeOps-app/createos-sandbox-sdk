@@ -56,7 +56,7 @@ describe("resolveConfig — sources and precedence", () => {
 
   test("default user-agent embeds the package VERSION", () => {
     const cfg = resolveConfig({ baseUrl: "https://api.test", fetch: fetchStub });
-    expect(VERSION).toBe("0.8.0");
+    expect(VERSION).toBe("0.8.1");
     expect(cfg.userAgent.startsWith(`createos-sandbox-sdk/${VERSION} `)).toBe(true);
   });
 });
