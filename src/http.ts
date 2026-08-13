@@ -52,7 +52,6 @@ interface NodeTransport {
   prewarm: () => Promise<void>;
 }
 
-const NODE_POOL_CONNECTIONS = 48;
 const sharedNodeTransports = new Map<string, Promise<NodeTransport | null>>();
 
 /** Methods safe to retry on network errors and ambiguous 5xx statuses. */
@@ -556,9 +555,10 @@ export class CreateosSandboxHttp {
 async function createNodeTransport(origin: string): Promise<NodeTransport | null> {
   try {
     const undici = await import("undici");
+    const http2 = await import("node:http2");
     const dispatcher = new undici.Pool(origin, {
       allowH2: true,
-      connections: NODE_POOL_CONNECTIONS,
+      connections: 48,
       pipelining: 1,
       keepAliveTimeout: 60_000,
       keepAliveMaxTimeout: 600_000,
@@ -568,26 +568,90 @@ async function createNodeTransport(origin: string): Promise<NodeTransport | null
       init: RequestInit & { dispatcher?: unknown },
     ) => Promise<Response>;
 
+    let session: import("node:http2").ClientHttp2Session | undefined;
+    let sessionReady: Promise<import("node:http2").ClientHttp2Session> | undefined;
+    const getSession = (): Promise<import("node:http2").ClientHttp2Session> => {
+      if (session && !session.closed && !session.destroyed) return Promise.resolve(session);
+      sessionReady ??= new Promise((resolve, reject) => {
+        const next = http2.connect(origin);
+        const fail = (error: Error): void => {
+          sessionReady = undefined;
+          reject(error);
+        };
+        next.once("error", fail);
+        next.once("connect", () => {
+          next.off("error", fail);
+          next.on("error", () => {
+            if (session === next) session = undefined;
+          });
+          next.once("close", () => {
+            if (session === next) session = undefined;
+            sessionReady = undefined;
+          });
+          session = next;
+          resolve(next);
+        });
+      });
+      return sessionReady;
+    };
+    const h2Fetch = async (url: string, init: RequestInit): Promise<Response> => {
+      const target = new URL(url);
+      const active = await getSession();
+      return new Promise<Response>((resolve, reject) => {
+        const headers: Record<string, string> = {
+          ":method": init.method ?? "GET",
+          ":path": `${target.pathname}${target.search}`,
+          ":authority": target.host,
+        };
+        new Headers(init.headers).forEach((value, name) => {
+          if (name !== "connection" && name !== "host") headers[name] = value;
+        });
+        const req = active.request(headers);
+        const chunks: Uint8Array[] = [];
+        let status = 0;
+        let responseHeaders: Headers | undefined;
+        req.on("response", (incoming) => {
+          status = Number(incoming[":status"] ?? 0);
+          responseHeaders = new Headers();
+          for (const [name, value] of Object.entries(incoming)) {
+            if (!name.startsWith(":") && value !== undefined) {
+              responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+            }
+          }
+        });
+        req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+        req.once("error", reject);
+        req.once("end", () =>
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status,
+              ...(responseHeaders ? { headers: responseHeaders } : {}),
+            }),
+          ),
+        );
+        const body = init.body;
+        if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
+        else if (body == null) req.end();
+        else {
+          req.close();
+          reject(new TypeError("HTTP/2 transport requires a buffered request body"));
+        }
+      });
+    };
+
     let prewarmReady: Promise<void> | undefined;
     const prewarm = (): Promise<void> => {
-      prewarmReady ??= Promise.all(
-        Array.from({ length: NODE_POOL_CONNECTIONS }, async () => {
-          const response = await dispatcher.request({ method: "GET", path: "/healthz" });
-          await response.body.arrayBuffer();
-        }),
-      ).then(() => undefined);
+      prewarmReady ??= getSession().then(() => undefined);
       return prewarmReady;
     };
 
-    // Preserve the previous best-effort single-socket warmup for ordinary
-    // callers. Burst-sensitive callers explicitly await client.prewarm().
+    // Preserve the best-effort single-socket warmup for ordinary callers.
     dispatcher
       .request({ method: "GET", path: "/healthz" })
       .then((response) => response.body.arrayBuffer())
       .catch(() => undefined);
-
     return {
-      fetch: (url: string, init: RequestInit) => uf(url, { ...init, dispatcher }),
+      fetch: (url: string, init: RequestInit) => h2Fetch(url, init).catch(() => uf(url, { ...init, dispatcher })),
       prewarm,
     };
   } catch {
