@@ -18,6 +18,28 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-13
+
+A shared Node connection pool and an explicit prewarm hook for burst work.
+
+### Added
+
+- **`CreateosSandboxClient.prewarm()`.** Opens the Node transport's H2
+  connection pool ahead of latency-sensitive burst work — await it outside
+  the request-critical path, e.g. before firing a batch of concurrent
+  `createSandbox` calls. No-op in browsers, Workers, or when a custom
+  `fetch` is configured.
+
+### Changed
+
+- **Node transport is now a shared pool keyed by origin**, not a fresh
+  `undici.Agent` per `CreateosSandboxClient` instance. Multiple clients
+  against the same base URL reuse one `undici.Pool` (48 connections, up
+  from 32), so creating several clients no longer multiplies open
+  sockets. The best-effort single-socket warm-up on first use is
+  unchanged; `prewarm()` is additive for callers that want the whole
+  pool hot upfront.
+
 ## [0.7.0] — 2026-07-16
 
 HTTP/2 connection pooling, a leaner create round-trip, and an in-sandbox
