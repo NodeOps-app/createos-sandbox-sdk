@@ -21,6 +21,7 @@
 import {
   CreateosSandboxClient,
   CreateosSandboxNotFoundError,
+  pollUntil,
   type Sandbox,
 } from "createos-sandbox-sdk";
 
@@ -198,9 +199,15 @@ async function transcodeOne(inputKey: string): Promise<void> {
     await sandbox.detachDisk({ diskId: DISK_ID, mountPath: MOUNT });
     detached = true;
 
-    // real e2e proof: the object exists in S3 with a non-zero size
+    // real e2e proof: the object exists in S3 with a non-zero size — poll
+    // briefly, since the s3fs write-back can lag a moment past unmount.
     const f = s3.file(outputKey);
-    if (!(await f.exists())) throw new Error(`output ${outputKey} not found in S3 after transcode`);
+    const exists = await pollUntil({
+      poll: () => f.exists(),
+      done: (v) => v,
+      timeoutMs: 15_000,
+    }).catch(() => false);
+    if (!exists) throw new Error(`output ${outputKey} not found in S3 after transcode`);
     const stat = await f.stat();
     if (!stat.size) throw new Error(`output ${outputKey} is empty in S3`);
     console.log(`  [verify] s3://${S3.bucket}/${outputKey} present (${stat.size} bytes)`);
