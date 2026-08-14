@@ -173,7 +173,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y python3 python3-venv python3-pip
 
-      # example 38 mounts an S3 bucket; play.min.io purges buckets periodically.
+      # example 38 mounts an S3 bucket; ensure it exists before the run.
       - name: Ensure S3 bucket (example 38)
         if: startsWith(matrix.example, '38-')
         run: |
@@ -181,6 +181,10 @@ jobs:
           chmod +x /tmp/mc
           /tmp/mc alias set ci "$S3_ENDPOINT" "$S3_ACCESS_KEY" "$S3_SECRET_KEY"
           /tmp/mc mb --ignore-existing "ci/$S3_BUCKET"
+          # Tigris is eventually consistent right after bucket creation; poll
+          # until the bucket is visible so the example's first PutObject
+          # doesn't race a NoSuchBucket.
+          for i in $(seq 1 10); do /tmp/mc stat "ci/$S3_BUCKET" >/dev/null 2>&1 && break; sleep 1; done
 
       - name: Run example ${{ matrix.example }}
         env:
@@ -195,7 +199,7 @@ jobs:
           else
             echo "## ❌ $EXAMPLE failed (rc=$rc)" >> "$GITHUB_STEP_SUMMARY"
             # Example failures are advisory: flaky external deps (LLM APIs,
-            # sandbox quota/429s, play.min.io bucket purges) shouldn't red the
+            # sandbox quota/429s) shouldn't red the
             # run. Surface as a warning (full log is already in the job output),
             # but exit 0 so the matrix stays green.
             echo "::warning::example $EXAMPLE failed (rc=$rc)"
