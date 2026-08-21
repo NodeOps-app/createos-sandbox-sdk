@@ -42,6 +42,23 @@ Two more endpoints are interactive PTYs, neither modeled yet:
 `Sandbox.sh()` is a `bash -lc` convenience over `/exec`; it is **not** the
 PTY shell above.
 
+The managed-process resource landed upstream after the 0.6.0 checkpoint and
+is **not modeled yet**. It supersedes both PTY routes above for a fetch-only
+transport, because it is a plain-JSON resource plus one NDJSON stream — the
+same shape the SDK already handles for streaming `/exec`, so a coverage gap
+rather than a transport blocker:
+
+- `POST` / `GET /v1/sandboxes/:id/processes` — create (pipe-backed, or
+  PTY-backed when `pty: {rows, cols}` is present) and list.
+- `GET` / `DELETE /v1/sandboxes/:id/processes/:process_id` — inspect, and
+  terminate the whole process tree (`?grace_ms=`).
+- `GET /v1/sandboxes/:id/processes/:process_id/connect?after=N` — NDJSON
+  output stream, replayable from a sequence number. A client disconnect does
+  not kill the process, which is what makes this modelable over `fetch`
+  where `/shell` is not.
+- `POST .../input`, `.../stdin/close`, `.../resize`, `.../signal` and
+  `GET .../wait?scope=leader|tree` — plain-JSON control operations.
+
 Three read-only metrics endpoints landed upstream after the 0.6.0
 checkpoint (`3c3f4b5`) and are **not modeled yet** — plain-JSON GETs, so a
 coverage gap rather than a transport blocker:
