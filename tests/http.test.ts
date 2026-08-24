@@ -1,5 +1,6 @@
 import * as http from "node:http";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { EventEmitter } from "node:events";
 import {
   CreateosSandboxClient,
   CreateosSandboxConnectionError,
@@ -12,6 +13,7 @@ import {
 } from "../src/index.ts";
 import { resolveConfig } from "../src/config.ts";
 import { parseRetryAfterSeconds } from "../src/errors.ts";
+import { createNodeTransportFromModules } from "../src/http.ts";
 import {
   BASE,
   catchErr,
@@ -25,6 +27,54 @@ import {
 } from "./helpers.ts";
 
 const WHOAMI_OK = { user_id: "u", stats: { running: 0, paused: 0, other: 0, total: 0 } };
+
+class FakeHttp2Request extends EventEmitter {
+  readonly #fail: boolean;
+  closed = false;
+  sentBody: string | Uint8Array | undefined;
+
+  constructor(fail: boolean) {
+    super();
+    this.#fail = fail;
+  }
+
+  end(body?: string | Uint8Array): void {
+    this.sentBody = body;
+    queueMicrotask(() => {
+      if (this.#fail) {
+        this.emit("error", new Error("direct transport failed"));
+        return;
+      }
+      this.emit("response", {
+        ":status": 200,
+        "content-type": "text/plain",
+        "x-parts": ["a", "b"],
+      });
+      this.emit("data", new TextEncoder().encode("direct"));
+      this.emit("end");
+    });
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+}
+
+class FakeHttp2Session extends EventEmitter {
+  closed = false;
+  destroyed = false;
+  failNext = false;
+  requests: FakeHttp2Request[] = [];
+  lastHeaders: Record<string, string> | undefined;
+
+  request(headers: Record<string, string>): FakeHttp2Request {
+    this.lastHeaders = headers;
+    const request = new FakeHttp2Request(this.failNext);
+    this.failNext = false;
+    this.requests.push(request);
+    return request;
+  }
+}
 
 /** A CreateSandboxResponse-shaped body for tests that POST /v1/sandboxes. */
 function createSandboxBody(): Record<string, unknown> {
@@ -200,6 +250,109 @@ describe("transport prewarm", () => {
 
     await client.prewarm();
     expect(calls).toBe(0);
+  });
+
+  test("keeps streaming on Undici while buffered requests use direct HTTP/2", async () => {
+    const sessions: FakeHttp2Session[] = [];
+    const pools: FakePool[] = [];
+    class FakePool {
+      constructor() {
+        pools.push(this);
+      }
+
+      request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
+        return Promise.resolve({
+          body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+        });
+      }
+    }
+    const undiciResponses: Response[] = [];
+    const undiciModule = {
+      Pool: FakePool,
+      fetch: (_url: string, init: RequestInit & { dispatcher?: unknown }) => {
+        expect(init.dispatcher).toBe(pools[0]);
+        const response = ndjsonResponse(streamOf('{"live":true}\n'));
+        undiciResponses.push(response);
+        return Promise.resolve(response);
+      },
+    } as unknown as typeof import("undici");
+    const http2Module = {
+      connect: () => {
+        const session = new FakeHttp2Session();
+        sessions.push(session);
+        queueMicrotask(() => session.emit("connect"));
+        return session;
+      },
+    } as unknown as typeof import("node:http2");
+    const transport = createNodeTransportFromModules(BASE, undiciModule, http2Module);
+
+    await transport.prewarm();
+    await transport.prewarm();
+    expect(sessions).toHaveLength(1);
+
+    const direct = await transport.fetch(`${BASE}/v1/whoami?q=1`, {
+      method: "POST",
+      headers: { connection: "close", host: "wrong.test", "x-test": "yes" },
+      body: "payload",
+    });
+    expect(await direct.text()).toBe("direct");
+    expect(direct.headers.get("x-parts")).toBe("a,b");
+    expect(sessions[0]?.lastHeaders).toMatchObject({
+      ":method": "POST",
+      ":path": "/v1/whoami?q=1",
+      ":authority": "example.test",
+      "x-test": "yes",
+    });
+    expect(sessions[0]?.lastHeaders?.connection).toBeUndefined();
+    expect(sessions[0]?.lastHeaders?.host).toBeUndefined();
+    expect(sessions[0]?.requests[0]?.sentBody).toBe("payload");
+
+    const streamed = await transport.streamFetch(`${BASE}/v1/stream`, { method: "GET" });
+    expect(streamed).toBe(undiciResponses[0]!);
+    expect(undiciResponses).toHaveLength(1);
+
+    sessions[0]!.failNext = true;
+    const fallback = await transport.fetch(`${BASE}/v1/fallback`, { method: "GET" });
+    expect(fallback).toBe(undiciResponses[1]!);
+    expect(undiciResponses).toHaveLength(2);
+
+    sessions[0]!.emit("error", new Error("session failed"));
+    expect(await (await transport.fetch(`${BASE}/v1/reconnected`, { method: "GET" })).text()).toBe(
+      "direct",
+    );
+    expect(sessions).toHaveLength(2);
+
+    sessions[1]!.emit("close");
+    expect(await (await transport.fetch(`${BASE}/v1/reopened`, { method: "GET" })).text()).toBe(
+      "direct",
+    );
+    expect(sessions).toHaveLength(3);
+  });
+
+  test("falls back when the direct HTTP/2 session cannot connect", async () => {
+    class FakePool {
+      request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
+        return Promise.resolve({
+          body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+        });
+      }
+    }
+    const undiciModule = {
+      Pool: FakePool,
+      fetch: () => Promise.resolve(new Response("fallback")),
+    } as unknown as typeof import("undici");
+    const http2Module = {
+      connect: () => {
+        const session = new FakeHttp2Session();
+        queueMicrotask(() => session.emit("error", new Error("connect failed")));
+        return session;
+      },
+    } as unknown as typeof import("node:http2");
+    const transport = createNodeTransportFromModules(BASE, undiciModule, http2Module);
+
+    expect(await (await transport.fetch(`${BASE}/v1/fallback`, { method: "GET" })).text()).toBe(
+      "fallback",
+    );
   });
 });
 
@@ -625,5 +778,24 @@ describe("observability hooks", () => {
     }
     expect(events).toEqual(["req", "res"]);
     expect(out).toEqual([{ v: 1 }]);
+  });
+
+  test("stream yields an NDJSON event before the response body closes", async () => {
+    const encoder = new TextEncoder();
+    let bodyController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        bodyController = controller;
+      },
+    });
+    const client = makeClient(() => Promise.resolve(ndjsonResponse(body)), { retry: false });
+    const iterator = client.http.stream<{ step: number }>("GET", "/v1/stream");
+
+    const firstEvent = iterator.next();
+    bodyController?.enqueue(encoder.encode('{"step":1}\n'));
+
+    await expect(firstEvent).resolves.toEqual({ done: false, value: { step: 1 } });
+    bodyController?.close();
+    await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
   });
 });
