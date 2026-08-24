@@ -49,6 +49,7 @@ interface PreparedRequest {
 
 interface NodeTransport {
   fetch: (url: string, init: RequestInit) => Promise<Response>;
+  streamFetch: (url: string, init: RequestInit) => Promise<Response>;
   prewarm: () => Promise<void>;
 }
 
@@ -377,7 +378,7 @@ export class CreateosSandboxHttp {
     const hookMeta = prepared.hookMeta;
     await this.#fireRequestHook(hookMeta, 0);
     const startMs = performance.now();
-    const response = await this.#dispatch(prepared, options);
+    const response = await this.#dispatch(prepared, options, true);
     await this.#fireResponseHook(hookMeta, 0, startMs, response);
     if (!response.ok) {
       await this.throwForResponse(response, prepared.method, prepared.path);
@@ -429,7 +430,11 @@ export class CreateosSandboxHttp {
    * here — keeping the `catch` below free to classify only network /
    * timeout failures.
    */
-  async #dispatch(prepared: PreparedRequest, options: HttpRequestOptions): Promise<Response> {
+  async #dispatch(
+    prepared: PreparedRequest,
+    options: HttpRequestOptions,
+    streaming = false,
+  ): Promise<Response> {
     const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
     const init: RequestInit & { duplex?: "half" } = {
       method: prepared.method,
@@ -463,7 +468,7 @@ export class CreateosSandboxHttp {
       let doFetch: (url: string, init: RequestInit) => Promise<Response> = this.#config.fetch;
       if (this.#undiciReady) {
         const transport = await this.#undiciReady;
-        if (transport) doFetch = transport.fetch;
+        if (transport) doFetch = streaming ? transport.streamFetch : transport.fetch;
       }
       return await doFetch(prepared.url, init);
     } catch (err) {
@@ -556,107 +561,124 @@ async function createNodeTransport(origin: string): Promise<NodeTransport | null
   try {
     const undici = await import("undici");
     const http2 = await import("node:http2");
-    const dispatcher = new undici.Pool(origin, {
-      allowH2: true,
-      connections: 48,
-      pipelining: 1,
-      keepAliveTimeout: 60_000,
-      keepAliveMaxTimeout: 600_000,
-    });
-    const uf = undici.fetch as unknown as (
-      url: string,
-      init: RequestInit & { dispatcher?: unknown },
-    ) => Promise<Response>;
-
-    let session: import("node:http2").ClientHttp2Session | undefined;
-    let sessionReady: Promise<import("node:http2").ClientHttp2Session> | undefined;
-    const getSession = (): Promise<import("node:http2").ClientHttp2Session> => {
-      if (session && !session.closed && !session.destroyed) return Promise.resolve(session);
-      sessionReady ??= new Promise((resolve, reject) => {
-        const next = http2.connect(origin);
-        const fail = (error: Error): void => {
-          sessionReady = undefined;
-          reject(error);
-        };
-        next.once("error", fail);
-        next.once("connect", () => {
-          next.off("error", fail);
-          next.on("error", () => {
-            if (session === next) session = undefined;
-          });
-          next.once("close", () => {
-            if (session === next) session = undefined;
-            sessionReady = undefined;
-          });
-          session = next;
-          resolve(next);
-        });
-      });
-      return sessionReady;
-    };
-    const h2Fetch = async (url: string, init: RequestInit): Promise<Response> => {
-      const target = new URL(url);
-      const active = await getSession();
-      return new Promise<Response>((resolve, reject) => {
-        const headers: Record<string, string> = {
-          ":method": init.method ?? "GET",
-          ":path": `${target.pathname}${target.search}`,
-          ":authority": target.host,
-        };
-        new Headers(init.headers).forEach((value, name) => {
-          if (name !== "connection" && name !== "host") headers[name] = value;
-        });
-        const req = active.request(headers);
-        const chunks: Uint8Array[] = [];
-        let status = 0;
-        let responseHeaders: Headers | undefined;
-        req.on("response", (incoming) => {
-          status = Number(incoming[":status"] ?? 0);
-          responseHeaders = new Headers();
-          for (const [name, value] of Object.entries(incoming)) {
-            if (!name.startsWith(":") && value !== undefined) {
-              responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
-            }
-          }
-        });
-        req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-        req.once("error", reject);
-        req.once("end", () =>
-          resolve(
-            new Response(Buffer.concat(chunks), {
-              status,
-              ...(responseHeaders ? { headers: responseHeaders } : {}),
-            }),
-          ),
-        );
-        const body = init.body;
-        if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
-        else if (body == null) req.end();
-        else {
-          req.close();
-          reject(new TypeError("HTTP/2 transport requires a buffered request body"));
-        }
-      });
-    };
-
-    let prewarmReady: Promise<void> | undefined;
-    const prewarm = (): Promise<void> => {
-      prewarmReady ??= getSession().then(() => undefined);
-      return prewarmReady;
-    };
-
-    // Preserve the best-effort single-socket warmup for ordinary callers.
-    dispatcher
-      .request({ method: "GET", path: "/healthz" })
-      .then((response) => response.body.arrayBuffer())
-      .catch(() => undefined);
-    return {
-      fetch: (url: string, init: RequestInit) => h2Fetch(url, init).catch(() => uf(url, { ...init, dispatcher })),
-      prewarm,
-    };
+    return createNodeTransportFromModules(origin, undici, http2);
   } catch {
     return null;
   }
+}
+
+/** @internal Dependency-injected Node transport factory for focused tests. */
+export function createNodeTransportFromModules(
+  origin: string,
+  undici: typeof import("undici"),
+  http2: typeof import("node:http2"),
+): NodeTransport {
+  const dispatcher = new undici.Pool(origin, {
+    allowH2: true,
+    connections: 48,
+    pipelining: 1,
+    keepAliveTimeout: 60_000,
+    keepAliveMaxTimeout: 600_000,
+  });
+  const uf = undici.fetch as unknown as (
+    url: string,
+    init: RequestInit & { dispatcher?: unknown },
+  ) => Promise<Response>;
+
+  let session: import("node:http2").ClientHttp2Session | undefined;
+  let sessionReady: Promise<import("node:http2").ClientHttp2Session> | undefined;
+  const getSession = (): Promise<import("node:http2").ClientHttp2Session> => {
+    if (session && !session.closed && !session.destroyed) return Promise.resolve(session);
+    sessionReady ??= new Promise((resolve, reject) => {
+      const next = http2.connect(origin);
+      const fail = (error: Error): void => {
+        sessionReady = undefined;
+        reject(error);
+      };
+      next.once("error", fail);
+      next.once("connect", () => {
+        next.off("error", fail);
+        next.on("error", () => {
+          if (session === next) {
+            session = undefined;
+            sessionReady = undefined;
+          }
+        });
+        next.once("close", () => {
+          if (session === next) session = undefined;
+          sessionReady = undefined;
+        });
+        session = next;
+        resolve(next);
+      });
+    });
+    return sessionReady;
+  };
+  const h2Fetch = async (url: string, init: RequestInit): Promise<Response> => {
+    const target = new URL(url);
+    const active = await getSession();
+    return new Promise<Response>((resolve, reject) => {
+      const headers: Record<string, string> = {
+        ":method": init.method ?? "GET",
+        ":path": `${target.pathname}${target.search}`,
+        ":authority": target.host,
+      };
+      new Headers(init.headers).forEach((value, name) => {
+        if (name !== "connection" && name !== "host") headers[name] = value;
+      });
+      const req = active.request(headers);
+      const chunks: Uint8Array[] = [];
+      let status = 0;
+      let responseHeaders: Headers | undefined;
+      req.on("response", (incoming) => {
+        status = Number(incoming[":status"] ?? 0);
+        responseHeaders = new Headers();
+        for (const [name, value] of Object.entries(incoming)) {
+          if (!name.startsWith(":") && value !== undefined) {
+            responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+          }
+        }
+      });
+      req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+      req.once("error", reject);
+      req.once("end", () =>
+        resolve(
+          new Response(Buffer.concat(chunks), {
+            status,
+            ...(responseHeaders ? { headers: responseHeaders } : {}),
+          }),
+        ),
+      );
+      const body = init.body;
+      if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
+      else if (body == null) req.end();
+      else {
+        req.close();
+        reject(new TypeError("HTTP/2 transport requires a buffered request body"));
+      }
+    });
+  };
+
+  let prewarmReady: Promise<void> | undefined;
+  const prewarm = (): Promise<void> => {
+    prewarmReady ??= getSession().then(() => undefined);
+    return prewarmReady;
+  };
+
+  // Preserve the best-effort single-socket warmup for ordinary callers.
+  dispatcher
+    .request({ method: "GET", path: "/healthz" })
+    .then((response) => response.body.arrayBuffer())
+    .catch(() => undefined);
+  return {
+    fetch: (url: string, init: RequestInit) =>
+      h2Fetch(url, init).catch(() => uf(url, { ...init, dispatcher })),
+    // Undici exposes response bodies as live ReadableStreams. Keep streams
+    // off the direct transport until it can preserve incremental delivery,
+    // cancellation and backpressure without buffering the entire response.
+    streamFetch: (url: string, init: RequestInit) => uf(url, { ...init, dispatcher }),
+    prewarm,
+  };
 }
 
 export function encodePath(value: string): string {
