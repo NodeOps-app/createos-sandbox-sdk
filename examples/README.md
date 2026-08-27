@@ -79,6 +79,7 @@ bun 01-hello-world/index.ts
 | 53 | [53-anchor-browser-scrape](53-anchor-browser-scrape/) | Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox. | createSandbox, runCommand, files.upload, destroy | extra |
 | 54 | [54-managed-process-lifecycle](54-managed-process-lifecycle/) | Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees. | createSandbox, processes.create, processes.list, processes.connect, processes.input, processes.wait, processes.delete, destroy | extra |
 | 55 | [55-desktop-vnc-connect](55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | createSandbox, computer.screen, computer.screens.list, computer.screens.get, computer.screenshot, computer.mouse.move, computer.cursor, computer.setClipboard, computer.clipboard, computer.open, computer.screens.connect, destroy | extra |
+| 56 | [56-remote-code-execution](56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | createSandbox, files.upload, runCommand, destroy | extra |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -103,6 +104,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **53 anchor-browser-scrape** — **needs extra setup** — Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key.
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
+- **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
 
 <!-- END GENERATED: examples -->
 

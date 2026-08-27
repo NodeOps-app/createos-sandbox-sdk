@@ -112,6 +112,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [53-anchor-browser-scrape](examples/53-anchor-browser-scrape/) — Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.
 - [54-managed-process-lifecycle](examples/54-managed-process-lifecycle/) — Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
+- [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

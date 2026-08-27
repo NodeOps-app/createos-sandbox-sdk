@@ -861,9 +861,10 @@ export class Sandbox {
     args: string[] = [],
     options: ExecOptions = {},
   ): Promise<ExecResponse> {
+    const { stdin, env, ...requestOptions } = options;
     return this.#http.request<ExecResponse>("POST", this.#path("/exec"), {
-      ...options,
-      body: { cmd, args },
+      ...requestOptions,
+      body: { cmd, args, stdin, env },
     });
   }
 
@@ -889,10 +890,11 @@ export class Sandbox {
     args: string[] = [],
     options: ExecOptions = {},
   ): AsyncGenerator<ExecStreamEvent> {
+    const { stdin, env, ...requestOptions } = options;
     const frames = this.#http.stream<ExecStreamFrame>("POST", this.#path("/exec"), {
-      ...options,
+      ...requestOptions,
       query: { stream: true },
-      body: { cmd, args, stream: true },
+      body: { cmd, args, stdin, env, stream: true },
     });
     for await (const frame of frames) {
       if (frame.hb) {
@@ -917,8 +919,8 @@ export class Sandbox {
    * @param script - Shell script passed to `bash -lc`; pipes, redirection,
    *   globbing and `&&` chains all work.
    * @param options - `label` tags the thrown error; any other
-   *   {@link ExecOptions} (`timeoutMs`, `signal`, `headers`, `retry`) pass
-   *   through to the underlying exec.
+   *   {@link ExecOptions} (`timeoutMs`, `signal`, `headers`, `retry`,
+   *   `stdin`, `env`) pass through to the underlying exec.
    *
    * @throws {CreateosSandboxError} when the command exits non-zero or the agent reports a
    *   start failure.
