@@ -34,6 +34,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 49 | [49-egress-locked-agent-worker](../examples/49-egress-locked-agent-worker/) | Back a Claude Managed Agent with a persistent sandbox whose egress is locked to an allowlist — tool calls reach a co-located private service but cannot exfiltrate to the public internet. | extra setup |
 | 50 | [50-cloud-agent-sandbox-tool](../examples/50-cloud-agent-sandbox-tool/) | Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls. | extra setup |
 | 51 | [51-cloud-agent-sandbox-per-call](../examples/51-cloud-agent-sandbox-per-call/) | Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns. | extra setup |
+| 53 | [53-anchor-browser-scrape](../examples/53-anchor-browser-scrape/) | Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox. | extra setup |
 
 ## Dev servers & preview URLs
 
@@ -97,6 +98,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **50 cloud-agent-sandbox-tool** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
 - **51 cloud-agent-sandbox-per-call** — **needs extra setup** — Needs Anthropic managed-agents access (organization key only — no environment key).
 - **52 self-signal-pause-delete** — **needs extra setup** — The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published.
+- **53 anchor-browser-scrape** — **needs extra setup** — Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key.
 
 ## See also
 
