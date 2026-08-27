@@ -951,6 +951,29 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key."
+    },
+    {
+      "id": "54",
+      "slug": "managed-process-lifecycle",
+      "dir": "54-managed-process-lifecycle",
+      "title": "Managed process lifecycle",
+      "summary": "Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.",
+      "primitives": [
+        "createSandbox",
+        "processes.create",
+        "processes.list",
+        "processes.connect",
+        "processes.input",
+        "processes.wait",
+        "processes.delete",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs a control plane with managed process API support."
     }
   ]
 }

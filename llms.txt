@@ -110,6 +110,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [51-cloud-agent-sandbox-per-call](examples/51-cloud-agent-sandbox-per-call/) — Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns.
 - [52-self-signal-pause-delete](examples/52-self-signal-pause-delete/) — A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside.
 - [53-anchor-browser-scrape](examples/53-anchor-browser-scrape/) — Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.
+- [54-managed-process-lifecycle](examples/54-managed-process-lifecycle/) — Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights
