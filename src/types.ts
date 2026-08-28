@@ -451,6 +451,132 @@ export interface ExecStreamFrame {
 /** Per-call options for `Sandbox.runCommand` / `Sandbox.streamCommand`. */
 export type ExecOptions = RequestOptions;
 
+// ── Managed processes / PTYs ────────────────────────────────────────────
+
+/** Managed process kind. Pipe processes preserve stdout/stderr separately; PTYs combine output. */
+export type ManagedProcessKind = "process" | "pty";
+
+/** Managed process lifecycle state. */
+export type ManagedProcessState = "starting" | "running" | "terminating" | "exited" | "failed";
+
+/** Signal accepted by the managed process API. */
+export type ManagedProcessSignal =
+  | "SIGHUP"
+  | "SIGINT"
+  | "SIGQUIT"
+  | "SIGKILL"
+  | "SIGTERM"
+  | "SIGUSR1"
+  | "SIGUSR2"
+  | "SIGWINCH";
+
+/** Terminal dimensions for PTY-backed processes. */
+export interface PtySize {
+  rows?: number;
+  cols?: number;
+}
+
+/** Body of `POST /v1/sandboxes/:id/processes`. */
+export interface ManagedProcessCreateRequest {
+  /** Executable to run. Omit with `pty` to start the default shell. */
+  cmd?: string;
+  /** Arguments passed to `cmd`. */
+  args?: string[];
+  /** Working directory inside the sandbox. */
+  cwd?: string;
+  /** Per-process environment overrides allowed by the sandbox. */
+  env?: Record<string, string>;
+  /** Present to allocate a PTY instead of a pipe process. */
+  pty?: PtySize;
+}
+
+/** Retained output window for a managed process. */
+export interface ManagedProcessOutputWindow {
+  oldest_seq: number;
+  newest_seq: number;
+  bytes: number;
+}
+
+/** Foreground command observed inside a PTY. */
+export interface ManagedProcessForeground {
+  pid?: number;
+  cmd: string;
+  args?: string[];
+}
+
+/** Managed process projection returned by process endpoints. */
+export interface ManagedProcess {
+  process_id: string;
+  kind: ManagedProcessKind;
+  pid: number;
+  state: ManagedProcessState;
+  leader_exited: boolean;
+  tree_exited: boolean;
+  created_at: string;
+  finished_at?: string | null;
+  exit_code?: number | null;
+  signal?: string | null;
+  cmd?: string;
+  args?: string[];
+  cwd?: string;
+  foreground?: ManagedProcessForeground;
+  output: ManagedProcessOutputWindow;
+}
+
+/** Result of listing managed processes in a sandbox. */
+export interface ManagedProcessListResponse {
+  processes: ManagedProcess[];
+}
+
+/** Raw NDJSON frame from managed process `/connect`. */
+export type ManagedProcessConnectFrame =
+  | { type: "data"; seq: number; stream: "stdout" | "stderr" | "pty"; data_base64: string }
+  | { type: "exit"; exit_code?: number | null; signal?: string | null }
+  | { type: "heartbeat" }
+  | { type: "error"; error: string; oldest_available_seq?: number };
+
+/** Decoded event yielded by `sandbox.processes.connect(...)`. */
+export type ManagedProcessConnectEvent =
+  | { type: "data"; seq: number; stream: "stdout" | "stderr" | "pty"; data: string }
+  | { type: "exit"; exitCode?: number | null; signal?: string | null }
+  | { type: "heartbeat" }
+  | { type: "error"; message: string; oldestAvailableSeq?: number };
+
+/** Receipt returned after writing process input. */
+export interface ManagedProcessInputResponse {
+  input_seq: number;
+}
+
+/** Body of `POST /processes/:id/input`. */
+export interface ManagedProcessInputRequest {
+  data_base64: string;
+}
+
+/** Body of `POST /processes/:id/signal`. */
+export interface ManagedProcessSignalRequest {
+  signal: ManagedProcessSignal;
+}
+
+/** Options for `sandbox.processes.connect`. */
+export interface ManagedProcessConnectOptions extends RequestOptions {
+  /** Replay only data events with sequence numbers greater than this value. */
+  after?: number;
+}
+
+/** Options for `sandbox.processes.wait`. */
+export interface ManagedProcessWaitOptions extends RequestOptions {
+  /** `leader` waits for the top-level process; `tree` waits for the complete cgroup. */
+  scope?: "leader" | "tree";
+  /** Server-side long-poll timeout. Maximum is enforced by the control plane. */
+  waitTimeoutMs?: number;
+}
+
+/** Options for `sandbox.processes.delete`. */
+export interface ManagedProcessDeleteOptions extends RequestOptions {
+  /** Milliseconds to wait after SIGTERM before killing the cgroup. */
+  graceMs?: number;
+}
+
 // ── Egress / bandwidth / resize ─────────────────────────────────────────
 
 /** Body of `Sandbox.setEgress` — replaces the egress allowlist. */

@@ -20,6 +20,16 @@ import type {
   ExecResponse,
   ExecStreamEvent,
   ExecStreamFrame,
+  ManagedProcess,
+  ManagedProcessConnectEvent,
+  ManagedProcessConnectFrame,
+  ManagedProcessConnectOptions,
+  ManagedProcessCreateRequest,
+  ManagedProcessDeleteOptions,
+  ManagedProcessInputResponse,
+  ManagedProcessListResponse,
+  ManagedProcessSignal,
+  ManagedProcessWaitOptions,
   CreateosSandboxClientOptions,
   ForkSandboxRequest,
   OKResponse,
@@ -46,6 +56,27 @@ function assertValidPort(port: number): void {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new CreateosSandboxError(`Invalid port: ${port}. Must be an integer in 1-65535.`);
   }
+}
+
+function encodeBase64(data: Uint8Array): string {
+  const maybeBuffer = (globalThis as { Buffer?: { from(data: Uint8Array): { toString(enc: "base64"): string } } })
+    .Buffer;
+  if (maybeBuffer) return maybeBuffer.from(data).toString("base64");
+
+  let binary = "";
+  for (const byte of data) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function decodeBase64Utf8(data: string): string {
+  const maybeBuffer = (
+    globalThis as { Buffer?: { from(data: string, enc: "base64"): { toString(enc: "utf8"): string } } }
+  ).Buffer;
+  if (maybeBuffer) return maybeBuffer.from(data, "base64").toString("utf8");
+
+  const binary = atob(data);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 /**
@@ -111,6 +142,157 @@ export class SandboxFiles {
 }
 
 /**
+ * Managed process and PTY operations scoped to one sandbox. Reached via
+ * `sandbox.processes`.
+ */
+export class SandboxProcesses {
+  readonly #http: CreateosSandboxHttp;
+  readonly #sandboxId: string;
+
+  constructor(http: CreateosSandboxHttp, sandboxId: string) {
+    this.#http = http;
+    this.#sandboxId = sandboxId;
+  }
+
+  #path(suffix = ""): string {
+    return `/v1/sandboxes/${encodePath(this.#sandboxId)}/processes${suffix}`;
+  }
+
+  /** Starts a managed pipe process or PTY inside the sandbox. */
+  create(request: ManagedProcessCreateRequest, options: RequestOptions = {}): Promise<ManagedProcess> {
+    return this.#http.request<ManagedProcess>("POST", this.#path(), {
+      ...options,
+      body: request,
+    });
+  }
+
+  /** Lists managed processes and PTYs retained in this sandbox. */
+  list(options: RequestOptions = {}): Promise<ManagedProcessListResponse> {
+    return this.#http.request<ManagedProcessListResponse>("GET", this.#path(), options);
+  }
+
+  /** Fetches one managed process or PTY by id. */
+  get(processId: string, options: RequestOptions = {}): Promise<ManagedProcess> {
+    return this.#http.request<ManagedProcess>(
+      "GET",
+      this.#path(`/${encodePath(processId)}`),
+      options,
+    );
+  }
+
+  /**
+   * Replays and follows output from a managed process or PTY. Data frames are
+   * decoded from base64 into UTF-8 strings.
+   */
+  async *connect(
+    processId: string,
+    options: ManagedProcessConnectOptions = {},
+  ): AsyncGenerator<ManagedProcessConnectEvent> {
+    const { after, ...rest } = options;
+    const frames = this.#http.stream<ManagedProcessConnectFrame>(
+      "GET",
+      this.#path(`/${encodePath(processId)}/connect`),
+      { ...rest, query: { after } },
+    );
+    for await (const frame of frames) {
+      if (frame.type === "data") {
+        yield {
+          type: "data",
+          seq: frame.seq,
+          stream: frame.stream,
+          data: decodeBase64Utf8(frame.data_base64),
+        };
+      } else if (frame.type === "exit") {
+        yield {
+          type: "exit",
+          ...(frame.exit_code !== undefined ? { exitCode: frame.exit_code } : {}),
+          ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+        };
+      } else if (frame.type === "heartbeat") {
+        yield { type: "heartbeat" };
+      } else {
+        yield {
+          type: "error",
+          message: frame.error,
+          ...(frame.oldest_available_seq !== undefined
+            ? { oldestAvailableSeq: frame.oldest_available_seq }
+            : {}),
+        };
+      }
+    }
+  }
+
+  /** Writes UTF-8 input to a pipe process or PTY. */
+  input(processId: string, data: string, options: RequestOptions = {}): Promise<ManagedProcessInputResponse> {
+    return this.inputBytes(processId, new TextEncoder().encode(data), options);
+  }
+
+  /** Writes binary input to a pipe process or PTY. */
+  inputBytes(
+    processId: string,
+    data: Uint8Array,
+    options: RequestOptions = {},
+  ): Promise<ManagedProcessInputResponse> {
+    return this.#http.request<ManagedProcessInputResponse>(
+      "POST",
+      this.#path(`/${encodePath(processId)}/input`),
+      { ...options, body: { data_base64: encodeBase64(data) } },
+    );
+  }
+
+  /** Closes stdin for a pipe process. PTYs reject this operation. */
+  closeStdin(processId: string, options: RequestOptions = {}): Promise<OKResponse> {
+    return this.#http.request<OKResponse>(
+      "POST",
+      this.#path(`/${encodePath(processId)}/stdin/close`),
+      options,
+    );
+  }
+
+  /** Resizes a PTY. Pipe processes reject this operation. */
+  resize(
+    processId: string,
+    size: { rows: number; cols: number },
+    options: RequestOptions = {},
+  ): Promise<OKResponse> {
+    return this.#http.request<OKResponse>(
+      "POST",
+      this.#path(`/${encodePath(processId)}/resize`),
+      { ...options, body: size },
+    );
+  }
+
+  /** Sends a signal such as `SIGINT`, `SIGTERM`, or `SIGKILL`. */
+  signal(processId: string, signal: ManagedProcessSignal, options: RequestOptions = {}): Promise<OKResponse> {
+    return this.#http.request<OKResponse>(
+      "POST",
+      this.#path(`/${encodePath(processId)}/signal`),
+      { ...options, body: { signal } },
+    );
+  }
+
+  /** Long-polls until the process leader or complete process tree exits. */
+  wait(processId: string, options: ManagedProcessWaitOptions = {}): Promise<ManagedProcess> {
+    const { scope, waitTimeoutMs, ...rest } = options;
+    return this.#http.request<ManagedProcess>(
+      "GET",
+      this.#path(`/${encodePath(processId)}/wait`),
+      { ...rest, query: { scope, timeout_ms: waitTimeoutMs } },
+    );
+  }
+
+  /** Terminates a managed process tree with SIGTERM, then cgroup kill after the grace period. */
+  delete(processId: string, options: ManagedProcessDeleteOptions = {}): Promise<ManagedProcess> {
+    const { graceMs, ...rest } = options;
+    return this.#http.request<ManagedProcess>(
+      "DELETE",
+      this.#path(`/${encodePath(processId)}`),
+      { ...rest, query: { grace_ms: graceMs } },
+    );
+  }
+}
+
+/**
  * A stateful handle to one sandbox, returned by the `CreateosSandboxClient` factory
  * methods. Owns a sandbox id and exposes lifecycle (pause / resume / fork /
  * destroy), command execution, file transfer (`files`), egress / bandwidth,
@@ -130,6 +312,8 @@ export class SandboxFiles {
 export class Sandbox {
   /** File transfer namespace. */
   readonly files: SandboxFiles;
+  /** Managed process and PTY namespace. */
+  readonly processes: SandboxProcesses;
 
   readonly #http: CreateosSandboxHttp;
   #data: SandboxView;
@@ -138,6 +322,7 @@ export class Sandbox {
     this.#http = http;
     this.#data = view;
     this.files = new SandboxFiles(http, view.id);
+    this.processes = new SandboxProcesses(http, view.id);
   }
 
   // ── static factories ──────────────────────────────────────────────────
