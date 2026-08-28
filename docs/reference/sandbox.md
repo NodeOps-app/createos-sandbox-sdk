@@ -370,7 +370,7 @@ Runs a command to completion and returns buffered output.
 |-----------|------|-------------|
 | `cmd` | `string` | Executable to run. Not passed through a shell — use `"bash"` with `["-c", "…"]` for shell features. |
 | `args` | `string[]` | Arguments passed to `cmd`. Default `[]`. |
-| `options` | `ExecOptions` | Per-request options (`timeoutMs`, `signal`, `headers`, `retry`). |
+| `options` | `ExecOptions` | Per-request options plus `stdin` and declared-key `env` overrides. |
 
 Returns `ExecResponse`:
 
@@ -388,6 +388,10 @@ rejected.
 ```ts
 const out = await sandbox.runCommand("uname", ["-a"]);
 console.log(out.result.stdout);
+
+// Stdin:
+const cat = await sandbox.runCommand("cat", [], { stdin: "hello\n" });
+console.log(cat.result.stdout);
 
 // Shell features — wrap in bash:
 const { result } = await sandbox.runCommand("bash", ["-c", "ls -la /tmp | wc -l"]);
@@ -412,7 +416,7 @@ arrives. Streaming requests are never retried.
 |-----------|------|-------------|
 | `cmd` | `string` | Executable to run. |
 | `args` | `string[]` | Arguments. Default `[]`. |
-| `options` | `ExecOptions` | Per-request options. |
+| `options` | `ExecOptions` | Per-request options plus `stdin` and declared-key `env` overrides. |
 
 **`ExecStreamEvent` union:**
 

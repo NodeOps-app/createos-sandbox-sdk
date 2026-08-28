@@ -4417,7 +4417,7 @@ Runs a command to completion and returns buffered output.
 |-----------|------|-------------|
 | `cmd` | `string` | Executable to run. Not passed through a shell — use `"bash"` with `["-c", "…"]` for shell features. |
 | `args` | `string[]` | Arguments passed to `cmd`. Default `[]`. |
-| `options` | `ExecOptions` | Per-request options (`timeoutMs`, `signal`, `headers`, `retry`). |
+| `options` | `ExecOptions` | Per-request options plus `stdin` and declared-key `env` overrides. |
 
 Returns `ExecResponse`:
 
@@ -4435,6 +4435,10 @@ rejected.
 ```ts
 const out = await sandbox.runCommand("uname", ["-a"]);
 console.log(out.result.stdout);
+
+// Stdin:
+const cat = await sandbox.runCommand("cat", [], { stdin: "hello\n" });
+console.log(cat.result.stdout);
 
 // Shell features — wrap in bash:
 const { result } = await sandbox.runCommand("bash", ["-c", "ls -la /tmp | wc -l"]);
@@ -4459,7 +4463,7 @@ arrives. Streaming requests are never retried.
 |-----------|------|-------------|
 | `cmd` | `string` | Executable to run. |
 | `args` | `string[]` | Arguments. Default `[]`. |
-| `options` | `ExecOptions` | Per-request options. |
+| `options` | `ExecOptions` | Per-request options plus `stdin` and declared-key `env` overrides. |
 
 **`ExecStreamEvent` union:**
 
@@ -5650,8 +5654,9 @@ Result of `Sandbox.destroy`.
 
 ## Commands
 
-Commands run inside the sandbox guest. Set env vars at create/fork time — they
-cannot be passed per-command.
+Commands run inside the sandbox guest. `stdin` can be passed per command.
+Per-command env overrides are supported for keys declared in the sandbox's
+`envs` at create/fork time.
 
 ### `ExecRequest`
 
@@ -5661,6 +5666,8 @@ Body of `POST /v1/sandboxes/:id/exec`. Sent by `runCommand` / `streamCommand`.
 |---|---|---|
 | `cmd` | `string` | Executable to run. Not passed through a shell — use `["bash", "-c", "…"]` for pipes/globs. |
 | `args` | `string[]?` | Arguments passed to `cmd`. |
+| `stdin` | `string?` | Optional stdin passed to the process. Empty string means `/dev/null`. |
+| `env` | `Record<string,string>?` | Per-command env overrides. Keys must be declared in sandbox `envs` at creation/fork time. |
 | `stream` | `boolean?` | Stream output as NDJSON frames. Set automatically by `streamCommand`. |
 
 ### `ExecResponse`
@@ -5711,7 +5718,12 @@ preferred higher-level type.
 
 ### `ExecOptions`
 
-Type alias for `RequestOptions`. Per-call overrides for `runCommand` / `streamCommand`.
+Extends `RequestOptions` with exec-specific fields.
+
+| Field | Type | Description |
+|---|---|---|
+| `stdin` | `string?` | Optional stdin passed to the process. |
+| `env` | `Record<string,string>?` | Per-command env overrides for declared keys. |
 
 ---
 
@@ -6441,6 +6453,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 52 | [52-self-signal-pause-delete](../examples/52-self-signal-pause-delete/) | A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside. | extra setup |
 | 54 | [54-managed-process-lifecycle](../examples/54-managed-process-lifecycle/) | Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees. | extra setup |
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
+| 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
 
 ## Disks, networks & templates
 
@@ -6479,6 +6492,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **53 anchor-browser-scrape** — **needs extra setup** — Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key.
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
+- **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
 
 ## See also
 
@@ -6604,6 +6618,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [53-anchor-browser-scrape](examples/53-anchor-browser-scrape/) — Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.
 - [54-managed-process-lifecycle](examples/54-managed-process-lifecycle/) — Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
+- [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

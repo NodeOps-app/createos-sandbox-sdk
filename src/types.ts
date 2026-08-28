@@ -377,9 +377,6 @@ export interface DestroyedResponse {
 
 // ── Exec ────────────────────────────────────────────────────────────────
 
-// No stdin or per-command env: Go's proto.ExecRequest has no stdin field, and
-// the control plane overwrites env with the sandbox's persistent `envs`. Both
-// were silently dropped server-side. Set env at createSandbox/fork time.
 /** Body of `POST /v1/sandboxes/:id/exec`, sent by `runCommand` / `streamCommand`. */
 export interface ExecRequest {
   /** Executable to run inside the guest. Not passed through a shell — wrap in
@@ -387,6 +384,10 @@ export interface ExecRequest {
   cmd: string;
   /** Arguments passed to `cmd`. */
   args?: string[];
+  /** Optional stdin passed to the process. Empty string means `/dev/null`. */
+  stdin?: string;
+  /** Per-command env overrides. Keys must be declared in sandbox `envs` at creation/fork time. */
+  env?: Record<string, string>;
   /** Stream output as NDJSON frames instead of buffering. Set by `streamCommand`. */
   stream?: boolean;
 }
@@ -449,7 +450,12 @@ export interface ExecStreamFrame {
 }
 
 /** Per-call options for `Sandbox.runCommand` / `Sandbox.streamCommand`. */
-export type ExecOptions = RequestOptions;
+export interface ExecOptions extends RequestOptions {
+  /** Optional stdin passed to the process. Empty string means `/dev/null`. */
+  stdin?: string;
+  /** Per-command env overrides. Keys must be declared in sandbox `envs` at creation/fork time. */
+  env?: Record<string, string>;
+}
 
 // ── Managed processes / PTYs ────────────────────────────────────────────
 

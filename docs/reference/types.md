@@ -228,8 +228,9 @@ Result of `Sandbox.destroy`.
 
 ## Commands
 
-Commands run inside the sandbox guest. Set env vars at create/fork time — they
-cannot be passed per-command.
+Commands run inside the sandbox guest. `stdin` can be passed per command.
+Per-command env overrides are supported for keys declared in the sandbox's
+`envs` at create/fork time.
 
 ### `ExecRequest`
 
@@ -239,6 +240,8 @@ Body of `POST /v1/sandboxes/:id/exec`. Sent by `runCommand` / `streamCommand`.
 |---|---|---|
 | `cmd` | `string` | Executable to run. Not passed through a shell — use `["bash", "-c", "…"]` for pipes/globs. |
 | `args` | `string[]?` | Arguments passed to `cmd`. |
+| `stdin` | `string?` | Optional stdin passed to the process. Empty string means `/dev/null`. |
+| `env` | `Record<string,string>?` | Per-command env overrides. Keys must be declared in sandbox `envs` at creation/fork time. |
 | `stream` | `boolean?` | Stream output as NDJSON frames. Set automatically by `streamCommand`. |
 
 ### `ExecResponse`
@@ -289,7 +292,12 @@ preferred higher-level type.
 
 ### `ExecOptions`
 
-Type alias for `RequestOptions`. Per-call overrides for `runCommand` / `streamCommand`.
+Extends `RequestOptions` with exec-specific fields.
+
+| Field | Type | Description |
+|---|---|---|
+| `stdin` | `string?` | Optional stdin passed to the process. |
+| `env` | `Record<string,string>?` | Per-command env overrides for declared keys. |
 
 ---
 

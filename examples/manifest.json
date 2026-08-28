@@ -1001,6 +1001,25 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs desktop:1 and a control plane with computer/VNC API support."
+    },
+    {
+      "id": "56",
+      "slug": "remote-code-execution",
+      "dir": "56-remote-code-execution",
+      "title": "Remote code execution",
+      "summary": "Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.",
+      "primitives": [
+        "createSandbox",
+        "files.upload",
+        "runCommand",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs language runtimes available in devbox:1 and a control plane with exec stdin support."
     }
   ]
 }
