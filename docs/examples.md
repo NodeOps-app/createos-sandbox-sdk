@@ -64,6 +64,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 43 | [43-crawl4ai-crawler](../examples/43-crawl4ai-crawler/) | Install Crawl4AI and Playwright/Chromium inside a VM, crawl a public URL to Markdown, download the output to the host. | — |
 | 52 | [52-self-signal-pause-delete](../examples/52-self-signal-pause-delete/) | A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside. | extra setup |
 | 54 | [54-managed-process-lifecycle](../examples/54-managed-process-lifecycle/) | Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees. | extra setup |
+| 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 
 ## Disks, networks & templates
 
@@ -101,6 +102,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **52 self-signal-pause-delete** — **needs extra setup** — The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published.
 - **53 anchor-browser-scrape** — **needs extra setup** — Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key.
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
+- **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
 
 ## See also
 

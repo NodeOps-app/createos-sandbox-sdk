@@ -974,6 +974,33 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs a control plane with managed process API support."
+    },
+    {
+      "id": "55",
+      "slug": "desktop-vnc-connect",
+      "dir": "55-desktop-vnc-connect",
+      "title": "Desktop noVNC connect",
+      "summary": "Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.",
+      "primitives": [
+        "createSandbox",
+        "computer.screen",
+        "computer.screens.list",
+        "computer.screens.get",
+        "computer.screenshot",
+        "computer.mouse.move",
+        "computer.cursor",
+        "computer.setClipboard",
+        "computer.clipboard",
+        "computer.open",
+        "computer.screens.connect",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs desktop:1 and a control plane with computer/VNC API support."
     }
   ]
 }

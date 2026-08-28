@@ -10,6 +10,28 @@ import type {
   AddSSHPubkeysResponse,
   AttachDiskOptions,
   BandwidthView,
+  ComputerButtonRequest,
+  ComputerClickRequest,
+  ComputerClipboard,
+  ComputerCreateScreenRequest,
+  ComputerDragRequest,
+  ComputerLaunchRequest,
+  ComputerListWindowsOptions,
+  ComputerOpenRequest,
+  ComputerPoint,
+  ComputerPressRequest,
+  ComputerScreen,
+  ComputerScreenConnection,
+  ComputerScreenGeometry,
+  ComputerScreenId,
+  ComputerScreenOptions,
+  ComputerScreenshotOptions,
+  ComputerScrollRequest,
+  ComputerTypeRequest,
+  ComputerWindow,
+  ComputerWindowGeometry,
+  ComputerWindowMoveRequest,
+  ComputerWindowResizeRequest,
   CreateSandboxOptions,
   CreateSandboxRequest,
   DestroyedResponse,
@@ -293,6 +315,392 @@ export class SandboxProcesses {
 }
 
 /**
+ * Mouse operations for a sandbox desktop screen. Reached via
+ * `sandbox.computer.mouse`.
+ */
+export class SandboxComputerMouse {
+  readonly #http: CreateosSandboxHttp;
+  readonly #basePath: string;
+
+  constructor(http: CreateosSandboxHttp, basePath: string) {
+    this.#http = http;
+    this.#basePath = basePath;
+  }
+
+  move(point: ComputerPoint, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/move`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: point,
+    });
+  }
+
+  click(request: ComputerClickRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/click`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+
+  scroll(request: ComputerScrollRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/scroll`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+
+  drag(request: ComputerDragRequest, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/drag`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+
+  down(request: ComputerButtonRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/down`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+
+  up(request: ComputerButtonRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/up`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+}
+
+/**
+ * Keyboard operations for a sandbox desktop screen. Reached via
+ * `sandbox.computer.keyboard`.
+ */
+export class SandboxComputerKeyboard {
+  readonly #http: CreateosSandboxHttp;
+  readonly #basePath: string;
+
+  constructor(http: CreateosSandboxHttp, basePath: string) {
+    this.#http = http;
+    this.#basePath = basePath;
+  }
+
+  type(request: ComputerTypeRequest | string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = typeof request === "string" ? { text: request } : request;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/type`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+
+  press(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = Array.isArray(keys) ? { keys } : keys;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/press`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+
+  down(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = Array.isArray(keys) ? { keys } : keys;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/down`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+
+  up(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = Array.isArray(keys) ? { keys } : keys;
+    return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/up`, {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+}
+
+/** Window operations for a sandbox desktop. Reached via `sandbox.computer.windows`. */
+export class SandboxComputerWindows {
+  readonly #http: CreateosSandboxHttp;
+  readonly #basePath: string;
+
+  constructor(http: CreateosSandboxHttp, basePath: string) {
+    this.#http = http;
+    this.#basePath = basePath;
+  }
+
+  list(options: ComputerListWindowsOptions = {}): Promise<ComputerWindow[]> {
+    const { screenId, application, ...rest } = options;
+    return this.#http.request<ComputerWindow[]>("GET", `${this.#basePath}/windows`, {
+      ...rest,
+      query: { screen_id: screenId, application },
+    });
+  }
+
+  current(options: ComputerScreenOptions = {}): Promise<ComputerWindow> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerWindow>("GET", `${this.#basePath}/windows/current`, {
+      ...rest,
+      query: { screen_id: screenId },
+    });
+  }
+
+  get(windowId: string, options: ComputerScreenOptions = {}): Promise<ComputerWindow> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerWindow>(
+      "GET",
+      `${this.#basePath}/windows/${encodePath(windowId)}`,
+      { ...rest, query: { screen_id: screenId } },
+    );
+  }
+
+  geometry(windowId: string, options: ComputerScreenOptions = {}): Promise<ComputerWindowGeometry> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerWindowGeometry>(
+      "GET",
+      `${this.#basePath}/windows/${encodePath(windowId)}/geometry`,
+      { ...rest, query: { screen_id: screenId } },
+    );
+  }
+
+  focus(windowId: string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    return this.#windowAction("focus", windowId, options);
+  }
+
+  move(
+    windowId: string,
+    request: ComputerWindowMoveRequest,
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
+    return this.#windowAction("move", windowId, options, request);
+  }
+
+  resize(
+    windowId: string,
+    request: ComputerWindowResizeRequest,
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
+    return this.#windowAction("resize", windowId, options, request);
+  }
+
+  maximize(windowId: string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    return this.#windowAction("maximize", windowId, options);
+  }
+
+  minimize(windowId: string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    return this.#windowAction("minimize", windowId, options);
+  }
+
+  restore(windowId: string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    return this.#windowAction("restore", windowId, options);
+  }
+
+  close(windowId: string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>(
+      "DELETE",
+      `${this.#basePath}/windows/${encodePath(windowId)}`,
+      { ...rest, query: { screen_id: screenId } },
+    );
+  }
+
+  #windowAction(
+    action: string,
+    windowId: string,
+    options: ComputerScreenOptions,
+    body?: unknown,
+  ): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>(
+      "POST",
+      `${this.#basePath}/windows/${encodePath(windowId)}/${action}`,
+      { ...rest, query: { screen_id: screenId }, body },
+    );
+  }
+}
+
+/** Screen and noVNC operations. Reached via `sandbox.computer.screens`. */
+export class SandboxComputerScreens {
+  readonly #http: CreateosSandboxHttp;
+  readonly #basePath: string;
+
+  constructor(http: CreateosSandboxHttp, basePath: string) {
+    this.#http = http;
+    this.#basePath = basePath;
+  }
+
+  list(options: RequestOptions = {}): Promise<ComputerScreen[]> {
+    return this.#http.request<ComputerScreen[]>("GET", `${this.#basePath}/screens`, options);
+  }
+
+  create(
+    request: ComputerCreateScreenRequest = {},
+    options: RequestOptions = {},
+  ): Promise<ComputerScreen> {
+    return this.#http.request<ComputerScreen>("POST", `${this.#basePath}/screens`, {
+      ...options,
+      body: request,
+    });
+  }
+
+  get(screenId: ComputerScreenId | string, options: RequestOptions = {}): Promise<ComputerScreen> {
+    return this.#http.request<ComputerScreen>(
+      "GET",
+      `${this.#basePath}/screens/${encodePath(screenId)}`,
+      options,
+    );
+  }
+
+  connect(
+    screenId: ComputerScreenId | string,
+    options: RequestOptions = {},
+  ): Promise<ComputerScreenConnection> {
+    return this.#http.request<ComputerScreenConnection>(
+      "GET",
+      `${this.#basePath}/screens/${encodePath(screenId)}/connect`,
+      options,
+    );
+  }
+
+  resize(
+    screenId: ComputerScreenId | string,
+    request: Required<ComputerCreateScreenRequest>,
+    options: RequestOptions = {},
+  ): Promise<ComputerScreen> {
+    return this.#http.request<ComputerScreen>(
+      "POST",
+      `${this.#basePath}/screens/${encodePath(screenId)}/resize`,
+      { ...options, body: request },
+    );
+  }
+
+  delete(screenId: ComputerScreenId | string, options: RequestOptions = {}): Promise<OKResponse> {
+    return this.#http.request<OKResponse>(
+      "DELETE",
+      `${this.#basePath}/screens/${encodePath(screenId)}`,
+      options,
+    );
+  }
+}
+
+/**
+ * Desktop computer-use operations scoped to one sandbox. Requires a desktop
+ * rootfs such as `desktop:1`. Reached via `sandbox.computer`.
+ */
+export class SandboxComputer {
+  readonly mouse: SandboxComputerMouse;
+  readonly keyboard: SandboxComputerKeyboard;
+  readonly windows: SandboxComputerWindows;
+  readonly screens: SandboxComputerScreens;
+
+  readonly #http: CreateosSandboxHttp;
+  readonly #sandboxId: string;
+
+  constructor(http: CreateosSandboxHttp, sandboxId: string) {
+    this.#http = http;
+    this.#sandboxId = sandboxId;
+    const basePath = this.#path();
+    this.mouse = new SandboxComputerMouse(http, basePath);
+    this.keyboard = new SandboxComputerKeyboard(http, basePath);
+    this.windows = new SandboxComputerWindows(http, basePath);
+    this.screens = new SandboxComputerScreens(http, basePath);
+  }
+
+  #path(suffix = ""): string {
+    return `/v1/sandboxes/${encodePath(this.#sandboxId)}/computer${suffix}`;
+  }
+
+  /** Captures a desktop screen, window, or rectangular region as PNG bytes. */
+  async screenshot(options: ComputerScreenshotOptions = {}): Promise<ArrayBuffer> {
+    const { screenId, windowId, x, y, width, height, ...rest } = options;
+    const response = await this.#http.requestRaw("GET", this.#path("/screenshot"), {
+      ...rest,
+      query: { screen_id: screenId, window_id: windowId, x, y, width, height },
+    });
+    if (!response.ok) {
+      await this.#http.throwForResponse(response, "GET", this.#path("/screenshot"));
+    }
+    return response.arrayBuffer();
+  }
+
+  /** Returns the active screen dimensions. */
+  screen(options: ComputerScreenOptions = {}): Promise<ComputerScreenGeometry> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerScreenGeometry>("GET", this.#path("/screen"), {
+      ...rest,
+      query: { screen_id: screenId },
+    });
+  }
+
+  /** Returns the current cursor coordinates. */
+  cursor(options: ComputerScreenOptions = {}): Promise<ComputerPoint> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerPoint>("GET", this.#path("/cursor"), {
+      ...rest,
+      query: { screen_id: screenId },
+    });
+  }
+
+  /** Reads the desktop clipboard. */
+  clipboard(options: ComputerScreenOptions = {}): Promise<ComputerClipboard> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<ComputerClipboard>("GET", this.#path("/clipboard"), {
+      ...rest,
+      query: { screen_id: screenId },
+    });
+  }
+
+  /** Replaces the desktop clipboard text. */
+  setClipboard(text: string | ComputerClipboard, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = typeof text === "string" ? { text } : text;
+    return this.#http.request<OKResponse>("PUT", this.#path("/clipboard"), {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+
+  /** Opens a URL or desktop target. */
+  open(target: string | ComputerOpenRequest, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    const body = typeof target === "string" ? { target } : target;
+    return this.#http.request<OKResponse>("POST", this.#path("/open"), {
+      ...rest,
+      query: { screen_id: screenId },
+      body,
+    });
+  }
+
+  /** Launches an installed desktop application. */
+  launch(request: ComputerLaunchRequest, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+    const { screenId, ...rest } = options;
+    return this.#http.request<OKResponse>("POST", this.#path("/launch"), {
+      ...rest,
+      query: { screen_id: screenId },
+      body: request,
+    });
+  }
+}
+
+/**
  * A stateful handle to one sandbox, returned by the `CreateosSandboxClient` factory
  * methods. Owns a sandbox id and exposes lifecycle (pause / resume / fork /
  * destroy), command execution, file transfer (`files`), egress / bandwidth,
@@ -314,6 +722,8 @@ export class Sandbox {
   readonly files: SandboxFiles;
   /** Managed process and PTY namespace. */
   readonly processes: SandboxProcesses;
+  /** Desktop computer-use namespace. */
+  readonly computer: SandboxComputer;
 
   readonly #http: CreateosSandboxHttp;
   #data: SandboxView;
@@ -323,6 +733,7 @@ export class Sandbox {
     this.#data = view;
     this.files = new SandboxFiles(http, view.id);
     this.processes = new SandboxProcesses(http, view.id);
+    this.computer = new SandboxComputer(http, view.id);
   }
 
   // ── static factories ──────────────────────────────────────────────────

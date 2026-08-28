@@ -111,6 +111,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [52-self-signal-pause-delete](examples/52-self-signal-pause-delete/) — A workload running inside a sandbox pauses or deletes its own sandbox with selfPause() / selfDelete() — no client or credentials, via a loopback agent reachable only from inside.
 - [53-anchor-browser-scrape](examples/53-anchor-browser-scrape/) — Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.
 - [54-managed-process-lifecycle](examples/54-managed-process-lifecycle/) — Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.
+- [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

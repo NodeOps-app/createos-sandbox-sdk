@@ -577,6 +577,151 @@ export interface ManagedProcessDeleteOptions extends RequestOptions {
   graceMs?: number;
 }
 
+// ── Computer / desktop ─────────────────────────────────────────────────
+
+/** Screen id accepted by the computer-use API. */
+export type ComputerScreenId = `screen-${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
+
+/** Mouse button accepted by the computer-use API. */
+export type ComputerMouseButton = "left" | "middle" | "right";
+
+/** Cursor or mouse coordinate on a desktop screen. */
+export interface ComputerPoint {
+  x: number;
+  y: number;
+}
+
+/** Width and height of a desktop screen. */
+export interface ComputerScreenGeometry {
+  width: number;
+  height: number;
+}
+
+/** Options for reading desktop screen state scoped by screen id. */
+export interface ComputerScreenOptions extends RequestOptions {
+  screenId?: ComputerScreenId | string;
+}
+
+/** Options for capturing a screenshot. */
+export interface ComputerScreenshotOptions extends ComputerScreenOptions {
+  windowId?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+/** Mouse click request. `x` and `y` must be supplied together or both omitted. */
+export interface ComputerClickRequest {
+  button?: ComputerMouseButton;
+  x?: number;
+  y?: number;
+  count?: number;
+}
+
+/** Mouse scroll request. */
+export interface ComputerScrollRequest {
+  direction?: "up" | "down";
+  amount?: number;
+}
+
+/** Mouse drag request. */
+export interface ComputerDragRequest {
+  from: ComputerPoint;
+  to: ComputerPoint;
+}
+
+/** Mouse button request. */
+export interface ComputerButtonRequest {
+  button?: ComputerMouseButton;
+}
+
+/** Keyboard text request. */
+export interface ComputerTypeRequest {
+  text: string;
+  delay_in_ms?: number;
+}
+
+/** Keyboard key or key-combination request. */
+export interface ComputerPressRequest {
+  keys: string[];
+}
+
+/** Desktop clipboard payload. */
+export interface ComputerClipboard {
+  text: string;
+}
+
+/** Open a URL or desktop target. */
+export interface ComputerOpenRequest {
+  target: string;
+}
+
+/** Launch an installed desktop application. */
+export interface ComputerLaunchRequest {
+  application: string;
+  uri?: string;
+}
+
+/** Visible desktop window. */
+export interface ComputerWindow {
+  id: string;
+  title?: string;
+}
+
+/** Desktop window geometry. */
+export interface ComputerWindowGeometry {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  screen: number;
+}
+
+/** Window move request. */
+export interface ComputerWindowMoveRequest {
+  x: number;
+  y: number;
+}
+
+/** Window resize request. */
+export interface ComputerWindowResizeRequest {
+  width: number;
+  height: number;
+}
+
+/** Configured desktop screen. VNC tokens are not returned here. */
+export interface ComputerScreen {
+  screen_id: ComputerScreenId | string;
+  display: string;
+  width: number;
+  height: number;
+  vnc_port: number;
+  novnc_port: number;
+}
+
+/** Create or resize a desktop screen. */
+export interface ComputerCreateScreenRequest {
+  width?: number;
+  height?: number;
+}
+
+/** Live noVNC connection details for one screen. */
+export interface ComputerScreenConnection {
+  screen_id: ComputerScreenId | string;
+  port: number;
+  path: string;
+  token: string;
+  expires_at: string;
+  url?: string;
+}
+
+/** Options for listing windows. */
+export interface ComputerListWindowsOptions extends ComputerScreenOptions {
+  application?: string;
+}
+
 // ── Egress / bandwidth / resize ─────────────────────────────────────────
 
 /** Body of `Sandbox.setEgress` — replaces the egress allowlist. */
