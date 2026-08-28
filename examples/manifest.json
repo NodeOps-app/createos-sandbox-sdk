@@ -933,6 +933,24 @@
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "The in-sandbox worker installs @nodeops-createos/sandbox from npm, so it needs the 0.7.0 release (selfPause / selfDelete) published."
+    },
+    {
+      "id": "53",
+      "slug": "anchor-browser-scrape",
+      "dir": "53-anchor-browser-scrape",
+      "title": "OpenAI tool agent + Anchor Browser scrape",
+      "summary": "Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.",
+      "primitives": ["createSandbox", "runCommand", "files.upload", "destroy"],
+      "deps": ["openai"],
+      "env": [
+        "CREATEOS_SANDBOX_API_KEY",
+        "CREATEOS_SANDBOX_BASE_URL",
+        "OPENAI_API_KEY"
+      ],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs an OpenAI API key. ANCHOR_API_KEY is optional; without it the example uses Anchor Agent Access for a limited trial key."
     }
   ]
 }
