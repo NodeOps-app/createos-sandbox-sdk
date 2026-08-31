@@ -1,8 +1,8 @@
 # createos-sandbox SDK
 
-The TypeScript SDK for **createos-sandbox** — spawn VM
-sandboxes, run commands, move files, expose services, and orchestrate fleets,
-from one hand-written `fetch` client with zero runtime dependencies.
+The TypeScript SDK for **[CreateOS Sandbox](https://createos.sh)** — launch
+isolated sandboxes, run commands, move files, expose services, and orchestrate
+fleets, from one hand-written `fetch` client with zero runtime dependencies.
 
 ```ts
 import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
@@ -10,18 +10,28 @@ import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-4vcpu-4gb", rootfs: "devbox:1" });
 try {
-  const out = await sandbox.runCommand("echo", ["hello from a VM"]);
+  const out = await sandbox.runCommand("echo", ["hello from a sandbox"]);
   console.log(out.result.stdout);
 } finally {
   await sandbox.destroy();
 }
 ```
 
-A **sandbox** is a real virtual machine — its own Linux kernel, hardware-level
-isolation — that boots in seconds. That makes it safe to run untrusted or
-AI-generated code, stand up a dev server, branch a filesystem, or fan a batch
-job across a fleet. The SDK runs on Node 20+, Bun, Deno, Cloudflare Workers,
-Vercel Edge, and the browser.
+A **sandbox** is an isolated Linux runtime with its own kernel boundary that
+boots in seconds. That makes it safe to run untrusted or AI-generated code,
+stand up a dev server, branch a filesystem, or fan a batch job across a fleet.
+The SDK runs on Node 20+, Bun, Deno, Cloudflare Workers, Vercel Edge, and the
+browser.
+
+## About CreateOS
+
+[CreateOS](https://createos.sh) is the execution and governance platform for
+production AI agents and apps. CreateOS Sandbox gives agent systems an isolated
+runtime for code execution, preview services, persistent disks, and networked
+workflows.
+
+Read product updates and engineering notes in the
+[CreateOS Sandbox docs and blog](https://nodeops.network/es/createos/docs/Sandbox/Overview).
 
 ## What you can build
 
@@ -45,15 +55,15 @@ of documentation for four kinds of need.
 | **Get going in 30 seconds** | [Quickstart](./quickstart.md) |
 | **Solve a specific problem** | [How-to guides](./how-to/) — files, lifecycle, services, disks, streaming, errors, observability |
 | **Look up a method or type** | [API reference](./reference/) — client, sandbox, sub-APIs, errors, types, helpers |
-| **Understand how it works** | [Explanation](./explanation/) — VMs, the handle model, lifecycle, reliability |
+| **Understand how it works** | [Explanation](./explanation/) — sandbox model, the handle model, lifecycle, reliability |
 | **Copy a working program** | [Examples](./examples.md) — runnable, one per directory |
 
 ## Start here
 
 - New to the SDK? Read the [Quickstart](./quickstart.md), then the
   [Tutorial](./tutorial.md).
-- New to VM sandboxes? Read
-  [What is a VM sandbox?](./explanation/vm-sandboxes.md)
+- New to isolated sandboxes? Read the
+  [sandbox model explanation](./explanation/vm-sandboxes.md)
 - Building an agent? Jump to the [Tutorial](./tutorial.md) and the
   [examples](./examples.md).
 

@@ -1,15 +1,18 @@
 {
   "name": "@nodeops-createos/sandbox",
   "version": "0.8.1",
-  "description": "TypeScript SDK for the createos-sandbox VM sandbox control plane.",
+  "description": "TypeScript SDK for CreateOS Sandbox.",
   "keywords": [
+    "ai-agents",
     "compute",
+    "createos",
     "createos-sandbox",
+    "isolated-sandbox",
+    "runtime",
     "sandbox",
-    "sdk",
-    "vm"
+    "sdk"
   ],
-  "homepage": "https://github.com/NodeOps-app/createos-sandbox-sdk#readme",
+  "homepage": "https://createos.sh",
   "bugs": {
     "url": "https://github.com/NodeOps-app/createos-sandbox-sdk/issues"
   },

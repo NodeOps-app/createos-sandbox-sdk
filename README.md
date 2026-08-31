@@ -1,9 +1,9 @@
 # @nodeops-createos/sandbox
 
-TypeScript SDK for the `createos-sandbox` control plane — spawn VM
-sandboxes, run commands, move files, expose services, and manage disks
-and networks. `createSandbox()` returns a stateful `Sandbox` handle, errors are
-a typed hierarchy, and the transport retries transient failures automatically.
+TypeScript SDK for [CreateOS Sandbox](https://createos.sh) — launch isolated
+sandboxes, run commands, move files, expose services, and manage disks and
+networks. `createSandbox()` returns a stateful `Sandbox` handle, errors are a
+typed hierarchy, and the transport retries transient failures automatically.
 
 Zero runtime dependencies. ESM-only. Runs on Node 20+, Bun, Deno, Cloudflare
 Workers, Vercel Edge, and the browser.
@@ -39,10 +39,10 @@ try {
 }
 ```
 
-`baseUrl` defaults to the production control plane; override it via the
-constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox`
-blocks until the sandbox reaches `running`. Sandboxes bill while running — tear
-down in `finally`, or set an idle `auto_pause_after_seconds`.
+`baseUrl` defaults to the production CreateOS Sandbox API; override it via the
+constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox` blocks until the
+sandbox reaches `running`. Sandboxes bill while running — tear down in
+`finally`, or set an idle `auto_pause_after_seconds`.
 
 ## Documentation
 
@@ -53,12 +53,22 @@ Full docs follow the [Diátaxis](https://diataxis.fr/) framework and live under
 - **[Tutorial](docs/tutorial.md)** — build an AI app generator end to end
 - **[How-to guides](docs/how-to/)** — files, lifecycle, services, disks, streaming, errors, observability
 - **[API reference](docs/reference/)** — every class, method, and type
-- **[Explanation](docs/explanation/)** — the VM model, the handle model, lifecycle, reliability
+- **[Explanation](docs/explanation/)** — the sandbox model, the handle model, lifecycle, reliability
 - **[Examples](docs/examples.md)** — runnable programs, one per directory under [`examples/`](examples/)
 
 For AI agents and tools: the machine-readable index is [`llms.txt`](llms.txt)
 and the full corpus is bundled in [`llms-full.txt`](llms-full.txt)
 ([llmstxt.org](https://llmstxt.org/)).
+
+## About CreateOS
+
+[CreateOS](https://createos.sh) is the execution and governance platform for
+production AI agents and apps. This SDK exposes CreateOS Sandbox for agent
+runtimes, code execution, preview services, persistent disks, and networked
+sandbox workflows.
+
+For product updates and engineering notes, read the
+[CreateOS Sandbox docs and blog](https://nodeops.network/es/createos/docs/Sandbox/Overview).
 
 ## Key facts
 
