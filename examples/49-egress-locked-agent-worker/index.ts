@@ -38,11 +38,27 @@ const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_HOST = "api.anthropic.com";
 
 function loadAnt(): { apiKey: string; environmentId: string; environmentKey: string } {
+  // Process env wins over `.env.ant`, and `.env.ant` is optional: CI carries the
+  // credentials as secrets with no dotenv on disk. The org key is read under a
+  // distinct name (ANTHROPIC_ORG_API_KEY) so the shared gateway's
+  // ANTHROPIC_API_KEY — wrong endpoint and auth scheme for Managed Agents —
+  // can never be picked up by accident.
+  const fromEnv: Record<string, string> = {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_ORG_API_KEY ?? "",
+    ANTHROPIC_ENVIRONMENT_ID: process.env.ANTHROPIC_ENVIRONMENT_ID ?? "",
+    ANTHROPIC_ENVIRONMENT_KEY: process.env.ANTHROPIC_ENVIRONMENT_KEY ?? "",
+  };
   for (const k of ["ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"]) {
     delete process.env[k];
   }
+  let dotenv = "";
+  try {
+    dotenv = readFileSync(new URL("./.env.ant", import.meta.url), "utf8");
+  } catch {
+    dotenv = "";
+  }
   const env: Record<string, string> = {};
-  for (const line of readFileSync(new URL("./.env.ant", import.meta.url), "utf8").split("\n")) {
+  for (const line of dotenv.split("\n")) {
     const s = line.trim();
     if (!s || s.startsWith("#")) continue;
     const eq = s.indexOf("=");
@@ -57,13 +73,18 @@ function loadAnt(): { apiKey: string; environmentId: string; environmentKey: str
       .trim()
       .replace(/^["']|["']$/g, "");
   }
-  const apiKey = env.ANTHROPIC_API_KEY ?? "";
-  const environmentId = env.ANTHROPIC_ENVIRONMENT_ID ?? "";
-  const environmentKey = env.ANTHROPIC_ENVIRONMENT_KEY ?? "";
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY missing in .env.ant (organization key)");
+  const pick = (k: string) => fromEnv[k] || (env[k] ?? "");
+  const apiKey = pick("ANTHROPIC_API_KEY");
+  const environmentId = pick("ANTHROPIC_ENVIRONMENT_ID");
+  const environmentKey = pick("ANTHROPIC_ENVIRONMENT_KEY");
+  if (!apiKey) {
+    throw new Error(
+      "organization key missing: set ANTHROPIC_ORG_API_KEY, or ANTHROPIC_API_KEY in .env.ant",
+    );
+  }
   if (!environmentId || !environmentKey) {
     throw new Error(
-      "ANTHROPIC_ENVIRONMENT_ID / ANTHROPIC_ENVIRONMENT_KEY missing in .env.ant.\n" +
+      "ANTHROPIC_ENVIRONMENT_ID / ANTHROPIC_ENVIRONMENT_KEY missing (env or .env.ant).\n" +
         "Generate one in the Console: Workspace > Environments > your self-hosted env > Generate environment key.",
     );
   }

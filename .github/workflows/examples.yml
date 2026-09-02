@@ -122,13 +122,22 @@ jobs:
       ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
       ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
       ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+      # Managed Agents (examples 49-51) talk to api.anthropic.com directly, not
+      # the gateway above — hence the separate org key and environment creds.
+      ANTHROPIC_ORG_API_KEY: ${{ secrets.ANTHROPIC_ORG_API_KEY }}
+      ANTHROPIC_ENVIRONMENT_ID: ${{ secrets.ANTHROPIC_ENVIRONMENT_ID }}
+      ANTHROPIC_ENVIRONMENT_KEY: ${{ secrets.ANTHROPIC_ENVIRONMENT_KEY }}
+      # Optional third-party example keys (16, 53) — examples degrade if unset.
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
       # S3-compatible bucket (example 38)
       S3_BUCKET: ${{ secrets.S3_BUCKET }}
       S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
       S3_REGION: ${{ secrets.S3_REGION }}
       S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
       S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-      S3_USE_PATH_STYLE: ${{ secrets.S3_USE_PATH_STYLE }}
+      # Not a secret: as a secret its value ("1") masked every "1" in the logs.
+      S3_USE_PATH_STYLE: "true"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 

@@ -67,6 +67,16 @@ try {
 
   // Resume and read what the worker logged before it paused the sandbox.
   await pauseBox.resume();
+  // `resume` returns as soon as the control plane accepts it: the sandbox reads
+  // `running` before the host has handed it an IP, and every files/exec call
+  // 503s with "sandbox has no ip" until it has one.
+  await pauseBox.waitUntilRunning({ timeoutMs: 120_000 });
+  const ipDeadline = Date.now() + 120_000;
+  while (!pauseBox.ip) {
+    if (Date.now() > ipDeadline) throw new Error("resumed sandbox never got an IP");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await pauseBox.refresh();
+  }
   const log = new TextDecoder().decode(await pauseBox.files.download("/root/worker.log"));
   console.log(`[pause] worker output:\n${log.trim()}`);
 } finally {

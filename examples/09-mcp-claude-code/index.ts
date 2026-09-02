@@ -53,11 +53,15 @@ try {
   console.log("[2/4] installing @anthropic-ai/claude-code...");
   const install = await sandbox.runCommand(
     "sh",
-    ["-lc", "npm install -g @anthropic-ai/claude-code --prefix /usr/local 2>&1"],
+    ["-lc", "npm install -g @anthropic-ai/claude-code --prefix /usr/local"],
     { timeoutMs: 300_000 },
   );
   if (install.result.exit_code !== 0) {
-    throw new Error(`npm install failed:\n${install.result.stderr}`);
+    // npm splits its diagnostics across both streams; report each one.
+    throw new Error(
+      `npm install failed (exit ${install.result.exit_code}):\n` +
+        `stdout:\n${install.result.stdout}\nstderr:\n${install.result.stderr}`,
+    );
   }
   const ver = await sandbox.runCommand("/usr/local/bin/claude", ["--version"]);
   console.log(`      ${ver.result.stdout.trim()}`);
