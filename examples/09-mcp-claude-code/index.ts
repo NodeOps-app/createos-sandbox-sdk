@@ -75,7 +75,15 @@ try {
   // Claude Code blocks --dangerously-skip-permissions when the process runs
   // as root. Create a non-root user and su to it for the coding task.
   console.log("[3/4] creating non-root user...");
-  await sandbox.runCommand("sh", ["-c", "useradd -m -s /bin/bash sandboxuser 2>/dev/null || true"]);
+  await sandbox.runCommand("sh", [
+    "-c",
+    [
+      "useradd -m -s /bin/bash sandboxuser 2>/dev/null || true",
+      // node lives under /root (mode 700), so the claude shim's `env node`
+      // finds nothing once we drop to sandboxuser. Put a copy on the shared path.
+      'cp -n "$(command -v node)" /usr/local/bin/node 2>/dev/null || true',
+    ].join(" && "),
+  ]);
 
   console.log("[4/4] running coding task inside sandbox...");
   console.log(`      prompt: "${TASK.slice(0, 80)}..."\n`);
@@ -94,7 +102,7 @@ try {
           [
             "export HOME=/home/sandboxuser",
             "export PATH=/usr/local/bin:$PATH",
-            `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)} 2>&1`,
+            `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)}`,
           ].join(" && "),
           "sandboxuser",
         ],
@@ -108,7 +116,9 @@ try {
   }
 
   if (result.exit_code !== 0) {
-    throw new Error(`claude exited ${result.exit_code}:\n${result.stderr}`);
+    throw new Error(
+      `claude exited ${result.exit_code}:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
   }
   process.stdout.write(result.stdout);
   console.log("\n[done]");
