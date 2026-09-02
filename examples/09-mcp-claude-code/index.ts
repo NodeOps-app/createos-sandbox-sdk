@@ -75,13 +75,19 @@ try {
   // Claude Code blocks --dangerously-skip-permissions when the process runs
   // as root. Create a non-root user and su to it for the coding task.
   console.log("[3/4] creating non-root user...");
+  // The CLI on PATH is an asdf shim that re-execs `asdf`, and the whole asdf
+  // tree lives under /root (mode 700) — neither is reachable once we drop to a
+  // non-root user, so the shim dies with a bare 127. Open /root for traversal
+  // only (+x, not +r) and link the real binary onto the shared path.
   await sandbox.runCommand("sh", [
     "-c",
     [
       "useradd -m -s /bin/bash sandboxuser 2>/dev/null || true",
-      // node lives under /root (mode 700), so the claude shim's `env node`
-      // finds nothing once we drop to sandboxuser. Put a copy on the shared path.
-      'cp -n "$(command -v node)" /usr/local/bin/node 2>/dev/null || true',
+      "chmod o+x /root",
+      "real=$(ls /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe" +
+        " /root/.asdf/installs/nodejs/*/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe" +
+        " 2>/dev/null | head -1)",
+      '[ -n "$real" ] && ln -sf "$real" /usr/local/bin/claude-real',
     ].join(" && "),
   ]);
 
@@ -102,7 +108,7 @@ try {
           [
             "export HOME=/home/sandboxuser",
             "export PATH=/usr/local/bin:$PATH",
-            `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)}`,
+            `echo ${JSON.stringify(TASK)} | claude-real -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)}`,
           ].join(" && "),
           "sandboxuser",
         ],
