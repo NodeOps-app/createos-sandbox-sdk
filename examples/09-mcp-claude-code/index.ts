@@ -55,8 +55,10 @@ try {
     "sh",
     [
       "-lc",
-      // The rootfs may already ship the CLI; installing over it fails EEXIST.
-      "command -v claude >/dev/null || npm install -g @anthropic-ai/claude-code --prefix /usr/local",
+      // The rootfs may already ship the CLI at this exact path; installing
+      // over it fails EEXIST. Anything elsewhere on PATH is not visible to the
+      // non-root user that runs the task below, so only this path counts.
+      "[ -x /usr/local/bin/claude ] || npm install -g @anthropic-ai/claude-code --prefix /usr/local",
     ],
     { timeoutMs: 300_000 },
   );

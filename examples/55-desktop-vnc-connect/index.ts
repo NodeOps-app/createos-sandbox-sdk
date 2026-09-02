@@ -18,7 +18,17 @@ console.log("created:", sandbox.id);
 
 try {
   console.log("\n[1/5] reading primary screen...");
-  const geometry = await sandbox.computer.screen({ screenId: SCREEN_ID });
+  // The desktop stack boots after the sandbox does: every computer call 409s
+  // with `desktop_unavailable` until it is up.
+  const desktopDeadline = Date.now() + 120_000;
+  const geometry = await sandbox.computer.screen({ screenId: SCREEN_ID }).catch(async (err) => {
+    while (Date.now() < desktopDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const screen = await sandbox.computer.screen({ screenId: SCREEN_ID }).catch(() => undefined);
+      if (screen) return screen;
+    }
+    throw err;
+  });
   const screens = await sandbox.computer.screens.list();
   const primary = await sandbox.computer.screens.get(SCREEN_ID);
   console.log(`      geometry: ${geometry.width}x${geometry.height}`);
