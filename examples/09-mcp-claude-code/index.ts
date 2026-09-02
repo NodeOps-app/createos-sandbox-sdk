@@ -53,7 +53,11 @@ try {
   console.log("[2/4] installing @anthropic-ai/claude-code...");
   const install = await sandbox.runCommand(
     "sh",
-    ["-lc", "npm install -g @anthropic-ai/claude-code --prefix /usr/local"],
+    [
+      "-lc",
+      // The rootfs may already ship the CLI; installing over it fails EEXIST.
+      "command -v claude >/dev/null || npm install -g @anthropic-ai/claude-code --prefix /usr/local",
+    ],
     { timeoutMs: 300_000 },
   );
   if (install.result.exit_code !== 0) {

@@ -217,17 +217,19 @@ try {
     console.warn(
       `      ⚠ snapshot did not settle in time (${msg}); ensuring running and continuing`,
     );
-    // The box may be paused (resume timed out) or mid-transition; nudge it back
-    // to running. Both calls are best-effort — never fail the run over the demo.
-    try {
-      await sandbox.resume();
-    } catch {
-      // already running, or resume raced with a late state change — ignore
+    // The box may be paused (resume timed out) or mid-transition. Keep nudging
+    // it back to running: querying a paused box only yields an opaque 409.
+    const resumeDeadline = Date.now() + 300_000;
+    while (Date.now() < resumeDeadline) {
+      await sandbox.refresh().catch(() => {});
+      if (sandbox.status === "running") break;
+      if (sandbox.status === "paused") await sandbox.resume().catch(() => {});
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
-    try {
-      await sandbox.waitUntilRunning({ timeoutMs: 120_000 });
-    } catch {
-      // platform still slow; proceed — a truly-down box surfaces at the query
+    if (sandbox.status !== "running") {
+      throw new Error(`sandbox stuck in ${sandbox.status} after the pause/resume demo`, {
+        cause: err,
+      });
     }
     console.log(`      continuing (status=${sandbox.status})`);
   }
