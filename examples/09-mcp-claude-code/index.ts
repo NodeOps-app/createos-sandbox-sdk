@@ -107,7 +107,9 @@ try {
           "-c",
           [
             "export HOME=/home/sandboxuser",
-            "export PATH=/usr/local/bin:$PATH",
+            // /usr/bin first: the asdf shims earlier on PATH re-exec `asdf`,
+            // which this user cannot reach, so python3 & co. fail for the agent.
+            "export PATH=/usr/local/bin:/usr/bin:$PATH",
             `echo ${JSON.stringify(TASK)} | claude-real -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)}`,
           ].join(" && "),
           "sandboxuser",
@@ -125,6 +127,11 @@ try {
     throw new Error(
       `claude exited ${result.exit_code}:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
     );
+  }
+  // Exit 0 with nothing on stdout means the agent silently did no work —
+  // a green run that proves nothing. Surface it.
+  if (!result.stdout.trim()) {
+    throw new Error(`claude exited 0 but produced no output.\nstderr:\n${result.stderr}`);
   }
   process.stdout.write(result.stdout);
   console.log("\n[done]");

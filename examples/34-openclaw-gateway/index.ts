@@ -3,8 +3,8 @@
  *
  * Installs the OpenClaw AI-assistant gateway (Node.js) inside a createos-sandbox sandbox,
  * exposes it on the public preview URL via HTTP ingress, then verifies it is
- * live by probing its OpenAI-compatible /v1/models endpoint — first from
- * inside the VM, then from this host through ingress. The pattern (install →
+ * live by probing its /health endpoint — first from inside the sandbox, then
+ * from this host through ingress. The pattern (install →
  * daemonize → waitForPortReady → fetch previewUrl) generalizes to any long-
  * running server you want reachable from outside the sandbox.
  *
@@ -107,6 +107,11 @@ try {
       `  gateway: {`,
       `    port: ${GATEWAY_PORT},`,
       `    bind: "lan",`,
+      // CreateOS ingress terminates outside and re-issues the request from
+      // 127.0.0.1 inside the sandbox with X-Forwarded-For set. Without the
+      // loopback source listed here openclaw rejects every proxied request
+      // with "Proxy client attribution is required".
+      `    trustedProxies: ["127.0.0.1", "::1"],`,
       `    auth: { token: "${GATEWAY_TOKEN}" }`,
       `  }`,
       `}`,
@@ -128,16 +133,18 @@ try {
   await sandbox.waitForPortReady(GATEWAY_PORT, { timeoutMs: 90_000, host: "127.0.0.1" });
   console.log("  port 18789 accepting connections");
 
-  // Inner probe: hit both unauthenticated root and auth-guarded /v1/models.
+  // Inner probe: hit the Control UI root and the gateway health endpoint.
+  // (This build serves /, /health, /healthz and /status — there is no
+  // OpenAI-compatible /v1 surface on the gateway.)
   const { result: innerProbe } = await sandbox.sh(
     [
       `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:${GATEWAY_PORT}/ || true`,
       `echo ""`,
-      `curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ${GATEWAY_TOKEN}' http://127.0.0.1:${GATEWAY_PORT}/v1/models || true`,
+      `curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ${GATEWAY_TOKEN}' http://127.0.0.1:${GATEWAY_PORT}/health || true`,
     ].join("\n"),
     { label: "inner-probe" },
   );
-  console.log(`  inner probe (root / /v1/models): ${innerProbe.stdout.trim()}`);
+  console.log(`  inner probe (root / /health): ${innerProbe.stdout.trim()}`);
 
   // Tail the gateway log so we can see startup state.
   const { result: gwLog } = await sandbox.sh("tail -n 30 /tmp/openclaw.log 2>/dev/null || true", {
@@ -152,7 +159,7 @@ try {
   let lastBody = "";
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${previewUrl}/v1/models`, {
+      const res = await fetch(`${previewUrl}/health`, {
         headers: { Authorization: `Bearer ${GATEWAY_TOKEN}` },
         signal: AbortSignal.timeout(8_000),
       });
@@ -167,6 +174,11 @@ try {
 
   console.log(`  HTTP ${lastStatus}`);
   console.log(`  body preview: ${lastBody.slice(0, 300)}`);
+  // Reaching the gateway through ingress is the whole point of the example —
+  // printing a 4xx and calling it live is worse than failing.
+  if (lastStatus < 200 || lastStatus >= 300) {
+    throw new Error(`preview URL probe failed: HTTP ${lastStatus}\n${lastBody.slice(0, 300)}`);
+  }
   console.log(`\nlive gateway: ${previewUrl}`);
 } finally {
   console.log("\ncleanup…");
