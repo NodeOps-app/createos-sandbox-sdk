@@ -61,7 +61,18 @@ async function firecrawlScrape(url: string): Promise<string> {
       Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
+    // Listings sites sit behind bot protection: a plain scrape of the default
+    // target returns a ~270-char interstitial, which extracts to nothing and
+    // silently drops this example onto the fixture. Firecrawl's stealth proxy
+    // gets the real page (~65k chars) — it costs more credits per scrape, so
+    // set FIRECRAWL_PROXY=basic if your target does not need it.
+    body: JSON.stringify({
+      url,
+      formats: ["markdown"],
+      onlyMainContent: true,
+      proxy: process.env.FIRECRAWL_PROXY ?? "stealth",
+      waitFor: 5_000,
+    }),
   });
   if (!res.ok) {
     throw new Error(`firecrawl ${res.status}: ${(await res.text()).slice(0, 200)}`);
