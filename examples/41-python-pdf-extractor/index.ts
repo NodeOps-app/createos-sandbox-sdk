@@ -16,13 +16,15 @@ const ROOTFS = "devbox:1";
 
 // Python script executed inside the sandbox.
 // Iterates every page's widgets, collects {name, value, type} tuples,
-// writes JSON to stdout which is captured by runCommand.
+// writes JSON to a file: MuPDF prints its own warnings to stdout, so stdout is
+// not a clean JSON channel.
 const EXTRACTOR_PY = `\
 import fitz
 import json
 import sys
 
 path = sys.argv[1]
+out = sys.argv[2]
 doc = fitz.open(path)
 fields = []
 for page in doc:
@@ -33,7 +35,8 @@ for page in doc:
             "type": widget.field_type_string,
         })
 doc.close()
-print(json.dumps(fields, ensure_ascii=False))
+with open(out, "w", encoding="utf-8") as fh:
+    json.dump(fields, fh, ensure_ascii=False)
 `;
 
 // bridge FCSPAWN_URL -> baseUrl when set; fall back to CREATEOS_SANDBOX_BASE_URL
@@ -71,14 +74,18 @@ try {
 
   // Run the extractor
   console.log("[5/6] running extractor ...");
-  const run = await sandbox.runCommand("python3", ["/tmp/extract.py", "/tmp/form.pdf"]);
+  const run = await sandbox.runCommand("python3", [
+    "/tmp/extract.py",
+    "/tmp/form.pdf",
+    "/tmp/fields.json",
+  ]);
   if (run.result.exit_code !== 0) {
     throw new Error(`extractor failed:\n${run.result.stderr}`);
   }
 
-  // Parse stdout as JSON and pretty-print
+  // Read the JSON the extractor wrote and pretty-print
   const fields: Array<{ name: string; value: string; type: string }> = JSON.parse(
-    run.result.stdout,
+    new TextDecoder().decode(await sandbox.files.download("/tmp/fields.json")),
   );
   console.log(`[6/6] extracted ${fields.length} field(s):`);
   for (const f of fields) {

@@ -53,11 +53,21 @@ try {
   console.log("[2/4] installing @anthropic-ai/claude-code...");
   const install = await sandbox.runCommand(
     "sh",
-    ["-lc", "npm install -g @anthropic-ai/claude-code --prefix /usr/local 2>&1"],
+    [
+      "-lc",
+      // The rootfs may already ship the CLI at this exact path; installing
+      // over it fails EEXIST. Anything elsewhere on PATH is not visible to the
+      // non-root user that runs the task below, so only this path counts.
+      "[ -x /usr/local/bin/claude ] || npm install -g @anthropic-ai/claude-code --prefix /usr/local",
+    ],
     { timeoutMs: 300_000 },
   );
   if (install.result.exit_code !== 0) {
-    throw new Error(`npm install failed:\n${install.result.stderr}`);
+    // npm splits its diagnostics across both streams; report each one.
+    throw new Error(
+      `npm install failed (exit ${install.result.exit_code}):\n` +
+        `stdout:\n${install.result.stdout}\nstderr:\n${install.result.stderr}`,
+    );
   }
   const ver = await sandbox.runCommand("/usr/local/bin/claude", ["--version"]);
   console.log(`      ${ver.result.stdout.trim()}`);
@@ -65,7 +75,21 @@ try {
   // Claude Code blocks --dangerously-skip-permissions when the process runs
   // as root. Create a non-root user and su to it for the coding task.
   console.log("[3/4] creating non-root user...");
-  await sandbox.runCommand("sh", ["-c", "useradd -m -s /bin/bash sandboxuser 2>/dev/null || true"]);
+  // The CLI on PATH is an asdf shim that re-execs `asdf`, and the whole asdf
+  // tree lives under /root (mode 700) — neither is reachable once we drop to a
+  // non-root user, so the shim dies with a bare 127. Open /root for traversal
+  // only (+x, not +r) and link the real binary onto the shared path.
+  await sandbox.runCommand("sh", [
+    "-c",
+    [
+      "useradd -m -s /bin/bash sandboxuser 2>/dev/null || true",
+      "chmod o+x /root",
+      "real=$(ls /usr/local/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe" +
+        " /root/.asdf/installs/nodejs/*/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe" +
+        " 2>/dev/null | head -1)",
+      '[ -n "$real" ] && ln -sf "$real" /usr/local/bin/claude-real',
+    ].join(" && "),
+  ]);
 
   console.log("[4/4] running coding task inside sandbox...");
   console.log(`      prompt: "${TASK.slice(0, 80)}..."\n`);
@@ -84,7 +108,7 @@ try {
           [
             "export HOME=/home/sandboxuser",
             "export PATH=/usr/local/bin:$PATH",
-            `echo ${JSON.stringify(TASK)} | claude -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)} 2>&1`,
+            `echo ${JSON.stringify(TASK)} | claude-real -p --dangerously-skip-permissions --model ${JSON.stringify(anthropicModel)}`,
           ].join(" && "),
           "sandboxuser",
         ],
@@ -98,7 +122,9 @@ try {
   }
 
   if (result.exit_code !== 0) {
-    throw new Error(`claude exited ${result.exit_code}:\n${result.stderr}`);
+    throw new Error(
+      `claude exited ${result.exit_code}:\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
   }
   process.stdout.write(result.stdout);
   console.log("\n[done]");
