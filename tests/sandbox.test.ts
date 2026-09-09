@@ -129,6 +129,28 @@ describe("commands", () => {
   });
 });
 
+describe("handle getters", () => {
+  test("id, status, ip and name read through to the cached projection", async () => {
+    const client = makeClient(() =>
+      Promise.resolve(success({ ...RUNNING_VIEW, name: "brave-otter" })),
+    );
+    const sandbox = await client.getSandbox("sb_1");
+    expect(sandbox.id).toBe("sb_1");
+    expect(sandbox.status).toBe("running");
+    expect(sandbox.ip).toBe("10.0.0.2");
+    expect(sandbox.name).toBe("brave-otter");
+  });
+
+  test("ip and name are undefined when the projection omits them", async () => {
+    const client = makeClient(() =>
+      Promise.resolve(success({ ...RUNNING_VIEW, ip: undefined, status: "creating" })),
+    );
+    const sandbox = await client.getSandbox("sb_1");
+    expect(sandbox.ip).toBeUndefined();
+    expect(sandbox.name).toBeUndefined();
+  });
+});
+
 describe("lifecycle", () => {
   test("refresh re-fetches and updates the handle", async () => {
     let calls = 0;
