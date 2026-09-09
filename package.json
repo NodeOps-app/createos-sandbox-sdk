@@ -1,16 +1,24 @@
 {
   "name": "@nodeops-createos/sandbox",
-  "version": "0.8.1",
-  "description": "TypeScript SDK for CreateOS Sandbox.",
+  "version": "0.8.2",
+  "description": "Isolated sandboxes for AI agents and untrusted code: create, run commands, egress allowlist, pause/resume/fork, destroy. TypeScript SDK for CreateOS Sandbox.",
   "keywords": [
+    "agent",
+    "agents",
+    "ai",
     "ai-agents",
+    "code-execution",
     "compute",
     "createos",
     "createos-sandbox",
+    "e2b-alternative",
+    "egress",
     "isolated-sandbox",
+    "isolation",
     "runtime",
     "sandbox",
-    "sdk"
+    "sdk",
+    "untrusted-code"
   ],
   "homepage": "https://createos.sh",
   "bugs": {
