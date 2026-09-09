@@ -29,6 +29,9 @@ Requires Node 20+ (or any runtime with global `fetch`, `ReadableStream`, and
 
 ## Quick start
 
+Run untrusted, model-generated Python with a network allowlist, a timeout, and
+guaranteed cleanup:
+
 ```ts
 import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 
@@ -36,22 +39,44 @@ import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
 const client = new CreateosSandboxClient();
 
 const sandbox = await client.createSandbox({
-  shape: "s-4vcpu-4gb",
+  shape: "s-1vcpu-1gb",
   rootfs: "devbox:1",
+  // Egress allowlist: the sandbox reaches PyPI and nothing else.
+  egress: ["pypi.org:443", "*.pythonhosted.org:443"],
 });
 
 try {
-  const { result } = await sandbox.runCommand("node", ["--version"]);
-  console.log(result.stdout); // "v20.x.x"
+  await sandbox.files.upload("/tmp/script.py", "print(sum(range(10)))\n");
+
+  const { result } = await sandbox.runCommand("python3", ["/tmp/script.py"], {
+    timeoutMs: 300_000, // 5 minutes, then the request aborts
+  });
+
+  console.log(result.stdout, result.exit_code); // "45\n" 0
 } finally {
-  await sandbox.destroy();
+  await sandbox.destroy(); // always tear down — sandboxes bill while running
 }
+```
+
+Omit `egress` (or pass `["*"]`) to allow all outbound traffic. For a sandbox
+that outlives one command — a dev server, a session an agent returns to — let
+it pause itself when idle instead of destroying it:
+
+```ts
+const sandbox = await client.createSandbox({
+  shape: "s-1vcpu-1gb",
+  rootfs: "devbox:1",
+  auto_pause_after_seconds: 300, // idle 5 min → paused, disk + memory preserved
+});
+
+// ...later, from anywhere:
+await sandbox.resume(); // back to running, processes intact
 ```
 
 `baseUrl` defaults to the production CreateOS Sandbox API; override it via the
 constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox` blocks until the
-sandbox reaches `running`. Sandboxes bill while running — tear down in
-`finally`, or set an idle `auto_pause_after_seconds`.
+sandbox reaches `running`. Shapes, quotas, and concurrency caps are listed in
+[Concepts](https://docs.createos.sh/Sandbox/Concepts).
 
 ## Documentation
 
