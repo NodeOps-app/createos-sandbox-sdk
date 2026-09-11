@@ -26,11 +26,12 @@ Upstream of all three:
 - **Service** — `../fc` (`nodeops-app/fc`). Source of truth for the wire
   contract: `openapi.yaml`, plus `CLAUDE.md` / `AGENT.md` for its own rules.
   If the SDKs disagree about what the API does, the service wins.
-- **Public docs** — `../website-04/content/docs/Sandbox/`, published at
-  <https://createos.sh/docs/Sandbox>. Language snippets are **not** written in
-  Markdown: they live in `lib/docs/sdk-code-examples.ts` and render through
-  `<SdkCodeTabs example="..." />`, one entry per language. A new SDK capability
-  that users should see is not shipped until that file has it.
+- **Public docs** — `../createos-v2-landing/apps/docs/src/pages/Sandbox/`,
+  published at <https://createos.sh/docs/Sandbox>. Every language snippet lives
+  in `SDK/Overview.mdx` inside a `:::code-group`, one fenced block per language
+  (` ```python [Python] `). A new SDK capability that users should see is not
+  shipped until that page has it. The older `website-04` checkout is retired;
+  do not edit it.
 
 ## Cross-SDK parity protocol
 
@@ -54,8 +55,8 @@ protocol — **do not edit a sibling repository unless the user asks you to.**
 3. **Report.** End the task with a short parity note: what ports to which SDK,
    what does not, and why. Name the file the sibling change would land in.
 4. **Docs.** If the change adds or alters a user-visible capability, say
-   whether `sdk-code-examples.ts` and the affected page under
-   `content/docs/Sandbox/` need updating.
+   whether `SDK/Overview.mdx` and the affected page under
+   `apps/docs/src/pages/Sandbox/` need updating.
 
 The same protocol runs in reverse: when the Go or Python SDK gains a feature or
 fix, check whether it belongs here.
