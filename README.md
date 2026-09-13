@@ -81,11 +81,6 @@ Full docs follow the [Diátaxis](https://diataxis.fr/) framework and live under
 - **[Explanation](docs/explanation/)** — the sandbox model, the handle model, lifecycle, reliability
 - **[Examples](docs/examples.md)** — runnable programs, one per directory under [`examples/`](examples/)
 
-The same sandbox capabilities are available in other languages:
-
-- **[CreateOS Go SDK](https://github.com/NodeOps-app/createos-go-sdk)** — the same API for Go
-- **[CreateOS Python SDK](https://github.com/NodeOps-app/createos-python-sdk)** — the same API for Python
-
 For AI agents and tools: the machine-readable index is [`llms.txt`](llms.txt)
 and the full corpus is bundled in [`llms-full.txt`](llms-full.txt)
 ([llmstxt.org](https://llmstxt.org/)).
@@ -134,8 +129,7 @@ cross-repo map and the ripple protocol.
 ## Contributing
 
 Working **in** this repository? See [`AGENTS.md`](AGENTS.md) for the contributor
-and agent guide; [`CLAUDE.md`](CLAUDE.md) carries the sibling-SDK map and the
-cross-SDK parity protocol. Commits are gated by `.pre-commit-config.yaml` (lint, format,
+and agent guide. Commits are gated by `.pre-commit-config.yaml` (lint, format,
 typecheck, tests, docs-sync).
 
 ## License
