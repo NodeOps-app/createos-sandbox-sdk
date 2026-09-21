@@ -1,5 +1,6 @@
 /** Delegate runtime access to one sandbox, then revoke it. */
 import { CreateosSandboxClient } from "createos-sandbox-sdk";
+import { runWorker } from "./worker.ts";
 
 const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({ shape: "s-1vcpu-1gb", rootfs: "devbox:1" });
@@ -19,8 +20,8 @@ try {
   console.log("enabled:", metadata.enabled, "hint:", metadata.token_hint);
 
   const replacement = await sandbox.rotateAccessToken();
-  const rotatedWorker = sandbox.withAccessToken(replacement.token);
-  console.log((await rotatedWorker.runCommand("sh", ["-c", "echo rotated"])).result.stdout);
+  // A separate worker can reconnect using only the sandbox id and new token.
+  console.log(await runWorker(sandbox.id, replacement.token, "rotated"));
 
   await sandbox.disableAccessToken();
 } finally {

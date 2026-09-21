@@ -1,6 +1,7 @@
 name: examples
 
-# Runs every example end-to-end against the live createos-sandbox control plane.
+# Runs examples marked ci=true in examples/manifest.json against the live
+# createos-sandbox control plane.
 # Each example is a one-shot `bun index.ts` that creates a sandbox, verifies
 # it, and destroys it in a `finally` block — so a green job means the example
 # worked against production.
@@ -16,8 +17,8 @@ name: examples
 # job + a job `timeout-minutes` below the cutoff — never batch examples serially
 # into a single job or the reaper kills the VM mid-run.
 #
-# Cost note: every run spawns real VMs and makes paid LLM API calls, and 42
-# example jobs boot 42 microVMs at once against a shared MAX_CONCURRENT pool.
+# Cost note: every run spawns sandboxes and may make paid LLM API calls. The
+# selected example jobs share one concurrency pool.
 # Triggers are kept deliberate: nightly, manual, and on push to main.
 #
 # No `pull_request` trigger by design. Examples run arbitrary `bun index.ts`
@@ -44,11 +45,10 @@ permissions:
   contents: read # checkout only; no write scope needed
 
 jobs:
-  # Build the example matrix from the examples/ directory so new examples are
-  # picked up automatically — no edits to this file when one is added.
+  # Build the example matrix from manifest entries marked ci=true.
   # Discover also builds the SDK and installs example deps ONCE, seeding a
   # shared cache. The matrix jobs restore dist/ + the bun store from it instead
-  # of repeating `bun install` + `bun run build` 42 times.
+  # of repeating `bun install` + `bun run build` in every job.
   discover:
     runs-on: [createos]
     outputs:
@@ -56,21 +56,19 @@ jobs:
       cache-key: ${{ steps.key.outputs.key }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
       - id: list
         run: |
-          json=$(cd examples && for d in [0-9]*/; do printf '%s\n' "${d%/}"; done \
-            | grep . | grep -vE '^(10|36|37)-' | sed 's/.*/"&"/' | paste -sd, -)
-          echo "examples=[$json]" >> "$GITHUB_OUTPUT"
+          json=$(bun -e 'const manifest = await Bun.file("examples/manifest.json").json(); console.log(JSON.stringify(manifest.examples.filter((example) => example.ci).map((example) => example.dir)))')
+          echo "examples=$json" >> "$GITHUB_OUTPUT"
 
       # Single source of truth for the cache key, consumed by the matrix jobs.
       # dist/ depends on src + tsconfig; examples/node_modules on its lockfile.
       - id: key
         run: |
           echo "key=examples-deps-${{ hashFiles('src/**', 'tsconfig.json', 'bun.lock', 'examples/bun.lock', 'examples/package.json') }}" >> "$GITHUB_OUTPUT"
-
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: latest
 
       # We cache the global bun store, NOT node_modules: examples depend on the
       # SDK via `file:../`, which bun materializes as a symlink back to the repo

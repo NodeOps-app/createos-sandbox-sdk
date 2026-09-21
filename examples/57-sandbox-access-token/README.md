@@ -4,6 +4,10 @@ Run a command with the owner API key, then create one sandbox token for a
 worker, use it through a separate handle, rotate it, and disable it. The
 owner handle retains the account API key.
 
+The first delegated command uses `withAccessToken()`. After rotation,
+`worker.ts` creates its own client using only the sandbox id and replacement
+token. It has no owner credential or owner handle.
+
 ## Run
 
 ```sh

@@ -91,14 +91,21 @@ describe("sandbox access tokens", () => {
     expect(seen.at(-1)?.key).toBeNull();
   });
 
-  test("blank delegated token is rejected before a request", async () => {
+  test("blank and non-sandbox tokens are rejected before a request", async () => {
+    let fetchCalls = 0;
     const client = new CreateosSandboxClient({
       baseUrl: BASE,
       apiKey: "owner-key",
-      fetch: (async () => success(RUNNING_VIEW)) as unknown as typeof fetch,
+      fetch: (async () => {
+        fetchCalls++;
+        return success(RUNNING_VIEW);
+      }) as unknown as typeof fetch,
     });
     const sandbox = await client.getSandbox("sb_1");
-    expect(() => sandbox.withAccessToken(" \t ")).toThrow(CreateosSandboxError);
+    for (const token of [" \t ", "skp_owner-key", "skp_sb", "skp_mangled"]) {
+      expect(() => sandbox.withAccessToken(token)).toThrow(CreateosSandboxError);
+    }
+    expect(fetchCalls).toBe(1);
   });
 
   test("rotation surfaces a missing-token response", async () => {

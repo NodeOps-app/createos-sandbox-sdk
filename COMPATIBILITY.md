@@ -6,11 +6,11 @@ plane is a separate service; its published OpenAPI spec is stale, so this
 checkpoint is verified against the live server behavior, never the spec.
 See `AGENTS.md` → "Wire types — source of truth".
 
-## Checkpoint
+## Historical full checkpoint
 
 | | |
 | --- | --- |
-| SDK version | `0.6.0` |
+| SDK version at this checkpoint | `0.6.0` |
 | createos-sandbox branch | `main` |
 | createos-sandbox commit | `3c3f4b5` (2026-06-12) |
 | Audited | 2026-06-16 (delta `12ed1a7..3c3f4b5` reviewed; the only user-facing wire addition was idle auto-pause, already modeled in 0.6.0 — no new drift) |
@@ -20,6 +20,26 @@ wire-faithful to the server at the audit above — field names, types, and
 `omitempty` → optional mapping — except for the known drift listed below.
 Endpoints the SDK does not model (next two sections) are a coverage
 choice, not a fidelity failure, and do not move this checkpoint.
+
+This checkpoint and the endpoint inventory below predate newer SDK features;
+they are not an inventory of the current package. For current implemented
+methods, read `src/index.ts`, `src/client.ts`, and `src/sandbox.ts`.
+
+## Targeted reconciliation after the checkpoint
+
+On 2026-09-21, the sandbox access-token surface in SDK `0.8.2` was checked
+against control-plane `main` at `a484229` and the Go SDK. This was a targeted
+review, not a full replacement of the historical checkpoint above.
+
+- `POST /v1/sandboxes/:id/access-token` creates one token and returns its
+  plaintext once. An existing enabled token returns 409.
+- `GET /v1/sandboxes/:id/access-token` returns redacted metadata only.
+- `POST /v1/sandboxes/:id/access-token/rotate` replaces an existing token,
+  returns its plaintext once, and returns 404 when no token exists.
+- `DELETE /v1/sandboxes/:id/access-token` disables a token idempotently.
+- Create and rotate also return 409 when the sandbox is `destroying`,
+  `destroyed`, or `failed`. Token management requires an owner credential;
+  delegated credentials use the `skp_sb_` prefix and are scoped to one sandbox.
 
 ## Endpoints not modeled
 
