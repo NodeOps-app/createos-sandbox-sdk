@@ -92,6 +92,11 @@ export class CreateosSandboxHttp {
     }
   }
 
+  /** Creates an independent transport with the same settings and a replacement API key. */
+  withApiKey(apiKey: string): CreateosSandboxHttp {
+    return new CreateosSandboxHttp({ ...this.#config, apiKey, authHeaders: undefined });
+  }
+
   #loadUndici(): Promise<NodeTransport | null> {
     let ready = sharedNodeTransports.get(this.#baseOrigin);
     if (!ready) {

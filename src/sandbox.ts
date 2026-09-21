@@ -59,6 +59,8 @@ import type {
   RequestOptions,
   ResizeSandboxResponse,
   SandboxDiskView,
+  SandboxAccessTokenCreateResponse,
+  SandboxAccessTokenMetadata,
   SandboxStatus,
   SandboxView,
   WaitOptions,
@@ -81,8 +83,9 @@ function assertValidPort(port: number): void {
 }
 
 function encodeBase64(data: Uint8Array): string {
-  const maybeBuffer = (globalThis as { Buffer?: { from(data: Uint8Array): { toString(enc: "base64"): string } } })
-    .Buffer;
+  const maybeBuffer = (
+    globalThis as { Buffer?: { from(data: Uint8Array): { toString(enc: "base64"): string } } }
+  ).Buffer;
   if (maybeBuffer) return maybeBuffer.from(data).toString("base64");
 
   let binary = "";
@@ -92,7 +95,9 @@ function encodeBase64(data: Uint8Array): string {
 
 function decodeBase64Utf8(data: string): string {
   const maybeBuffer = (
-    globalThis as { Buffer?: { from(data: string, enc: "base64"): { toString(enc: "utf8"): string } } }
+    globalThis as {
+      Buffer?: { from(data: string, enc: "base64"): { toString(enc: "utf8"): string } };
+    }
   ).Buffer;
   if (maybeBuffer) return maybeBuffer.from(data, "base64").toString("utf8");
 
@@ -181,7 +186,10 @@ export class SandboxProcesses {
   }
 
   /** Starts a managed pipe process or PTY inside the sandbox. */
-  create(request: ManagedProcessCreateRequest, options: RequestOptions = {}): Promise<ManagedProcess> {
+  create(
+    request: ManagedProcessCreateRequest,
+    options: RequestOptions = {},
+  ): Promise<ManagedProcess> {
     return this.#http.request<ManagedProcess>("POST", this.#path(), {
       ...options,
       body: request,
@@ -245,7 +253,11 @@ export class SandboxProcesses {
   }
 
   /** Writes UTF-8 input to a pipe process or PTY. */
-  input(processId: string, data: string, options: RequestOptions = {}): Promise<ManagedProcessInputResponse> {
+  input(
+    processId: string,
+    data: string,
+    options: RequestOptions = {},
+  ): Promise<ManagedProcessInputResponse> {
     return this.inputBytes(processId, new TextEncoder().encode(data), options);
   }
 
@@ -277,40 +289,40 @@ export class SandboxProcesses {
     size: { rows: number; cols: number },
     options: RequestOptions = {},
   ): Promise<OKResponse> {
-    return this.#http.request<OKResponse>(
-      "POST",
-      this.#path(`/${encodePath(processId)}/resize`),
-      { ...options, body: size },
-    );
+    return this.#http.request<OKResponse>("POST", this.#path(`/${encodePath(processId)}/resize`), {
+      ...options,
+      body: size,
+    });
   }
 
   /** Sends a signal such as `SIGINT`, `SIGTERM`, or `SIGKILL`. */
-  signal(processId: string, signal: ManagedProcessSignal, options: RequestOptions = {}): Promise<OKResponse> {
-    return this.#http.request<OKResponse>(
-      "POST",
-      this.#path(`/${encodePath(processId)}/signal`),
-      { ...options, body: { signal } },
-    );
+  signal(
+    processId: string,
+    signal: ManagedProcessSignal,
+    options: RequestOptions = {},
+  ): Promise<OKResponse> {
+    return this.#http.request<OKResponse>("POST", this.#path(`/${encodePath(processId)}/signal`), {
+      ...options,
+      body: { signal },
+    });
   }
 
   /** Long-polls until the process leader or complete process tree exits. */
   wait(processId: string, options: ManagedProcessWaitOptions = {}): Promise<ManagedProcess> {
     const { scope, waitTimeoutMs, ...rest } = options;
-    return this.#http.request<ManagedProcess>(
-      "GET",
-      this.#path(`/${encodePath(processId)}/wait`),
-      { ...rest, query: { scope, timeout_ms: waitTimeoutMs } },
-    );
+    return this.#http.request<ManagedProcess>("GET", this.#path(`/${encodePath(processId)}/wait`), {
+      ...rest,
+      query: { scope, timeout_ms: waitTimeoutMs },
+    });
   }
 
   /** Terminates a managed process tree with SIGTERM, then cgroup kill after the grace period. */
   delete(processId: string, options: ManagedProcessDeleteOptions = {}): Promise<ManagedProcess> {
     const { graceMs, ...rest } = options;
-    return this.#http.request<ManagedProcess>(
-      "DELETE",
-      this.#path(`/${encodePath(processId)}`),
-      { ...rest, query: { grace_ms: graceMs } },
-    );
+    return this.#http.request<ManagedProcess>("DELETE", this.#path(`/${encodePath(processId)}`), {
+      ...rest,
+      query: { grace_ms: graceMs },
+    });
   }
 }
 
@@ -336,7 +348,10 @@ export class SandboxComputerMouse {
     });
   }
 
-  click(request: ComputerClickRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  click(
+    request: ComputerClickRequest = {},
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/click`, {
       ...rest,
@@ -345,7 +360,10 @@ export class SandboxComputerMouse {
     });
   }
 
-  scroll(request: ComputerScrollRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  scroll(
+    request: ComputerScrollRequest = {},
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/scroll`, {
       ...rest,
@@ -363,7 +381,10 @@ export class SandboxComputerMouse {
     });
   }
 
-  down(request: ComputerButtonRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  down(
+    request: ComputerButtonRequest = {},
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/down`, {
       ...rest,
@@ -372,7 +393,10 @@ export class SandboxComputerMouse {
     });
   }
 
-  up(request: ComputerButtonRequest = {}, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  up(
+    request: ComputerButtonRequest = {},
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/mouse/up`, {
       ...rest,
@@ -395,7 +419,10 @@ export class SandboxComputerKeyboard {
     this.#basePath = basePath;
   }
 
-  type(request: ComputerTypeRequest | string, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  type(
+    request: ComputerTypeRequest | string,
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = typeof request === "string" ? { text: request } : request;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/type`, {
@@ -405,7 +432,10 @@ export class SandboxComputerKeyboard {
     });
   }
 
-  press(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  press(
+    keys: ComputerPressRequest | string[],
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = Array.isArray(keys) ? { keys } : keys;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/press`, {
@@ -415,7 +445,10 @@ export class SandboxComputerKeyboard {
     });
   }
 
-  down(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  down(
+    keys: ComputerPressRequest | string[],
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = Array.isArray(keys) ? { keys } : keys;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/down`, {
@@ -425,7 +458,10 @@ export class SandboxComputerKeyboard {
     });
   }
 
-  up(keys: ComputerPressRequest | string[], options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  up(
+    keys: ComputerPressRequest | string[],
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = Array.isArray(keys) ? { keys } : keys;
     return this.#http.request<OKResponse>("POST", `${this.#basePath}/keyboard/up`, {
@@ -668,7 +704,10 @@ export class SandboxComputer {
   }
 
   /** Replaces the desktop clipboard text. */
-  setClipboard(text: string | ComputerClipboard, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  setClipboard(
+    text: string | ComputerClipboard,
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = typeof text === "string" ? { text } : text;
     return this.#http.request<OKResponse>("PUT", this.#path("/clipboard"), {
@@ -679,7 +718,10 @@ export class SandboxComputer {
   }
 
   /** Opens a URL or desktop target. */
-  open(target: string | ComputerOpenRequest, options: ComputerScreenOptions = {}): Promise<OKResponse> {
+  open(
+    target: string | ComputerOpenRequest,
+    options: ComputerScreenOptions = {},
+  ): Promise<OKResponse> {
     const { screenId, ...rest } = options;
     const body = typeof target === "string" ? { target } : target;
     return this.#http.request<OKResponse>("POST", this.#path("/open"), {
@@ -734,6 +776,56 @@ export class Sandbox {
     this.files = new SandboxFiles(http, view.id);
     this.processes = new SandboxProcesses(http, view.id);
     this.computer = new SandboxComputer(http, view.id);
+  }
+
+  /**
+   * Returns a separate handle for this sandbox authenticated by its delegated
+   * access token. The original handle retains the owner's credential.
+   * The server permits runtime operations on the delegated handle, but rejects
+   * token management and account-level operations.
+   */
+  withAccessToken(token: string): Sandbox {
+    const apiKey = token.trim();
+    if (!apiKey) {
+      throw new CreateosSandboxError("Sandbox access token must not be empty.");
+    }
+    return new Sandbox(this.#http.withApiKey(apiKey), { ...this.#data });
+  }
+
+  /** Creates a delegated access token. The plaintext token is returned only once. */
+  createAccessToken(options: RequestOptions = {}): Promise<SandboxAccessTokenCreateResponse> {
+    return this.#http.request<SandboxAccessTokenCreateResponse>(
+      "POST",
+      this.#path("/access-token"),
+      options,
+    );
+  }
+
+  /** Inspects the delegated token without revealing its plaintext value. */
+  getAccessToken(options: RequestOptions = {}): Promise<SandboxAccessTokenMetadata> {
+    return this.#http.request<SandboxAccessTokenMetadata>(
+      "GET",
+      this.#path("/access-token"),
+      options,
+    );
+  }
+
+  /** Replaces the delegated token and returns its new plaintext value once. */
+  rotateAccessToken(options: RequestOptions = {}): Promise<SandboxAccessTokenCreateResponse> {
+    return this.#http.request<SandboxAccessTokenCreateResponse>(
+      "POST",
+      this.#path("/access-token/rotate"),
+      options,
+    );
+  }
+
+  /** Disables the delegated token. Succeeds when no token exists. */
+  disableAccessToken(options: RequestOptions = {}): Promise<SandboxAccessTokenMetadata> {
+    return this.#http.request<SandboxAccessTokenMetadata>(
+      "DELETE",
+      this.#path("/access-token"),
+      options,
+    );
   }
 
   // ── static factories ──────────────────────────────────────────────────

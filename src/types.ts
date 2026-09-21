@@ -322,6 +322,23 @@ export interface SandboxView {
   auto_pause_after_seconds?: number;
 }
 
+/** Returned only when a sandbox access token is created or rotated. Save the token now; it cannot be read later. */
+export interface SandboxAccessTokenCreateResponse {
+  token: string;
+  enabled: boolean;
+  created_at: string;
+  /** RFC 3339 timestamp, present after rotation. */
+  rotated_at?: string;
+}
+
+/** Token state without the plaintext credential. Disabled tokens omit the optional fields. */
+export interface SandboxAccessTokenMetadata {
+  enabled: boolean;
+  token_hint?: string;
+  created_at?: string;
+  rotated_at?: string;
+}
+
 /** Filters for `listSandboxes()`. */
 export interface ListSandboxesOptions extends RequestOptions {
   /** Cap the number of handles returned. Omit to fetch every page. */

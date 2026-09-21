@@ -942,11 +942,7 @@
       "summary": "Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox.",
       "primitives": ["createSandbox", "runCommand", "files.upload", "destroy"],
       "deps": ["openai"],
-      "env": [
-        "CREATEOS_SANDBOX_API_KEY",
-        "CREATEOS_SANDBOX_BASE_URL",
-        "OPENAI_API_KEY"
-      ],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "OPENAI_API_KEY"],
       "entry": "index.ts",
       "ci": false,
       "status": "requires-extra-setup",
@@ -1008,18 +1004,35 @@
       "dir": "56-remote-code-execution",
       "title": "Remote code execution",
       "summary": "Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.",
-      "primitives": [
-        "createSandbox",
-        "files.upload",
-        "runCommand",
-        "destroy"
-      ],
+      "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
       "deps": [],
       "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
       "ci": false,
       "status": "requires-extra-setup",
       "notes": "Needs language runtimes available in devbox:1 and a control plane with exec stdin support."
+    },
+    {
+      "id": "57",
+      "slug": "sandbox-access-token",
+      "dir": "57-sandbox-access-token",
+      "title": "Sandbox access token",
+      "summary": "Delegate one sandbox to a worker, inspect and rotate its token, then revoke it.",
+      "primitives": [
+        "createSandbox",
+        "createAccessToken",
+        "withAccessToken",
+        "runCommand",
+        "getAccessToken",
+        "rotateAccessToken",
+        "disableAccessToken",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }

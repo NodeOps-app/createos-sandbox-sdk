@@ -113,6 +113,8 @@ For product updates and engineering notes, read the
   backoff, jitter, and `Retry-After`. See [reliability](docs/explanation/reliability.md).
 - **Streaming, ingress, snapshots** — NDJSON command streaming, per-sandbox
   preview URLs, and pause / fork / resume.
+- **Delegated access** — issue, inspect, rotate, or disable a token scoped to
+  one sandbox. See the [example](examples/57-sandbox-access-token/).
 
 ## Contributing
 
@@ -4178,6 +4180,39 @@ console.log(sandbox.status);
 
 ---
 
+## Delegated access tokens
+
+An owner can issue one access token for a sandbox and hand it to a worker.
+Use the owner handle for token management; the delegated handle can perform
+runtime operations only on that sandbox. The server rejects token-management
+requests made with a delegated token.
+
+```ts
+const created = await sandbox.createAccessToken();
+const worker = sandbox.withAccessToken(created.token);
+const result = await worker.runCommand("sh", ["-c", "echo hello"]);
+
+const metadata = await sandbox.getAccessToken(); // no plaintext token
+const replacement = await sandbox.rotateAccessToken();
+const newWorker = sandbox.withAccessToken(replacement.token);
+await sandbox.disableAccessToken();
+```
+
+`createAccessToken()` and `rotateAccessToken()` return
+`SandboxAccessTokenCreateResponse`: `token`, `enabled`, `created_at`, and
+optional `rotated_at`. Save `token` when returned; it cannot be retrieved later.
+`getAccessToken()` and `disableAccessToken()` return
+`SandboxAccessTokenMetadata`: `enabled` plus optional `token_hint`,
+`created_at`, and `rotated_at`. Disabled tokens return `{ enabled: false }`.
+
+Creating a token when one is already enabled returns 409. Rotation requires
+an existing token and returns 404 otherwise. Disabling is idempotent.
+Revocation takes effect in the sandbox's home region first and propagates
+asynchronously to other regions. `withAccessToken()` creates a separate
+handle, preserves the client's transport settings, and rejects a blank token.
+
+---
+
 ## Getters
 
 These read the handle's last-known cached projection without a network
@@ -5670,6 +5705,28 @@ Omitted fields are left unchanged.
 | `auto_pause_after_seconds` | `number?` | Idle auto-pause timeout in seconds (60–86400). |
 | `disable_auto_pause` | `boolean?` | When `true`, clears the auto-pause timeout. Needed because omitting `auto_pause_after_seconds` means "leave unchanged". |
 
+### `SandboxAccessTokenCreateResponse`
+
+Returned only by `Sandbox.createAccessToken()` and `Sandbox.rotateAccessToken()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `string` | Plaintext delegated credential. Save it when returned; it cannot be read later. |
+| `enabled` | `boolean` | `true` for a newly issued token. |
+| `created_at` | `string` | RFC 3339 creation timestamp. |
+| `rotated_at` | `string?` | RFC 3339 rotation timestamp, when rotated. |
+
+### `SandboxAccessTokenMetadata`
+
+Returned by `Sandbox.getAccessToken()` and `Sandbox.disableAccessToken()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | `boolean` | Whether a delegated token is active. |
+| `token_hint` | `string?` | Redacted hint; omitted when disabled. |
+| `created_at` | `string?` | RFC 3339 timestamp; omitted when disabled. |
+| `rotated_at` | `string?` | RFC 3339 timestamp; omitted if never rotated or disabled. |
+
 ### `AddSSHPubkeysRequest`
 
 Body of `Sandbox.addSSHPubkeys`.
@@ -6399,6 +6456,7 @@ SDK version string, kept in sync with `package.json`. Stamped into the
 class CreateosSandboxHttp {
   readonly baseUrl: string;
 
+  withApiKey(apiKey: string): CreateosSandboxHttp
   request<T>(method: string, path: string, options?: HttpRequestOptions): Promise<T>
   requestRaw(method: string, path: string, options?: HttpRequestOptions): Promise<Response>
   stream<T>(method: string, path: string, options?: HttpRequestOptions): AsyncGenerator<T>
@@ -6415,6 +6473,10 @@ Use it when the SDK does not model an endpoint directly:
   handling. Useful for binary or plain-text responses.
 - `stream<T>` — NDJSON async iterator. Not retried.
 - `fetchAllPages<T>` — walks pagination automatically and returns a flat array.
+- `withApiKey` — returns an independent transport with the same base URL,
+  custom fetch, retry policy, and hooks, but with a replacement `X-Api-Key`
+  credential. `Sandbox.withAccessToken()` uses this to isolate the owner and
+  delegated handles.
 
 #### `HttpRequestOptions`
 
@@ -6499,6 +6561,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 54 | [54-managed-process-lifecycle](../examples/54-managed-process-lifecycle/) | Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees. | extra setup |
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
+| 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
 
 ## Disks, networks & templates
 
@@ -6664,6 +6727,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [54-managed-process-lifecycle](examples/54-managed-process-lifecycle/) — Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees.
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
 - [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
+- [57-sandbox-access-token](examples/57-sandbox-access-token/) — Delegate one sandbox to a worker, inspect and rotate its token, then revoke it.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

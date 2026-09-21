@@ -154,6 +154,7 @@ SDK version string, kept in sync with `package.json`. Stamped into the
 class CreateosSandboxHttp {
   readonly baseUrl: string;
 
+  withApiKey(apiKey: string): CreateosSandboxHttp
   request<T>(method: string, path: string, options?: HttpRequestOptions): Promise<T>
   requestRaw(method: string, path: string, options?: HttpRequestOptions): Promise<Response>
   stream<T>(method: string, path: string, options?: HttpRequestOptions): AsyncGenerator<T>
@@ -170,6 +171,10 @@ Use it when the SDK does not model an endpoint directly:
   handling. Useful for binary or plain-text responses.
 - `stream<T>` — NDJSON async iterator. Not retried.
 - `fetchAllPages<T>` — walks pagination automatically and returns a flat array.
+- `withApiKey` — returns an independent transport with the same base URL,
+  custom fetch, retry policy, and hooks, but with a replacement `X-Api-Key`
+  credential. `Sandbox.withAccessToken()` uses this to isolate the owner and
+  delegated handles.
 
 #### `HttpRequestOptions`
 

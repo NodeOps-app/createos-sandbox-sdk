@@ -86,6 +86,39 @@ console.log(sandbox.status);
 
 ---
 
+## Delegated access tokens
+
+An owner can issue one access token for a sandbox and hand it to a worker.
+Use the owner handle for token management; the delegated handle can perform
+runtime operations only on that sandbox. The server rejects token-management
+requests made with a delegated token.
+
+```ts
+const created = await sandbox.createAccessToken();
+const worker = sandbox.withAccessToken(created.token);
+const result = await worker.runCommand("sh", ["-c", "echo hello"]);
+
+const metadata = await sandbox.getAccessToken(); // no plaintext token
+const replacement = await sandbox.rotateAccessToken();
+const newWorker = sandbox.withAccessToken(replacement.token);
+await sandbox.disableAccessToken();
+```
+
+`createAccessToken()` and `rotateAccessToken()` return
+`SandboxAccessTokenCreateResponse`: `token`, `enabled`, `created_at`, and
+optional `rotated_at`. Save `token` when returned; it cannot be retrieved later.
+`getAccessToken()` and `disableAccessToken()` return
+`SandboxAccessTokenMetadata`: `enabled` plus optional `token_hint`,
+`created_at`, and `rotated_at`. Disabled tokens return `{ enabled: false }`.
+
+Creating a token when one is already enabled returns 409. Rotation requires
+an existing token and returns 404 otherwise. Disabling is idempotent.
+Revocation takes effect in the sandbox's home region first and propagates
+asynchronously to other regions. `withAccessToken()` creates a separate
+handle, preserves the client's transport settings, and rejects a blank token.
+
+---
+
 ## Getters
 
 These read the handle's last-known cached projection without a network
