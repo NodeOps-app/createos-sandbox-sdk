@@ -741,13 +741,15 @@ export class Sandbox {
   /**
    * Returns a separate handle for this sandbox authenticated by its delegated
    * access token. The original handle retains the owner's credential.
-   * The server permits runtime operations on the delegated handle, but rejects
-   * token management and account-level operations.
+   * The server permits runtime access to this sandbox, including commands,
+   * files, processes, computer use, pause, resume, and destroy. Egress access,
+   * disk and network operations, fork, resize, bandwidth recharge, sandbox
+   * configuration changes, and token management require the owner's credential.
    */
   withAccessToken(token: string): Sandbox {
     const apiKey = token.trim();
-    if (!apiKey) {
-      throw new CreateosSandboxError("Sandbox access token must not be empty.");
+    if (!apiKey.startsWith("skp_sb_")) {
+      throw new CreateosSandboxError("Sandbox access token must start with skp_sb_.");
     }
     return new Sandbox(this.#http.withApiKey(apiKey), { ...this.#data });
   }

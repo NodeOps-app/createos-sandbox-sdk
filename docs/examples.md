@@ -66,7 +66,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 54 | [54-managed-process-lifecycle](../examples/54-managed-process-lifecycle/) | Start long-running pipe processes and interactive PTYs, send input, replay output, wait, and terminate process trees. | extra setup |
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
-| 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
+| 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | extra setup |
 
 ## Disks, networks & templates
 
@@ -106,6 +106,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
 - **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
+- **57 sandbox-access-token** — **needs extra setup** — Run only after sandbox access token support is available on the chosen control plane.
 
 ## See also
 

@@ -1,5 +1,5 @@
 {
-  "$comment": "Canonical index of SDK examples. Source of truth for examples/README.md and ../llms.txt — regenerate those with `bun run scripts/gen-docs.mjs` after editing this file. ci=false means the example is excluded from the nightly examples workflow because it needs an external paid service or extra secrets (see `status`).",
+  "$comment": "Canonical index of SDK examples. Source of truth for examples/README.md, ../llms.txt, and the nightly examples workflow — regenerate docs with `bun run docs:gen` after editing this file. ci=false excludes an example from nightly runs when it needs extra setup (see `status`).",
   "examples": [
     {
       "id": "01",
@@ -1022,6 +1022,7 @@
         "createSandbox",
         "createAccessToken",
         "withAccessToken",
+        "getSandbox",
         "runCommand",
         "getAccessToken",
         "rotateAccessToken",
@@ -1031,8 +1032,9 @@
       "deps": [],
       "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
       "entry": "index.ts",
-      "ci": true,
-      "status": "stable"
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Run only after sandbox access token support is available on the chosen control plane."
     }
   ]
 }

@@ -89,33 +89,75 @@ console.log(sandbox.status);
 ## Delegated access tokens
 
 An owner can issue one access token for a sandbox and hand it to a worker.
-Use the owner handle for token management; the delegated handle can perform
-runtime operations only on that sandbox. The server rejects token-management
-requests made with a delegated token.
+Use the owner handle for token management. A delegated token can read its bound
+sandbox, run commands, transfer files, manage processes, use computer controls,
+pause, resume, destroy, and read bandwidth. The server rejects token management,
+fork, resize, ingress and auto-pause changes, egress reads and writes, bandwidth
+recharge, SSH key changes, and disk or network operations. A delegated token
+cannot operate a different sandbox or list account resources.
 
 ```ts
 const created = await sandbox.createAccessToken();
 const worker = sandbox.withAccessToken(created.token);
-const result = await worker.runCommand("sh", ["-c", "echo hello"]);
+await worker.runCommand("echo", ["hello"]);
 
-const metadata = await sandbox.getAccessToken(); // no plaintext token
-const replacement = await sandbox.rotateAccessToken();
-const newWorker = sandbox.withAccessToken(replacement.token);
-await sandbox.disableAccessToken();
+// In a separate worker that receives only the token and sandbox id:
+const workerClient = new CreateosSandboxClient({ apiKey: created.token });
+const connected = await workerClient.getSandbox(sandbox.id);
+await connected.runCommand("echo", ["hello"]);
 ```
 
-`createAccessToken()` and `rotateAccessToken()` return
-`SandboxAccessTokenCreateResponse`: `token`, `enabled`, `created_at`, and
-optional `rotated_at`. Save `token` when returned; it cannot be retrieved later.
-`getAccessToken()` and `disableAccessToken()` return
-`SandboxAccessTokenMetadata`: `enabled` plus optional `token_hint`,
-`created_at`, and `rotated_at`. Disabled tokens return `{ enabled: false }`.
+### `withAccessToken`
 
-Creating a token when one is already enabled returns 409. Rotation requires
-an existing token and returns 404 otherwise. Disabling is idempotent.
-Revocation takes effect in the sandbox's home region first and propagates
-asynchronously to other regions. `withAccessToken()` creates a separate
-handle, preserves the client's transport settings, and rejects a blank token.
+```ts
+withAccessToken(token: string): Sandbox
+```
+
+Returns a separate handle for the same sandbox. It keeps the client's
+transport settings, replaces the credential, and rejects blank or non-sandbox
+tokens that do not start with `skp_sb_`. The original handle keeps its owner
+credential. The server still validates the token and its sandbox binding.
+
+### `createAccessToken`
+
+```ts
+createAccessToken(options?: RequestOptions): Promise<SandboxAccessTokenCreateResponse>
+```
+
+Creates the one delegated token for this sandbox. The response includes
+`token`, `enabled`, and `created_at`. Save the plaintext `token` now; it cannot
+be read later. Returns 409 when a token is already enabled or the sandbox is
+`destroying`, `destroyed`, or `failed`. Requires the owner's credential.
+
+### `getAccessToken`
+
+```ts
+getAccessToken(options?: RequestOptions): Promise<SandboxAccessTokenMetadata>
+```
+
+Returns `enabled` and, when present, `token_hint`, `created_at`, and
+`rotated_at`. It never returns plaintext. Requires the owner's credential.
+
+### `rotateAccessToken`
+
+```ts
+rotateAccessToken(options?: RequestOptions): Promise<SandboxAccessTokenCreateResponse>
+```
+
+Replaces an existing token and returns its new plaintext value once, with
+`enabled`, `created_at`, and `rotated_at`. Returns 404 when no token exists,
+or 409 when the sandbox is `destroying`, `destroyed`, or `failed`. Requires the
+owner's credential.
+
+### `disableAccessToken`
+
+```ts
+disableAccessToken(options?: RequestOptions): Promise<SandboxAccessTokenMetadata>
+```
+
+Disables the token and returns `{ enabled: false }`. Succeeds even when no
+token exists. Revocation takes effect in the sandbox's home region first and
+propagates asynchronously to other regions. Requires the owner's credential.
 
 ---
 
