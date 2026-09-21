@@ -199,6 +199,28 @@ Omitted fields are left unchanged.
 | `auto_pause_after_seconds` | `number?` | Idle auto-pause timeout in seconds (60–86400). |
 | `disable_auto_pause` | `boolean?` | When `true`, clears the auto-pause timeout. Needed because omitting `auto_pause_after_seconds` means "leave unchanged". |
 
+### `SandboxAccessTokenCreateResponse`
+
+Returned only by `Sandbox.createAccessToken()` and `Sandbox.rotateAccessToken()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `string` | Plaintext delegated credential. Save it when returned; it cannot be read later. |
+| `enabled` | `boolean` | `true` for a newly issued token. |
+| `created_at` | `string` | RFC 3339 creation timestamp. |
+| `rotated_at` | `string?` | RFC 3339 rotation timestamp, when rotated. |
+
+### `SandboxAccessTokenMetadata`
+
+Returned by `Sandbox.getAccessToken()` and `Sandbox.disableAccessToken()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | `boolean` | Whether a delegated token is active. |
+| `token_hint` | `string?` | Redacted hint; omitted when disabled. |
+| `created_at` | `string?` | RFC 3339 timestamp; omitted when disabled. |
+| `rotated_at` | `string?` | RFC 3339 timestamp; omitted if never rotated or disabled. |
+
 ### `AddSSHPubkeysRequest`
 
 Body of `Sandbox.addSSHPubkeys`.
