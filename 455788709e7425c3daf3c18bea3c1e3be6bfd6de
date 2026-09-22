@@ -1,0 +1,61 @@
+Chaos console — build and verification record.
+
+WHAT WAS BUILT
+  provision.ts  overlay network + 3 etcd sandboxes + 1 writer sandbox;
+                --writer reloads the generator, --down tears down.
+                STATE_FILE/PORT allow a second independent lab.
+  writer.ts     runs inside the writer sandbox; zero deps, drives etcd's
+                JSON gateway, fails over across endpoints, emits
+                aggregated NDJSON (ticks, status, audit).
+  server.ts     Bun console: SSE fan-out, chaos actions over the SDK,
+                recovery tracking, run journal.
+  public/*      single page, no framework.
+
+VERIFIED AGAINST LIVE CLUSTERS
+  Two independent labs provisioned; full fault sweep run repeatedly.
+  Representative final sweep: stall leader 1057 failed tx / recovered
+  14.8s; kill leader 1870 / 17.8s; partition leader 0 failed (client
+  failover); sandbox pause 0 failed; 30% loss 1627 / 7.6s; cpu burn
+  absorbed by quorum; fork clone created; audit lost=0 phantom=2708;
+  zero telemetry stream resets.
+
+DEFECTS FOUND BY RUNNING IT, THEN FIXED
+  - detachNetwork/attachNetwork and pause/resume renumber a sandbox, so
+    IP-based etcd peer URLs stranded a node permanently. Now DNS names.
+  - tc netem unavailable (no sch_netem): the latency button silently did
+    nothing. Link faults moved to iptables; latency no longer offered.
+  - shell exit codes were ignored, which is why the above was silent.
+    All in-guest faults now go through one checked helper.
+  - telemetry stream died on socket reset and never recovered. Pumps now
+    reconnect and resume by sequence number.
+  - writer had no failover, so one dead node read as a permanent 33%
+    error rate, misrepresenting a quorum database.
+  - restart on a live node started a second etcd that died on port bind
+    while state was repointed at it, putting the node beyond every
+    button. Now kills first and only adopts a process that stayed up.
+  - fork's finally could throw and discard the return value, reporting a
+    successful fork as an error.
+  - destroy left its log pump reconnecting forever against a dead
+    sandbox.
+  - provisioning only saved state at the end, so a mid-way failure
+    stranded billable sandboxes that --down could not see.
+  - non-numeric loss arg became NaN, which iptables normalises to 0%:
+    the button claimed success and dropped nothing.
+  - malformed JSON body returned an HTML error page; bad node index
+    raised a raw TypeError. Both now clean 400s.
+  - recovery tracking armed even for actions that failed.
+  - repaired nodes reported healthy 20-85s before they answered; the
+    console now announces sustained recovery separately.
+  - page reload wiped the header totals; they are now server-held and
+    replayed to each new client.
+
+REVIEW
+  Three parallel agents: browser-driven UI walkthrough, adversarial
+  backend edge-case testing on a disposable lab, and a source/docs
+  accuracy review. All findings triaged; fixes re-verified by a fresh
+  regression suite and a full sweep. Both labs torn down afterwards.
+
+NOT DONE
+  Latency injection (kernel lacks sch_netem). Recovery is tracked in one
+  slot, so faults are one-at-a-time. Running the customer's own database
+  in place of etcd is the intended next step.
