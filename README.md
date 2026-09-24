@@ -111,7 +111,7 @@ For product updates and engineering notes, read the
 
 ## The CreateOS Sandbox family
 
-One control plane, three SDKs, a CLI, the public docs and the agent
+One control plane, six SDKs, a CLI, the public docs and the agent
 integrations, kept behaviourally in step. A change to any shared surface is
 expected to ripple across the rest.
 
@@ -119,6 +119,9 @@ expected to ripple across the rest.
 | --- | --- | --- |
 | [createos-go-sdk](https://github.com/NodeOps-app/createos-go-sdk) | Go SDK | `github.com/NodeOps-app/createos-go-sdk` |
 | [createos-python-sdk](https://github.com/NodeOps-app/createos-python-sdk) | Python SDK | `createos-sandbox` |
+| [createos-rust-sdk](https://github.com/NodeOps-app/createos-rust-sdk) | Rust SDK | `createos` |
+| [createos-csharp-sdk](https://github.com/NodeOps-app/createos-csharp-sdk) | C# / .NET SDK | `CreateOS.Sandbox` |
+| [createos-java-sdk](https://github.com/NodeOps-app/createos-java-sdk) | Java SDK | `sh.createos:createos-java-sdk` |
 | [createos-cli](https://github.com/nodeops-app/createos-cli) | Go CLI (`createos`) | — |
 | [createos-v2-landing](https://github.com/NodeOps-app/createos-v2-landing) | public docs — `apps/docs/src/pages/Sandbox/` | — |
 | [createos-plugin](https://github.com/NodeOps-app/createos-plugin) | integrations monorepo — plugins for 8 agent hosts | — |
