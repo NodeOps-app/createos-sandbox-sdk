@@ -1033,6 +1033,20 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "58",
+      "slug": "moss-voice-agent-worker",
+      "dir": "58-moss-voice-agent-worker",
+      "title": "Moss voice-agent worker",
+      "summary": "Insurance claims voice agent with in-process Moss retrieval: prewarm from a disk cache, egress locked to Moss, call notes handed to a reviewer sandbox.",
+      "primitives": ["createSandbox", "files.upload", "runCommand", "setEgress", "destroy"],
+      "deps": ["@moss-js/moss"],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL", "MOSS_PROJECT_ID", "MOSS_PROJECT_KEY"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs a paid Moss project; each run bills about 25 s of Moss session time."
     }
   ]
 }
