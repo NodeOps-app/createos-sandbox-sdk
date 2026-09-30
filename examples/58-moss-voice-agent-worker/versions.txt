@@ -1,0 +1,8 @@
+createos-sandbox-sdk: 0.8.2
+control-plane-url: https://api-eu.sb.createos.sh
+region: eu
+captured-date: 2026-09-30
+rootfs: devbox:1
+shape: s-8vcpu-8gb
+moss-js: 1.15.0
+verified end-to-end: yes

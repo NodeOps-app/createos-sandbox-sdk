@@ -41,3 +41,6 @@ __pycache__
 .claude/
 .pi
 .agents
+
+# Local demo labs (source lives on demo/* branches)
+demos/
