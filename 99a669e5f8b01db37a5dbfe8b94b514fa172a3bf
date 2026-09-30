@@ -1,0 +1,14 @@
+Session notes (no secrets):
+- Goal: CreateOS sandbox example for Moss (moss.dev), merging three ideas:
+  voice-agent worker prewarm, egress-locked retrieval, session handoff.
+- Workload modeled on Moss's own examples/voice-agents/insurance-adjuster.
+- Moss hosts found by DNS capture + binary strings: service.usemoss.dev,
+  models.moss.link, indexes.moss.link, *.r2.cloudflarestorage.com (push).
+- setEgress with any rule also blocks the private overlay (not used here).
+- Moss bills session-minutes per process holding an index; user capped
+  Moss time at 30-60 s per run -> short-lived process per step (~20-25 s).
+- Bug (moss-js 1.14.0 and 1.15.0): SessionIndex.pushIndex stores model
+  "custom"; text queries fail. Workaround: getDocs + local re-embed.
+- pushIndex returns while "building": poll getJobStatus after close().
+- Verified: local runs + clean-room repro in a fresh CreateOS sandbox
+  (needs `asdf install` for node 24.15.0 before `bun run build`).
