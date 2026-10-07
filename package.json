@@ -60,6 +60,7 @@
     "fmt:check": "oxfmt --check . '!**/*.md'",
     "test": "bun test tests/*.test.ts",
     "test:watch": "bun test --watch tests/*.test.ts",
+    "test:live": "CREATEOS_SANDBOX_LIVE=1 bun --config=tests/live/bunfig.toml test --timeout 300000 tests/live",
     "docs:api": "typedoc --entryPoints src/index.ts --out docs/api-reference --githubPages false --hideGenerator",
     "docs:gen": "bun scripts/gen-docs.mjs",
     "docs:check": "bun scripts/gen-docs.mjs --check",
