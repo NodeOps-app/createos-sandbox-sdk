@@ -457,6 +457,79 @@ describe.skipIf(!LIVE)("gitboxes (live)", () => {
     T,
   );
 
+  // ── 2026-10-07 review fixes, against real git ─────────────────────────
+
+  // A small repo of its own, so these tests never disturb `main`.
+  async function reviewRepo(path: string) {
+    const ws = await sb.git.register(path, { init: true });
+    await sh(ws, "echo base > base.txt; printf '.env\\n' > .gitignore; echo s=1 > .env");
+    await ws.commit("base");
+    return ws;
+  }
+
+  test(
+    "a failed gate's undo removes only files the gate created",
+    async () => {
+      const ws = await reviewRepo("/workspace/rev-gate");
+      const b = track(await ws.branch("feature"));
+      await sh(b, "echo feature > feature.txt");
+      await b.commit("feature");
+      await sh(ws, "echo mine > keep-untracked.txt");
+      const before = (await ws.status()).head;
+      const r = await ws.merge(b, {
+        gate: "echo build > gate-artifact; mkdir -p out && echo x > out/y.txt; false",
+      });
+      expect(r).toMatchObject({ merged: false, reason: "gate" });
+      expect((await ws.status()).head).toBe(before);
+      expect(await sh(ws, "ls gate-artifact out/y.txt feature.txt 2>/dev/null; echo end")).toBe(
+        "end\n",
+      );
+      // Untracked and ignored files from before the merge are untouched.
+      expect(await sh(ws, "cat keep-untracked.txt .env")).toBe("mine\ns=1\n");
+    },
+    T,
+  );
+
+  test(
+    "a commit that starts during a merge gate runs after the undo and is kept",
+    async () => {
+      const ws = await reviewRepo("/workspace/rev-lock");
+      const b = track(await ws.branch("feature"));
+      await sh(b, "echo feature > feature.txt");
+      await b.commit("feature");
+      // Work that is ready but not committed yet (untracked, so merge allows it).
+      await sh(ws, "echo concurrent > concurrent.txt");
+      const merging = ws.merge(b, { gate: "sleep 4; false" });
+      await Bun.sleep(1500); // the merge is now inside its gate
+      const committed = await ws.commit("concurrent commit"); // waits for the merge
+      expect((await merging).merged).toBe(false);
+      expect(committed).not.toBeNull();
+      expect((await ws.status()).head).toBe(committed);
+      expect(await sh(ws, "cat concurrent.txt; git log -1 --format=%s")).toBe(
+        "concurrent\nconcurrent commit\n",
+      );
+    },
+    T,
+  );
+
+  test(
+    "a merge git refuses (untracked file in the way) reports git's reason, not a conflict",
+    async () => {
+      const ws = await reviewRepo("/workspace/rev-clash");
+      const b = track(await ws.branch("feature"));
+      await sh(b, "echo theirs > clash.txt");
+      await b.commit("adds clash.txt");
+      await sh(ws, "echo mine > clash.txt"); // untracked here
+      const before = (await ws.status()).head;
+      const err = await ws.merge(b).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(CreateosSandboxGitError);
+      expect((err as Error).message).toContain("would be overwritten");
+      expect((await ws.status()).head).toBe(before);
+      expect(await sh(ws, "cat clash.txt")).toBe("mine\n");
+    },
+    T,
+  );
+
   // ── warm pool / transfer paths ─────────────────────────────────────────
 
   const fingerprint = (ws: Workspace) =>

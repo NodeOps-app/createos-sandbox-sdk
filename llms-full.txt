@@ -2138,7 +2138,25 @@ A branch whose commits this workspace already has returns
 `{ merged: true, upToDate: true }`. Only committed work is merged; call
 `commit()` first. This workspace must have no uncommitted changes to
 tracked files, otherwise `merge()` throws: a failed gate could not put them
-back exactly. Merges into one workspace run one at a time.
+back exactly. Merges into one workspace run one at a time, and `commit()`,
+`checkpoint()` and `rollback()` wait for a running merge (gate and undo
+included).
+
+When the gate fails, the merge is undone: the workspace goes back to the
+exact commit it had, and files the gate created are removed. Untracked and
+ignored files from before the merge stay. Do not write into the workspace
+with `run()` or file uploads while a gated merge runs: those writes are not
+covered by the merge lock, and a new file written during the gate is removed
+with the gate's own files.
+
+A merge git refuses for another reason (for example an untracked file that
+the incoming commits would overwrite) throws `CreateosSandboxGitError` with
+git's own message. Only real conflicts come back as `reason: "conflict"`.
+
+If the work finishes but a temporary resource (the access token or the
+transfer network) cannot be released, the call throws
+`CreateosSandboxCleanupError`. Its `outcome` holds the normal result (the
+merge result or the new branch), and `retry()` runs the cleanup again.
 
 ## Warm pool: faster branches of a big repo
 

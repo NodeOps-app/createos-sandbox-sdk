@@ -12,9 +12,15 @@
 // - A `Workspace` is immutable. `cwd()` returns a new handle; no shell state is
 //   kept between calls, so concurrent calls on one workspace are safe.
 
-import { CreateosSandboxApiError, CreateosSandboxError } from "./errors.js";
 import {
+  CreateosSandboxApiError,
+  CreateosSandboxError,
+  CreateosSandboxNotFoundError,
+} from "./errors.js";
+import {
+  type CleanupFailure,
   COMPRESS,
+  CreateosSandboxCleanupError,
   CreateosSandboxGitError,
   DROP,
   type GitAuthor,
@@ -23,6 +29,8 @@ import {
   type TargetScript,
   SNAPSHOT,
   deliver,
+  errorText,
+  finish,
   gitScript,
   runGit,
   serialize,
@@ -34,7 +42,12 @@ import { sleep } from "./poll.js";
 import type { Sandbox } from "./sandbox.js";
 import type { CreateSandboxRequest, ExecOptions, ExecResponse, SandboxView } from "./types.js";
 
-export { CreateosSandboxGitError, type GitAuthor };
+export {
+  type CleanupFailure,
+  CreateosSandboxCleanupError,
+  CreateosSandboxGitError,
+  type GitAuthor,
+};
 
 /** Commit author used when the caller does not set one. */
 export const DEFAULT_GIT_AUTHOR = { name: "createos-agent", email: "agent@createos.sh" };
@@ -424,12 +437,14 @@ g diff --numstat -z "$b" "$s"; g diff \${2:+--binary} "$b" "$s"`,
    * was nothing to commit.
    */
   async commit(message: string, options: { allowEmpty?: boolean } = {}): Promise<string | null> {
-    const out = await this.#git(
-      "commit",
-      `${PRELUDE}g add -A
+    const out = await this.#locked(() =>
+      this.#git(
+        "commit",
+        `${PRELUDE}g add -A
 if [ -z "$2" ] && g diff --cached --quiet; then exit 0; fi
 g commit -q $2 -m "$1"; g rev-parse HEAD`,
-      [message, options.allowEmpty ? "--allow-empty" : ""],
+        [message, options.allowEmpty ? "--allow-empty" : ""],
+      ),
     );
     return out.trim() || null;
   }
@@ -439,9 +454,11 @@ g commit -q $2 -m "$1"; g rev-parse HEAD`,
    * changing the branch or the index. Pass the sha to `rollback` later.
    */
   async checkpoint(): Promise<string> {
-    const out = await this.#git(
-      "checkpoint",
-      `${PRELUDE}${SNAPSHOT}s=$(snap); g update-ref "refs/createos/checkpoints/$s" "$s"; printf '%s' "$s"`,
+    const out = await this.#locked(() =>
+      this.#git(
+        "checkpoint",
+        `${PRELUDE}${SNAPSHOT}s=$(snap); g update-ref "refs/createos/checkpoints/$s" "$s"; printf '%s' "$s"`,
+      ),
     );
     return out.trim();
   }
@@ -451,15 +468,17 @@ g commit -q $2 -m "$1"; g rev-parse HEAD`,
    * files. Untracked files created after the checkpoint are deleted.
    */
   async rollback(sha: string): Promise<void> {
-    await this.#git(
-      "rollback",
-      `${PRELUDE}c=$(g rev-parse -q --verify --end-of-options "$1^{commit}") || { echo "unknown revision: $1" >&2; exit 2; }
+    await this.#locked(() =>
+      this.#git(
+        "rollback",
+        `${PRELUDE}c=$(g rev-parse -q --verify --end-of-options "$1^{commit}") || { echo "unknown revision: $1" >&2; exit 2; }
 if g show-ref -q --verify "refs/createos/checkpoints/$c"; then
   g reset -q --hard "$c^"; g clean -fdq; g restore --source="$c" --worktree -- :/
 else
   g reset -q --hard "$c"; g clean -fdq
 fi`,
-      [sha],
+        [sha],
+      ),
     );
   }
 
@@ -472,6 +491,15 @@ fi`,
    * await fix.cwd("tests").run("pytest");
    */
   async branch(name: string, options: BranchOptions = {}): Promise<Workspace> {
+    const cleanup: CleanupFailure[] = [];
+    return finish(await this.#branch(name, options, cleanup), cleanup);
+  }
+
+  async #branch(
+    name: string,
+    options: BranchOptions,
+    cleanup: CleanupFailure[],
+  ): Promise<Workspace> {
     if (options.via === "fork") {
       const head = (await this.#git("rev-parse", `${PRELUDE}g rev-parse HEAD`)).trim();
       const target = await this.#forkSandbox();
@@ -498,14 +526,14 @@ fi`,
       // out of this source and would slow the branch down (measured 2x).
       try {
         for (let member = pool.take(); member; member = pool.take()) {
-          const ws = await this.#warmInto(pool, member, name, options);
+          const ws = await this.#warmInto(pool, member, name, options, cleanup);
           if (ws) return ws;
         }
       } finally {
         pool.refill();
       }
     }
-    const made = await this.#cloneInto(options.create ?? {}, name, options);
+    const made = await this.#cloneInto(options.create ?? {}, name, options, cleanup);
     return this.#child(made.sandbox, made.head);
   }
 
@@ -523,9 +551,10 @@ fi`,
    * await pool.close();
    */
   pool(options: PoolOptions): WarmPool {
-    return new WarmPool(this.#key, options.size, () =>
-      this.#cloneInto(options.create ?? {}, "", options),
-    );
+    return new WarmPool(this.#key, options.size, async () => {
+      const cleanup: CleanupFailure[] = [];
+      return finish(await this.#cloneInto(options.create ?? {}, "", options, cleanup), cleanup);
+    });
   }
 
   /**
@@ -537,8 +566,10 @@ fi`,
    * if (!r.merged) console.log(r.reason);
    */
   async merge(other: Workspace, options: MergeOptions = {}): Promise<MergeResult> {
-    // One merge at a time per repo: the gate and the undo must see only their own merge.
-    return serialize(this.#key, () => this.#merge(other, options));
+    // The gate and the undo must see only their own merge, so merge holds the
+    // repo lock that commit, checkpoint and rollback also take.
+    const cleanup: CleanupFailure[] = [];
+    return finish(await this.#locked(() => this.#merge(other, options, cleanup)), cleanup);
   }
 
   // Like git's own fetch negotiation: this repo lists its recent commits, and
@@ -547,7 +578,11 @@ fi`,
   // none of them.
   // ponytail: only the last 1000 commits are offered; a longer divergence
   // falls back to full history.
-  async #merge(other: Workspace, options: MergeOptions): Promise<MergeResult> {
+  async #merge(
+    other: Workspace,
+    options: MergeOptions,
+    cleanup: CleanupFailure[],
+  ): Promise<MergeResult> {
     if (other.#key === this.#key)
       throw new CreateosSandboxError("cannot merge a workspace into itself");
     // A dirty target cannot be restored exactly after a failed gate, so refuse it.
@@ -594,11 +629,21 @@ g bundle create -q "$1" HEAD $ex; stat -c %s "$1"`,
           `trap 'rm -f "$F"; g update-ref -d "$2" 2>/dev/null || true' EXIT
 g fetch -q "$F" "+HEAD:$2"
 if g merge-base --is-ancestor "$2" HEAD; then exit 21; fi
-if g merge -q --no-ff --no-edit -m "$1" "$2" >/dev/null 2>&1; then g rev-parse HEAD; exit 0; fi
-g diff --name-only --diff-filter=U -z; g merge --abort; exit 10`,
-          [message, ref],
+if out=$(g merge -q --no-ff --no-edit -m "$1" "$2" 2>&1); then
+  # With a gate: remember the untracked files, so a failed gate's undo can
+  # remove only what the gate created.
+  [ -z "$3" ] || g ls-files -o -z > "$(g rev-parse --absolute-git-dir)/createos-gate-untracked"
+  g rev-parse HEAD; exit 0
+fi
+# A conflict leaves unmerged paths. Anything else (for example an untracked
+# file the merge would overwrite) is an error: keep git's own message.
+if [ -n "$(g ls-files -u)" ]; then g diff --name-only --diff-filter=U -z; g merge --abort; exit 10; fi
+g merge --abort 2>/dev/null || true
+printf '%s\n' "$out" >&2; exit 11`,
+          [message, ref, options.gate ? "gate" : ""],
         ),
         options,
+        cleanup,
       );
     } catch (err) {
       made = true; // the bundle may be half written
@@ -616,7 +661,22 @@ g diff --name-only --diff-filter=U -z; g merge --abort; exit 10`,
     }
     throwIfFailed("merge")(tried);
     if (options.gate) {
-      const undo = () => this.#git("merge-undo", `${PRELUDE}g reset -q --hard "$1"`, [pre]);
+      // Back to the exact pre-merge commit, then remove untracked files the
+      // gate created. Untracked files from before the merge stay.
+      // ponytail: empty folders the gate created stay, and an untracked file
+      // the gate changed (not created) cannot be restored.
+      const undo = () =>
+        this.#git(
+          "merge-undo",
+          `${PRELUDE}g reset -q --hard "$1"
+L=$(g rev-parse --absolute-git-dir)/createos-gate-untracked
+if [ -f "$L" ]; then
+  g ls-files -o -z | sort -z > "$L.now"
+  sort -z "$L" | comm -z -13 - "$L.now" | (cd "$R" && xargs -0 -r rm -f --)
+  rm -f "$L" "$L.now"
+fi`,
+          [pre],
+        );
       let gate: ExecResponse;
       try {
         gate = await this.#runAt(this.root, options.gate, { timeoutMs: LONG_TIMEOUT_MS });
@@ -646,6 +706,12 @@ g diff --name-only --diff-filter=U -z; g merge --abort; exit 10`,
 
   get #key(): string {
     return `${this.sandbox.id}:${this.root}`;
+  }
+
+  // One SDK change to this repo at a time (commit, checkpoint, rollback,
+  // merge). Commands run with `run()` and file uploads are not covered.
+  #locked<T>(task: () => Promise<T>): Promise<T> {
+    return serialize(this.#key, task);
   }
 
   #child(sandbox: Sandbox, head: string): Workspace {
@@ -693,6 +759,7 @@ g diff --name-only --diff-filter=U -z; g merge --abort; exit 10`,
     overrides: Partial<CreateSandboxRequest>,
     name: string,
     options: CopyOptions,
+    cleanup: CleanupFailure[],
   ): Promise<PoolMember & { head: string }> {
     const archive = `/tmp/createos-branch-${crypto.randomUUID()}.tar`;
     const view: SandboxView = this.sandbox.data;
@@ -742,6 +809,7 @@ g for-each-ref --format='%(objectname)' | sort -u`,
           [codec, snap, name],
         ),
         options,
+        cleanup,
       );
       // A pool member remembers which commits it has: its ref tips plus the snapshot.
       const tips = throwIfFailed("unpack")(r).result.stdout.split("\n").filter(Boolean);
@@ -765,6 +833,7 @@ g for-each-ref --format='%(objectname)' | sort -u`,
     member: PoolMember,
     name: string,
     options: CopyOptions,
+    cleanup: CleanupFailure[],
   ): Promise<Workspace | undefined> {
     const file = `/tmp/createos-warm-${crypto.randomUUID()}.tar`;
     const alive = member.sandbox.runCommand("true").then(
@@ -817,6 +886,7 @@ g checkout -q -b "$B"`,
           [member.codec, snap, member.snap, name],
         ),
         options,
+        cleanup,
       );
       throwIfFailed("warm-apply")(r);
     } catch (err) {
@@ -891,6 +961,10 @@ export class WarmPool {
   readonly #fill: () => Promise<PoolMember>;
   readonly #idle: PoolMember[] = [];
   readonly #pending = new Set<Promise<void>>();
+  // Member destroys in flight, and the ones that failed, so close() can wait
+  // for every paid sandbox to be gone and say so when one is not.
+  readonly #destroying = new Set<Promise<void>>();
+  readonly #destroyFailures: { id: string; error: unknown }[] = [];
   #closed = false;
 
   constructor(source: string, size: number, fill: () => Promise<PoolMember>) {
@@ -912,12 +986,28 @@ export class WarmPool {
     while (this.#pending.size) await Promise.allSettled(this.#pending);
   }
 
-  /** Destroys idle members and stops refilling. Members already taken are not touched. */
+  /**
+   * Stops refilling and destroys every idle member, including members whose
+   * fill finishes during the close. Resolves once they are all gone. Members
+   * already taken by `branch()` are not touched.
+   *
+   * @throws {CreateosSandboxError} when a pool sandbox could not be destroyed;
+   *   the message lists their ids.
+   */
   async close(): Promise<void> {
     this.#closed = true;
     await this.whenReady();
-    const idle = this.#idle.splice(0);
-    await Promise.allSettled(idle.map((m) => m.sandbox.destroy()));
+    for (const member of this.#idle.splice(0)) this.drop(member);
+    while (this.#destroying.size) await Promise.all(this.#destroying);
+    const failed = this.#destroyFailures.splice(0);
+    if (failed.length) {
+      throw new CreateosSandboxError(
+        `could not destroy ${failed.length} pool sandbox(es): ${failed
+          .map((f) => `${f.id} (${errorText(f.error)})`)
+          .join(", ")}`,
+        { cause: failed[0]!.error },
+      );
+    }
   }
 
   /** @internal */
@@ -931,26 +1021,46 @@ export class WarmPool {
     else this.#idle.unshift(member);
   }
 
-  /** @internal Destroys a dead or half-used member. */
+  /** @internal Destroys a dead or half-used member. A sandbox already gone counts as done. */
   drop(member: PoolMember): void {
-    void destroyQuietly(member.sandbox);
+    const { id } = member.sandbox;
+    WarmPool.#track(
+      this.#destroying,
+      member.sandbox.destroy().then(
+        () => undefined,
+        (error: unknown) => {
+          if (!(error instanceof CreateosSandboxNotFoundError))
+            this.#destroyFailures.push({ id, error });
+        },
+      ),
+    );
+  }
+
+  // Keeps `job` in `set` until it settles, so callers can wait for all of them.
+  static #track(set: Set<Promise<void>>, job: Promise<void>): void {
+    const tracked = job.finally(() => set.delete(tracked));
+    set.add(tracked);
   }
 
   /** @internal Starts background fills until the pool is back to `size`. */
   refill(): void {
     while (!this.#closed && this.#idle.length + this.#pending.size < this.size) {
       const job = (async () => {
+        let member: PoolMember | undefined;
         try {
-          const member = await this.#fill();
+          member = await this.#fill();
           this.lastError = undefined;
-          if (this.#closed) this.drop(member);
-          else this.#idle.push(member);
         } catch (err) {
           this.lastError = err;
+          // The member was made; only a token or network release failed.
+          if (err instanceof CreateosSandboxCleanupError) member = err.outcome as PoolMember;
         }
+        // drop() is tracked, so a close() waiting on this fill also waits
+        // for the destroy.
+        if (member && this.#closed) this.drop(member);
+        else if (member) this.#idle.push(member);
       })();
-      const tracked = job.finally(() => this.#pending.delete(tracked));
-      this.#pending.add(tracked);
+      WarmPool.#track(this.#pending, job);
       // A failed fill must not refill at once, or a broken source loops.
       if (this.lastError) break;
     }

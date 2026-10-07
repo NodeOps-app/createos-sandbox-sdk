@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  CreateosSandboxCleanupError,
   CreateosSandboxError,
   CreateosSandboxGitError,
   type ExecResponse,
@@ -19,8 +20,10 @@ type ExecCall = {
   stdin?: string;
 };
 type Reply = Partial<ExecResponse["result"]> | undefined;
+// A test may hold an exec open (a slow gate) by returning a promise.
+type AsyncReply = Reply | Promise<Reply>;
 
-function fakePlane(onExec: (call: ExecCall) => Reply) {
+function fakePlane(onExec: (call: ExecCall) => AsyncReply) {
   const calls: { method: string; path: string; body?: unknown }[] = [];
   const execs: ExecCall[] = [];
   const files = new Map<string, string>();
@@ -30,6 +33,9 @@ function fakePlane(onExec: (call: ExecCall) => Reply) {
     const method = init.method ?? "GET";
     const body = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
     calls.push({ method, path: u.pathname, body });
+    // A test can take over any call, for example to fail or delay it.
+    const taken = plane.override?.(method, u.pathname);
+    if (taken) return taken;
     const id = u.pathname.split("/")[3] ?? "";
     if (method === "POST" && u.pathname === "/v1/sandboxes") {
       return Promise.resolve(success({ ...CREATE_RESPONSE, id: `sb_${next++}` }));
@@ -45,8 +51,7 @@ function fakePlane(onExec: (call: ExecCall) => Reply) {
         stdin: body.stdin,
       };
       execs.push(call);
-      const r = onExec(call) ?? {};
-      return Promise.resolve(
+      return Promise.resolve(onExec(call)).then((r) =>
         success({ result: { stdout: "", stderr: "", exit_code: 0, ...r }, exec_ms: 1 }),
       );
     }
@@ -103,6 +108,9 @@ function fakePlane(onExec: (call: ExecCall) => Reply) {
     files,
     pausedIds,
     attached: new Set<string>(),
+    override: undefined as
+      | ((method: string, path: string) => Promise<Response> | undefined)
+      | undefined,
     tokenStatus: 201,
     tokenHint: "t...k",
   };
@@ -133,17 +141,19 @@ const repoAt =
     return undefined;
   };
 const isUnpack = (c: ExecCall) => c.script.includes('tar -I "$1" -C "$R/.git"');
+const lastUnpack = (xs: ExecCall[]) =>
+  xs.reduce<ExecCall | undefined>((last, c) => (isUnpack(c) ? c : last), undefined)!;
 const isMerge = (e: ExecCall) => e.script.includes("merge -q --no-ff");
 const netCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((c) => c.path.includes("/networks")).map((c) => `${c.method} ${c.path}`);
 const isApply = (e: ExecCall) => e.script.includes("index-pack --stdin");
 const noNet = (c: ExecCall): Reply => (c.script.includes("nc -l") ? { exit_code: 32 } : undefined);
 
-async function mainWorkspace(onExec: (c: ExecCall) => Reply = repoAt()) {
+async function mainWorkspace(onExec: (c: ExecCall) => AsyncReply = repoAt()) {
   const plane = fakePlane(onExec);
   const sb = await plane.client.getSandbox("sb_1");
   const ws = await sb.git.register(ROOT);
-  return { ...plane, sb, ws };
+  return { ...plane, plane, sb, ws };
 }
 
 describe("joinRepoPath", () => {
@@ -725,7 +735,7 @@ describe("copy between sandboxes", () => {
     expect(
       plane.calls.some((c) => c.method === "PUT" && c.path === "/v1/sandboxes/sb_3/files"),
     ).toBe(true);
-    expect(plane.execs.filter(isUnpack).pop()!.args[1]).toBe("local");
+    expect(lastUnpack(plane.execs).args[1]).toBe("local");
   });
 
   test("never disables a token the user rotated meanwhile", async () => {
@@ -816,7 +826,7 @@ describe("warm pool", () => {
     expect(pool.ready).toBe(0);
     expect(pool.lastError).toBeInstanceOf(CreateosSandboxGitError);
     const b = await ws.branch("cold", { pool });
-    expect(execs.filter(isUnpack).pop()!.args[5]).toBe("cold");
+    expect(lastUnpack(execs).args[5]).toBe("cold");
     expect(b.ownsSandbox).toBe(true);
     await pool.close();
   });
@@ -828,6 +838,199 @@ describe("warm pool", () => {
     const pool = other.pool({ size: 1 });
     expect(await catchErr(() => ws.branch("x", { pool }))).toBeInstanceOf(CreateosSandboxError);
     await pool.close();
+  });
+});
+
+const isGate = (e: ExecCall) => e.cmdArgs.at(-1) === "slow-gate";
+const isUndo = (e: ExecCall) =>
+  e.script.includes("createos-gate-untracked") && e.script.includes("reset -q --hard");
+const isCommit = (e: ExecCall) => e.script.includes("g commit -q $2");
+// One test per finding of the 2026-10-07 code review.
+describe("review fixes", () => {
+  const withBranchHead = (extra: (c: ExecCall) => AsyncReply) => (c: ExecCall) =>
+    extra(c) ??
+    repoAt(ROOT, (x) =>
+      x.sandbox === "sb_2" && x.script.includes("symbolic-ref")
+        ? { stdout: `${SHA2}\nfeature\n` }
+        : undefined,
+    )(c);
+  async function pairWith(extra: (c: ExecCall) => AsyncReply) {
+    const plane = fakePlane(withBranchHead(extra));
+    const sb = await plane.client.getSandbox("sb_1");
+    const main = await sb.git.register(ROOT);
+    const b = await main.branch("feature");
+    plane.execs.length = 0;
+    plane.calls.length = 0;
+    return { ...plane, plane, main, b };
+  }
+
+  test("1: commit and rollback wait for a running merge, its gate and its undo", async () => {
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const { main, b, execs } = await pairWith((c) =>
+      isGate(c) ? held.then(() => ({ exit_code: 1 })) : undefined,
+    );
+    const merging = main.merge(b, { gate: "slow-gate" });
+    while (!execs.some(isGate)) await Bun.sleep(1);
+    const committing = main.commit("concurrent commit");
+    const rolling = main.rollback(SHA);
+    await Bun.sleep(20);
+    expect(execs.some(isCommit)).toBe(false); // blocked behind the merge
+    release();
+    expect(await merging).toMatchObject({ merged: false, reason: "gate" });
+    await Promise.all([committing, rolling]);
+    const order = execs
+      .filter(
+        (e) => isGate(e) || isUndo(e) || isCommit(e) || e.script.includes("show-ref -q --verify"),
+      )
+      .map((e) => (isGate(e) ? "gate" : isUndo(e) ? "undo" : isCommit(e) ? "commit" : "rollback"));
+    expect(order).toEqual(["gate", "undo", "commit", "rollback"]);
+  });
+
+  test("1: with a gate, the merge records untracked files so the undo removes only new ones", async () => {
+    const { main, b, execs } = await pairWith(() => undefined);
+    await main.merge(b, { gate: "true" });
+    const merge = execs.find((e) => e.script.includes("merge -q --no-ff"))!;
+    expect(merge.args.at(-1)).toBe("gate");
+    expect(merge.script).toContain("ls-files -o -z >");
+    await main.merge(b);
+    const merges = execs.filter((e) => e.script.includes("merge -q --no-ff"));
+    expect(merges[1]!.args.at(-1)).toBe(""); // the second merge had no gate
+  });
+
+  test("2: a token that cannot be disabled never hides an applied merge; retry() disables it", async () => {
+    const { main, b, calls, execs, plane } = await pairWith(() => undefined);
+    let failDisable = true;
+    plane.override = (m, p) =>
+      failDisable && m === "GET" && p === "/v1/sandboxes/sb_2/access-token"
+        ? Promise.resolve(fail("metadata down", 403))
+        : undefined;
+    const err = await catchErr(() => main.merge(b, { gate: "npm test" }));
+    expect(err).toBeInstanceOf(CreateosSandboxCleanupError);
+    const cleanupErr = err as CreateosSandboxCleanupError<unknown>;
+    expect(cleanupErr.outcome).toEqual({ merged: true, sha: SHA, upToDate: false });
+    expect(execs.some((e) => e.cmdArgs.at(-1) === "npm test")).toBe(true); // the gate still ran
+    expect(cleanupErr.message).toContain("sb_2");
+    const disabled = () =>
+      calls.some((c) => c.method === "DELETE" && c.path === "/v1/sandboxes/sb_2/access-token");
+    expect(disabled()).toBe(false);
+    failDisable = false;
+    await cleanupErr.retry();
+    expect(disabled()).toBe(true);
+  });
+
+  test("2: a failed gate is still undone when the token cleanup fails", async () => {
+    const { main, b, execs, plane } = await pairWith((c) =>
+      c.cmdArgs.at(-1) === "npm test" ? { exit_code: 1 } : undefined,
+    );
+    plane.override = (m, p) =>
+      m === "GET" && p === "/v1/sandboxes/sb_2/access-token"
+        ? Promise.resolve(fail("metadata down", 403))
+        : undefined;
+    const err = (await catchErr(() =>
+      main.merge(b, { gate: "npm test" }),
+    )) as CreateosSandboxCleanupError<unknown>;
+    expect(err.outcome).toMatchObject({ merged: false, reason: "gate" });
+    expect(execs.some(isUndo)).toBe(true);
+  });
+
+  test("2: the next copy from that sandbox retries the pending disable first", async () => {
+    const { main, b, calls, plane } = await pairWith(() => undefined);
+    let fails = 1;
+    plane.override = (m, p) =>
+      fails > 0 && m === "GET" && p === "/v1/sandboxes/sb_2/access-token"
+        ? (fails--, Promise.resolve(fail("metadata down", 403)))
+        : undefined;
+    await catchErr(() => main.merge(b));
+    await b.run("true"); // b moves on, so the next merge has work to do
+    await main.merge(b).catch(() => undefined);
+    const seq = calls
+      .filter((c) => c.path === "/v1/sandboxes/sb_2/access-token")
+      .map((c) => c.method);
+    // lease, failed check, then on the next copy: retry check + disable, new lease
+    expect(seq.slice(0, 5)).toEqual(["POST", "GET", "GET", "DELETE", "POST"]);
+  });
+
+  test("3: a failed attach waits for the other attach, then detaches only what joined", async () => {
+    const events: string[] = [];
+    const { ws, plane } = await mainWorkspace(
+      repoAt(ROOT, (c) =>
+        c.script.includes("tar --warning") ? { stdout: `${SHA} ${SNAP} zstd ${BIG}` } : undefined,
+      ),
+    );
+    plane.override = (m, p) => {
+      if (m === "POST" && p === "/v1/sandboxes/sb_1/networks") {
+        events.push("attach sb_1 refused");
+        return Promise.resolve(fail("no", 400));
+      }
+      if (m === "POST" && p === "/v1/sandboxes/sb_2/networks")
+        return Bun.sleep(30).then(() => {
+          events.push("attach sb_2 done");
+          return success({ ok: true });
+        });
+      if (m === "DELETE" && p.includes("/networks")) events.push(`${m} ${p}`);
+      return undefined;
+    };
+    await ws.branch("x"); // falls back to the token pull
+    expect(events).toEqual([
+      "attach sb_1 refused",
+      "attach sb_2 done",
+      "DELETE /v1/sandboxes/sb_2/networks/net_1",
+      "DELETE /v1/networks/net_1",
+    ]);
+  });
+
+  test("4: close() waits for a member whose fill ends during the close", async () => {
+    const { ws, plane } = await mainWorkspace();
+    let destroyed = false;
+    plane.override = (m, p) => {
+      if (m === "POST" && p === "/v1/sandboxes")
+        return Bun.sleep(30).then(() => success({ ...CREATE_RESPONSE, id: "sb_slow" }));
+      if (m === "DELETE" && p === "/v1/sandboxes/sb_slow")
+        return Bun.sleep(30).then(() => {
+          destroyed = true;
+          return success({ destroyed: true });
+        });
+      return undefined;
+    };
+    const pool = ws.pool({ size: 1 });
+    await pool.close(); // the fill is still running
+    expect(destroyed).toBe(true);
+    expect(pool.ready).toBe(0);
+  });
+
+  test("4: close() reports pool sandboxes it could not destroy", async () => {
+    const { ws, plane } = await mainWorkspace();
+    const pool = ws.pool({ size: 1 });
+    await pool.whenReady();
+    plane.override = (m, p) =>
+      m === "DELETE" && p === "/v1/sandboxes/sb_2" ? Promise.resolve(fail("nope", 403)) : undefined;
+    const err = await catchErr(() => pool.close());
+    expect(err).toBeInstanceOf(CreateosSandboxError);
+    expect((err as Error).message).toContain("sb_2");
+  });
+
+  test("6: a merge failure that is not a conflict throws git's own message", async () => {
+    const { main, b } = await pairWith((c) =>
+      c.script.includes("merge -q --no-ff")
+        ? {
+            exit_code: 11,
+            stderr:
+              "error: The following untracked working tree files would be overwritten by merge:\n\tclash.txt",
+          }
+        : undefined,
+    );
+    const err = await catchErr(() => main.merge(b));
+    expect(err).toBeInstanceOf(CreateosSandboxGitError);
+    expect((err as Error).message).toContain("would be overwritten");
+  });
+
+  test("6: only unmerged paths count as a conflict", async () => {
+    const { main, b, execs } = await pairWith(() => undefined);
+    await main.merge(b);
+    const script = execs.find((e) => e.script.includes("merge -q --no-ff"))!.script;
+    expect(script).toContain('if [ -n "$(g ls-files -u)" ]');
+    expect(script).toContain("exit 11");
   });
 });
 

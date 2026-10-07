@@ -16,6 +16,7 @@ export {
   SandboxProcesses,
 } from "./sandbox.js";
 export {
+  CreateosSandboxCleanupError,
   CreateosSandboxGitError,
   DEFAULT_GIT_AUTHOR,
   SandboxGit,
@@ -25,6 +26,7 @@ export {
 export type {
   BranchOptions,
   BranchVia,
+  CleanupFailure,
   CloneOptions,
   CopyOptions,
   DiffOptions,

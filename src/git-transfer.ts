@@ -14,7 +14,11 @@
 // 3. Relay through this process only when the caller passes `relay: true`.
 //    Otherwise a copy that cannot go direct throws.
 
-import { CreateosSandboxApiError, CreateosSandboxError } from "./errors.js";
+import {
+  CreateosSandboxApiError,
+  CreateosSandboxError,
+  CreateosSandboxNotFoundError,
+} from "./errors.js";
 import { NetworksApi } from "./client.js";
 import { type CreateosSandboxHttp, encodePath } from "./http.js";
 import { sleep } from "./poll.js";
@@ -43,6 +47,62 @@ export class CreateosSandboxGitError extends CreateosSandboxError {
     this.exitCode = exitCode;
     this.stderr = stderr;
   }
+}
+
+/** A cleanup step that failed after the work itself was done. */
+export interface CleanupFailure {
+  /** What could not be cleaned up, for example "disable the access token of sb-…". */
+  what: string;
+  error: unknown;
+  /** Runs the same cleanup again. */
+  retry: () => Promise<void>;
+}
+
+/**
+ * The operation finished (see `outcome`), but releasing a temporary resource
+ * after it failed: an access token is still enabled, or a transfer network
+ * still exists. The work is not lost. Call `retry()` to clean up again.
+ */
+export class CreateosSandboxCleanupError<T = unknown> extends CreateosSandboxError {
+  /** What the operation returned: a `MergeResult`, a branch `Workspace`, … */
+  readonly outcome: T;
+  readonly failures: CleanupFailure[];
+  constructor(outcome: T, failures: CleanupFailure[]) {
+    super(
+      `the operation finished, but cleanup failed: ${failures.map((f) => `${f.what}: ${errorText(f.error)}`).join("; ")}. Call retry() on this error to clean up again`,
+      { cause: failures[0]?.error },
+    );
+    this.outcome = outcome;
+    this.failures = failures;
+  }
+
+  /** Runs every failed cleanup again. Throws if one still fails. */
+  async retry(): Promise<void> {
+    for (const f of this.failures) await f.retry();
+  }
+}
+
+/** Message of an Error, or the value as text. */
+export const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+// Runs a cleanup step; a failure comes back as a CleanupFailure that can
+// run the same step again, instead of being thrown.
+async function tryCleanup(
+  what: string,
+  step: () => Promise<void>,
+): Promise<CleanupFailure | undefined> {
+  try {
+    await step();
+    return undefined;
+  } catch (error) {
+    return { what, error, retry: step };
+  }
+}
+
+/** Returns `outcome`, or throws a CreateosSandboxCleanupError that carries it. */
+export function finish<T>(outcome: T, cleanup: CleanupFailure[]): T {
+  if (cleanup.length) throw new CreateosSandboxCleanupError(outcome, cleanup);
+  return outcome;
 }
 
 // Clones, archives, copies and gates of big repos take minutes, far past the
@@ -196,8 +256,11 @@ const failed = (r: ExecResponse | undefined) => !r || r.result.exit_code === 90;
 
 /**
  * Moves `file` (`size` bytes) from `from` to `to`, then runs `target` there in
- * the same call. Returns its result. The source file is left in place; the
- * caller removes it with DROP.
+ * the same call and returns its result. A failure to release the token or
+ * network afterwards never replaces the result: it is added to `cleanup`, so
+ * the caller can finish its own work (gate, undo) first and report it with
+ * `finish()`. The source file is left in place; the caller removes it with
+ * DROP.
  */
 export async function deliver(
   http: CreateosSandboxHttp,
@@ -206,7 +269,8 @@ export async function deliver(
   size: number,
   to: Sandbox,
   target: TargetScript,
-  options: { relay?: boolean } = {},
+  options: { relay?: boolean },
+  cleanup: CleanupFailure[],
 ): Promise<ExecResponse> {
   const onTarget: OnTarget = (f) =>
     runGit(
@@ -219,8 +283,8 @@ export async function deliver(
     );
   // Two repos in one sandbox: the file is already there.
   if (from.id === to.id) return onTarget({ via: "local", src: "" });
-  const net = () => viaNetwork(http, from, file, to, onTarget);
-  const token = () => viaToken(http, from, file, onTarget);
+  const net = () => viaNetwork(http, from, file, to, onTarget, cleanup);
+  const token = () => viaToken(http, from, file, onTarget, cleanup);
   // A small file whose source already holds a user token still has the network.
   let r: ExecResponse | undefined;
   for (const path of size >= NET_MIN_BYTES ? [net, token] : [token, net]) {
@@ -248,14 +312,25 @@ async function viaNetwork(
   file: string,
   to: Sandbox,
   onTarget: OnTarget,
+  cleanup: CleanupFailure[],
 ): Promise<ExecResponse | undefined> {
   const networks = new NetworksApi(http);
   let net: Network | undefined;
+  const attached: Sandbox[] = [];
   try {
     let src: string | undefined;
     try {
       net = await networks.create({ name: `createos-git-${crypto.randomUUID().slice(0, 8)}` });
-      await Promise.all([from.attachNetwork(net.id), to.attachNetwork(net.id)]);
+      // Wait for both attaches to settle, so the cleanup below knows exactly
+      // which sandboxes joined and none joins after it ran.
+      const settled = await Promise.allSettled(
+        [from, to].map(async (s) => {
+          await s.attachNetwork(net!.id);
+          attached.push(s);
+        }),
+      );
+      const refused = settled.find((r): r is PromiseRejectedResult => r.status === "rejected");
+      if (refused) throw refused.reason;
       src = await serve(networks, net.id, from, file);
     } catch (err) {
       if (err instanceof CreateosSandboxApiError) return undefined;
@@ -263,7 +338,10 @@ async function viaNetwork(
     }
     return src ? await onTarget({ via: "net", src }) : undefined;
   } finally {
-    if (net) await dropNetwork(networks, net.id, [from, to]);
+    if (net) {
+      const failure = await dropNetwork(networks, net.id, attached);
+      if (failure) cleanup.push(failure);
+    }
   }
 }
 
@@ -299,19 +377,35 @@ echo $! > "$3.pid"; stat -c %s "$3"`,
   return served.result.exit_code === 0 ? `${ip} ${port} ${served.result.stdout.trim()}` : undefined;
 }
 
-// Detaches both ends, then deletes the network. The delete may answer 409 for
-// a moment after the detach; retry with a short backoff for up to a minute.
-async function dropNetwork(networks: NetworksApi, id: string, members: Sandbox[]) {
-  await Promise.all(members.map((s) => s.detachNetwork(id).catch(() => undefined)));
-  for (let wait = 100, spent = 0; spent < 60_000; spent += wait, wait = Math.min(wait * 2, 1000)) {
-    try {
-      await networks.delete(id);
-      return;
-    } catch (err) {
-      if (!(err instanceof CreateosSandboxApiError) || err.statusCode !== 409) return;
-      await sleep(wait);
+const gone = (err: unknown) => err instanceof CreateosSandboxNotFoundError;
+
+// Detaches the members, then deletes the network. The delete may answer 409
+// for a moment after the detach; retry with a short backoff for up to a
+// minute. A member or network that is already gone counts as done.
+async function dropNetwork(
+  networks: NetworksApi,
+  id: string,
+  members: Sandbox[],
+): Promise<CleanupFailure | undefined> {
+  const drop = async () => {
+    const detached = await Promise.allSettled(members.map((s) => s.detachNetwork(id)));
+    const bad = detached.find(
+      (r): r is PromiseRejectedResult => r.status === "rejected" && !gone(r.reason),
+    );
+    if (bad) throw bad.reason;
+    for (let wait = 100, spent = 0; ; spent += wait, wait = Math.min(wait * 2, 1000)) {
+      try {
+        await networks.delete(id);
+        return;
+      } catch (err) {
+        if (gone(err)) return;
+        const busy = err instanceof CreateosSandboxApiError && err.statusCode === 409;
+        if (!busy || spent >= 60_000) throw err;
+        await sleep(wait);
+      }
     }
-  }
+  };
+  return tryCleanup(`remove transfer network ${id}`, drop);
 }
 
 // Returns undefined when the source already has a user token: we cannot read
@@ -321,6 +415,7 @@ async function viaToken(
   from: Sandbox,
   file: string,
   onTarget: OnTarget,
+  cleanup: CleanupFailure[],
 ): Promise<ExecResponse | undefined> {
   const token = await leaseToken(from);
   try {
@@ -329,7 +424,8 @@ async function viaToken(
     // curl reads the token from a config on stdin, so it is never in any argv.
     return await onTarget({ via: "token", src: url, stdin: `header = "X-Api-Key: ${token}"\n` });
   } finally {
-    await releaseToken(from);
+    const failure = await releaseToken(from);
+    if (failure) cleanup.push(failure);
   }
 }
 
@@ -337,6 +433,10 @@ async function viaToken(
 // source share a single lease; the last one to finish disables the token.
 // `undefined` means the user already had a token.
 const leases = new Map<string, { token: Promise<string | undefined>; users: number }>();
+// Tokens we created but could not disable yet, by sandbox id. The next lease
+// on that sandbox tries again first; until then our token would look like a
+// user's token (409) and push copies onto the network path.
+const unreleased = new Map<string, () => Promise<void>>();
 
 // A hint is "<prefix><first 4>...<last 4>" of the token.
 function isOurToken(token: string, hint: string | undefined): boolean {
@@ -346,6 +446,12 @@ function isOurToken(token: string, hint: string | undefined): boolean {
 
 async function leaseToken(from: Sandbox): Promise<string | undefined> {
   let lease = leases.get(from.id);
+  if (!lease) {
+    await unreleased
+      .get(from.id)?.()
+      .catch(() => undefined);
+    lease = leases.get(from.id); // another caller may have leased meanwhile
+  }
   if (!lease) {
     lease = {
       users: 0,
@@ -368,16 +474,28 @@ async function leaseToken(from: Sandbox): Promise<string | undefined> {
   }
 }
 
-async function releaseToken(from: Sandbox): Promise<void> {
+// Never throws: a failure comes back as a CleanupFailure and the token stays
+// in `unreleased`, so the caller's result survives and the disable can be
+// retried.
+async function releaseToken(from: Sandbox): Promise<CleanupFailure | undefined> {
   const lease = leases.get(from.id);
-  if (!lease || --lease.users > 0) return;
+  if (!lease || --lease.users > 0) return undefined;
   leases.delete(from.id);
   const token = await lease.token.catch(() => undefined);
-  if (!token) return;
+  if (!token) return undefined;
   // Never disable a token the user rotated or replaced meanwhile.
   // ponytail: GET-then-DELETE leaves a tiny race; needs a server-side
   // disable-if-hint-matches to close fully.
-  const meta = await from.getAccessToken();
-  if (meta.enabled && !meta.rotated_at && isOurToken(token, meta.token_hint))
-    await from.disableAccessToken();
+  const disable = async () => {
+    const meta = await from.getAccessToken();
+    if (meta.enabled && !meta.rotated_at && isOurToken(token, meta.token_hint))
+      await from.disableAccessToken();
+    unreleased.delete(from.id);
+  };
+  const failure = await tryCleanup(
+    `disable the access token the SDK created on ${from.id}`,
+    disable,
+  );
+  if (failure) unreleased.set(from.id, disable);
+  return failure;
 }

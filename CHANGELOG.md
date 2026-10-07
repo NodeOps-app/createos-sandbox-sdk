@@ -23,7 +23,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - Long requests that send nothing until they finish (a buffered
   `runCommand` that runs over 5 minutes) no longer fail with a network
   error at ~300 s. Bun's fetch idle timeout and undici's header/body
-  timeouts are turned off, so `timeoutMs` is the only limit.
+  timeouts are turned off; `timeoutMs` bounds the wait for headers, and
+  buffered calls also read the body within what is left of it (at least
+  1 s), so a body that stalls fails with a timeout instead of hanging.
 
 ### Added
 
@@ -51,6 +53,16 @@ Versions follow [Semantic Versioning](https://semver.org/).
     sandboxes have it, else gzip. Merges send only the commits the target
     is missing.
   - `diff()` leaves binary contents out of the patch unless `binary: true`.
+  - `commit()`, `checkpoint()`, `rollback()` and `merge()` share one lock
+    per repo. A failed gate's undo removes the files the gate created and
+    keeps untracked files from before the merge.
+  - A merge git refuses for a reason other than a conflict throws with
+    git's own message; only unmerged paths count as `reason: "conflict"`.
+  - `CreateosSandboxCleanupError`: the work finished but the temporary
+    token or transfer network could not be released. `outcome` holds the
+    result, `retry()` runs the cleanup again.
+  - `pool.close()` waits until every idle pool sandbox, including ones
+    still filling, is destroyed, and throws when one could not be.
 
 ## [0.8.1] — 2026-08-13
 
