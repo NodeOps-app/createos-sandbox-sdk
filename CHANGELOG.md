@@ -18,6 +18,52 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Long requests that send nothing until they finish (a buffered
+  `runCommand` that runs over 5 minutes) no longer fail with a network
+  error at ~300 s. Bun's fetch idle timeout and undici's header/body
+  timeouts are turned off; `timeoutMs` bounds the wait for headers, and
+  buffered calls also read the body within what is left of it (at least
+  1 s), so a body that stalls fails with a timeout instead of hanging.
+
+### Added
+
+- **Gitboxes** (`sandbox.git`). `sandbox.git.register(path)` and `sandbox.git.clone(url, path)`
+  return a `Workspace`: a git repo inside a sandbox plus a working folder.
+  - `cwd(sub)` returns a new handle whose `run()` executes in that subfolder.
+    Paths that leave the repo throw.
+  - `status()`, `diff()` (uncommitted and untracked files included),
+    `commit()`, `checkpoint()` and `rollback()`.
+  - `branch(name)` always creates a **new sandbox**: `via: "clone"` (default)
+    copies the repo and uncommitted work; `via: "fork"` copies the whole
+    sandbox, including memory and running processes, and pauses the source
+    for the duration.
+  - `merge(other, { gate })` brings committed work back. Conflicts and gate
+    failures return as data and leave the workspace unchanged.
+  - `pool({ size })` keeps sandboxes that already hold the repo;
+    `branch(name, { pool })` takes one and moves only what changed since
+    the fill, then refills in the background. A 1.28 GB repo branches in
+    7-11 s instead of 19-34 s.
+  - Branch and merge data moves directly between sandboxes: a token-scoped
+    pull through the API for small files, a private network that holds only
+    the two sandboxes for files of 128 MB and more. When neither works the
+    call throws; `relay: true` allows a relay through the caller.
+  - Branch archives use zstd (`-3`, multithreaded above 2 vCPU) when both
+    sandboxes have it, else gzip. Merges send only the commits the target
+    is missing.
+  - `diff()` leaves binary contents out of the patch unless `binary: true`.
+  - `commit()`, `checkpoint()`, `rollback()` and `merge()` share one lock
+    per repo. A failed gate's undo removes the files the gate created and
+    keeps untracked files from before the merge.
+  - A merge git refuses for a reason other than a conflict throws with
+    git's own message; only unmerged paths count as `reason: "conflict"`.
+  - `CreateosSandboxCleanupError`: the work finished but the temporary
+    token or transfer network could not be released. `outcome` holds the
+    result, `retry()` runs the cleanup again.
+  - `pool.close()` waits until every idle pool sandbox, including ones
+    still filling, is destroyed, and throws when one could not be.
+
 ## [0.8.1] — 2026-08-13
 
 ### Changed

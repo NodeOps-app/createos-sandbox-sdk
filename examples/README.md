@@ -81,6 +81,7 @@ bun 01-hello-world/index.ts
 | 55 | [55-desktop-vnc-connect](55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | createSandbox, computer.screen, computer.screens.list, computer.screens.get, computer.screenshot, computer.mouse.move, computer.cursor, computer.setClipboard, computer.clipboard, computer.open, computer.screens.connect, destroy | extra |
 | 56 | [56-remote-code-execution](56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | createSandbox, files.upload, runCommand, destroy | extra |
 | 57 | [57-sandbox-access-token](57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | createSandbox, createAccessToken, withAccessToken, runCommand, getAccessToken, rotateAccessToken, disableAccessToken, destroy | — |
+| 58 | [58-gitboxes](58-gitboxes/) | Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch. | createSandbox, files.upload, git.register, Workspace.run, Workspace.cwd, Workspace.status, Workspace.diff, Workspace.commit, Workspace.branch, Workspace.merge, Workspace.discard, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 
@@ -106,6 +107,7 @@ Setup `extra` = needs an external service or extra secrets; excluded from CI.
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
 - **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
+- **58 gitboxes** — Creates 5 sandboxes; up to 4 run at once.
 
 <!-- END GENERATED: examples -->
 

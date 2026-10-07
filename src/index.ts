@@ -15,6 +15,30 @@ export {
   SandboxFiles,
   SandboxProcesses,
 } from "./sandbox.js";
+export {
+  CreateosSandboxCleanupError,
+  CreateosSandboxGitError,
+  DEFAULT_GIT_AUTHOR,
+  SandboxGit,
+  WarmPool,
+  Workspace,
+} from "./git.js";
+export type {
+  BranchOptions,
+  BranchVia,
+  CleanupFailure,
+  CloneOptions,
+  CopyOptions,
+  DiffOptions,
+  GitAuthor,
+  GitDiff,
+  GitFileStatus,
+  GitStatus,
+  MergeOptions,
+  MergeResult,
+  PoolOptions,
+  RegisterOptions,
+} from "./git.js";
 export { selfPause, selfDelete } from "./self.js";
 export { CreateosSandboxHttp } from "./http.js";
 export type { HttpRequestOptions, Query, QueryValue } from "./http.js";

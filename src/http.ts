@@ -128,7 +128,20 @@ export class CreateosSandboxHttp {
    *   `success` envelope.
    */
   async request<T>(method: string, path: string, options: HttpRequestOptions = {}): Promise<T> {
-    const response = await this.requestRaw(method, path, options);
+    const started = performance.now();
+    const raw = await this.requestRaw(method, path, options);
+    // The timeout signal only covers the wait for headers. The transport's
+    // own idle timeouts are off (see #dispatch), so bound the body read here
+    // with what is left of `timeoutMs`.
+    const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
+    const response =
+      timeoutMs > 0
+        ? await readBodyWithin(
+            raw,
+            Math.max(timeoutMs - (performance.now() - started), MIN_BODY_MS),
+            `${method.toUpperCase()} ${path}`,
+          )
+        : raw;
     if (!response.ok) {
       await this.throwForResponse(response, method, path);
     }
@@ -441,9 +454,15 @@ export class CreateosSandboxHttp {
     streaming = false,
   ): Promise<Response> {
     const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
-    const init: RequestInit & { duplex?: "half" } = {
+    const init: RequestInit & { duplex?: "half"; timeout?: false } = {
       method: prepared.method,
       headers: prepared.headers,
+      // Bun's fetch drops a request that is silent for 300 s, whatever the
+      // caller's timeout. A buffered exec stays silent until it ends, so
+      // turn that off: `timeoutMs` bounds the wait for headers here, and
+      // `request()` bounds the body read. Other runtimes ignore this
+      // Bun-only option.
+      timeout: false,
     };
     if (prepared.body !== undefined) {
       init.body = prepared.body;
@@ -584,6 +603,11 @@ export function createNodeTransportFromModules(
     pipelining: 1,
     keepAliveTimeout: 60_000,
     keepAliveMaxTimeout: 600_000,
+    // undici's 300 s defaults would cut a long, silent exec before the
+    // caller's own `timeoutMs`. That timeout bounds the headers, and
+    // `request()` bounds the body read of buffered calls.
+    headersTimeout: 0,
+    bodyTimeout: 0,
   });
   const uf = undici.fetch as unknown as (
     url: string,
@@ -730,6 +754,51 @@ type HookMeta = { url: string; method: string; headers: Record<string, string> }
 interface TimeoutHandle {
   signal: AbortSignal;
   clear: () => void;
+}
+
+// A body that started arriving gets at least this long, even when the
+// headers used up the whole budget.
+const MIN_BODY_MS = 1000;
+
+/**
+ * Reads the whole body within `ms`, then returns an equivalent buffered
+ * Response. A body that stalls past `ms` is cancelled and the call fails with
+ * a timeout instead of hanging.
+ */
+async function readBodyWithin(response: Response, ms: number, what: string): Promise<Response> {
+  if (!response.body) return response;
+  const reader = response.body.getReader();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    void reader.cancel().catch(() => undefined);
+  }, ms);
+  const chunks: Uint8Array[] = [];
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+  } catch (err) {
+    if (!timedOut) {
+      throw new CreateosSandboxConnectionError(`Network error reading the body: ${what}`, {
+        cause: err,
+      });
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+  if (timedOut)
+    throw new CreateosSandboxTimeoutError(
+      `Response body timed out after ${Math.round(ms)}ms: ${what}`,
+    );
+  const empty = [204, 205, 304].includes(response.status);
+  return new Response(empty ? null : new Blob(chunks as BlobPart[]), {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
 }
 
 function createTimeoutSignal(timeoutMs: number): TimeoutHandle {

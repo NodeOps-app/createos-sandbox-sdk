@@ -799,3 +799,96 @@ describe("observability hooks", () => {
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
   });
 });
+
+describe("long silent requests", () => {
+  // Bun's fetch and undici both default to a 300 s idle cut, which ended
+  // buffered exec calls (silent until done) at ~5 min. Only timeoutMs may cut.
+  test("turns off Bun's fetch idle timeout", async () => {
+    let init: (RequestInit & { timeout?: unknown }) | undefined;
+    const client = makeClient((_url, i) => {
+      init = i;
+      return Promise.resolve(success(WHOAMI_OK));
+    });
+    await client.whoami();
+    expect(init?.timeout).toBe(false);
+  });
+
+  test("turns off undici's header and body timeouts", () => {
+    let opts: Record<string, unknown> = {};
+    class FakePool {
+      constructor(_origin: string, o: Record<string, unknown>) {
+        opts = o;
+      }
+
+      request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
+        return Promise.resolve({
+          body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+        });
+      }
+    }
+    createNodeTransportFromModules(
+      BASE,
+      {
+        Pool: FakePool,
+        fetch: () => Promise.reject(new Error("unused")),
+      } as unknown as typeof import("undici"),
+      {} as typeof import("node:http2"),
+    );
+    expect(opts).toMatchObject({ headersTimeout: 0, bodyTimeout: 0 });
+  });
+});
+
+// Review fix 5: the transport idle timeouts are off, so `request()` itself
+// must bound the body read. A real server sends headers and part of the
+// JSON, then stalls.
+describe("body read deadline", () => {
+  let server: http.Server;
+  let origin = "";
+  const open = new Set<http.ServerResponse>();
+
+  beforeEach(async () => {
+    server = http.createServer((req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      if (req.url === "/stall") {
+        res.write('{"status":"success","da');
+        open.add(res); // never ends
+        return;
+      }
+      // Slow but complete: three chunks over ~300 ms.
+      res.write('{"status":');
+      setTimeout(() => res.write('"success","data"'), 150);
+      setTimeout(() => res.end(':{"ok":true}}'), 300);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (address === null || typeof address === "string") throw new Error("server has no port");
+    origin = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterEach(async () => {
+    for (const res of open) res.destroy();
+    open.clear();
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  test("a body that stalls fails with a timeout instead of hanging", async () => {
+    const client = new CreateosSandboxHttp(
+      resolveConfig({ baseUrl: origin, apiKey: "sk", retry: false }),
+    );
+    const started = performance.now();
+    const err = await catchErr(() => client.request("GET", "/stall", { timeoutMs: 200 }));
+    expect(err).toBeInstanceOf(CreateosSandboxTimeoutError);
+    expect((err as Error).message).toContain("body");
+    // timeoutMs 200 plus the 1 s minimum body window, never unbounded.
+    expect(performance.now() - started).toBeLessThan(3000);
+  });
+
+  test("a slow body that finishes inside the deadline still succeeds", async () => {
+    const client = new CreateosSandboxHttp(
+      resolveConfig({ baseUrl: origin, apiKey: "sk", retry: false }),
+    );
+    const data = await client.request<{ ok: boolean }>("GET", "/slow", { timeoutMs: 5000 });
+    expect(data).toEqual({ ok: true });
+  });
+});

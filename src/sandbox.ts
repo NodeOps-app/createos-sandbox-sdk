@@ -4,6 +4,7 @@
 import { createClient } from "./client.js";
 import { DEFAULT_WAIT_MS } from "./config.js";
 import { CreateosSandboxError, CreateosSandboxTimeoutError } from "./errors.js";
+import { SandboxGit } from "./git.js";
 import { encodePath, type CreateosSandboxHttp } from "./http.js";
 import { pollUntil } from "./poll.js";
 import type {
@@ -766,6 +767,8 @@ export class Sandbox {
   readonly processes: SandboxProcesses;
   /** Desktop computer-use namespace. */
   readonly computer: SandboxComputer;
+  /** Gitboxes: register a repo folder, branch it into new sandboxes, merge back. */
+  readonly git: SandboxGit;
 
   readonly #http: CreateosSandboxHttp;
   #data: SandboxView;
@@ -776,6 +779,7 @@ export class Sandbox {
     this.files = new SandboxFiles(http, view.id);
     this.processes = new SandboxProcesses(http, view.id);
     this.computer = new SandboxComputer(http, view.id);
+    this.git = new SandboxGit(http, this);
   }
 
   /**

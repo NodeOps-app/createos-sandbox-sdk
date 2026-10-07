@@ -1033,6 +1033,33 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "58",
+      "slug": "gitboxes",
+      "dir": "58-gitboxes",
+      "title": "Gitboxes: git for environments",
+      "summary": "Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch.",
+      "primitives": [
+        "createSandbox",
+        "files.upload",
+        "git.register",
+        "Workspace.run",
+        "Workspace.cwd",
+        "Workspace.status",
+        "Workspace.diff",
+        "Workspace.commit",
+        "Workspace.branch",
+        "Workspace.merge",
+        "Workspace.discard",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "stable",
+      "notes": "Creates 5 sandboxes; up to 4 run at once."
     }
   ]
 }
