@@ -799,3 +799,41 @@ describe("observability hooks", () => {
     await expect(iterator.next()).resolves.toEqual({ done: true, value: undefined });
   });
 });
+
+describe("long silent requests", () => {
+  // Bun's fetch and undici both default to a 300 s idle cut, which ended
+  // buffered exec calls (silent until done) at ~5 min. Only timeoutMs may cut.
+  test("turns off Bun's fetch idle timeout", async () => {
+    let init: (RequestInit & { timeout?: unknown }) | undefined;
+    const client = makeClient((_url, i) => {
+      init = i;
+      return Promise.resolve(success(WHOAMI_OK));
+    });
+    await client.whoami();
+    expect(init?.timeout).toBe(false);
+  });
+
+  test("turns off undici's header and body timeouts", () => {
+    let opts: Record<string, unknown> = {};
+    class FakePool {
+      constructor(_origin: string, o: Record<string, unknown>) {
+        opts = o;
+      }
+
+      request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
+        return Promise.resolve({
+          body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+        });
+      }
+    }
+    createNodeTransportFromModules(
+      BASE,
+      {
+        Pool: FakePool,
+        fetch: () => Promise.reject(new Error("unused")),
+      } as unknown as typeof import("undici"),
+      {} as typeof import("node:http2"),
+    );
+    expect(opts).toMatchObject({ headersTimeout: 0, bodyTimeout: 0 });
+  });
+});

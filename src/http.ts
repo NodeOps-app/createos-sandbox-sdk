@@ -441,9 +441,14 @@ export class CreateosSandboxHttp {
     streaming = false,
   ): Promise<Response> {
     const timeoutMs = options.timeoutMs ?? this.#config.timeoutMs;
-    const init: RequestInit & { duplex?: "half" } = {
+    const init: RequestInit & { duplex?: "half"; timeout?: false } = {
       method: prepared.method,
       headers: prepared.headers,
+      // Bun's fetch drops a request that is silent for 300 s, whatever the
+      // caller's timeout. A buffered exec stays silent until it ends, so
+      // turn that off and let `timeoutMs` above be the only limit. Other
+      // runtimes ignore this Bun-only option.
+      timeout: false,
     };
     if (prepared.body !== undefined) {
       init.body = prepared.body;
@@ -584,6 +589,10 @@ export function createNodeTransportFromModules(
     pipelining: 1,
     keepAliveTimeout: 60_000,
     keepAliveMaxTimeout: 600_000,
+    // undici's 300 s defaults would cut a long, silent exec before the
+    // caller's own `timeoutMs`; that per-request timeout is the only limit.
+    headersTimeout: 0,
+    bodyTimeout: 0,
   });
   const uf = undici.fetch as unknown as (
     url: string,
