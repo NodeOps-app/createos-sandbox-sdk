@@ -1,6 +1,7 @@
-# 58 - Git for environments
+# 58 - Gitboxes: git for environments
 
-Branch, test and merge a whole software world, not only its code.
+Branch, test and merge a whole software world, not only its code. Gitboxes
+(`sandbox.git` in the SDK) give every branch its own sandbox.
 
 The repo holds everything needed to rebuild the world: app code, database
 migrations, seed data and the test gate. Each agent works on its own branch,
@@ -29,27 +30,33 @@ try three changes in parallel:
 ```sh
 cp .env.example .env
 # fill in CREATEOS_SANDBOX_API_KEY
-bun 58-git-for-environments/index.ts
+bun 58-gitboxes/index.ts
 ```
 
 ## Sample output
 
 ```
-[  3.3s] main           committed base world b2ebf46 (gate passed)
-[  5.6s] agent/email    store a billing email per customer → gate PASS
-[  6.2s] agent/tax-fast add 18% tax with float math (rounding bug) → gate FAIL
-[  6.2s] agent/tax-fast   AssertionError: 3537
-[  6.8s] agent/tax      add 18% tax, rate stored per customer → gate PASS
-[  9.4s] main           merge agent/tax → gate PASS
-[ 11.7s] main           merge agent/email → gate PASS
-[ 12.2s] main           main is now 0aea5a7
-[ 15.1s] verify         fresh sandbox at 0aea5a7, rebuilt DB, gate PASS
+[  2.9s] main           committed base world 702f386 (gate passed)
+[  4.8s] agent/tax-fast add 18% tax with float math (rounding bug) → gate FAIL
+[  4.8s] agent/tax-fast   changed: billing.py, checks.py
+[  4.8s] agent/tax-fast   AssertionError: 3537
+[  4.8s] agent/tax      add 18% tax, rate stored per customer → gate PASS
+[  4.8s] agent/tax        changed: billing.py, checks.py, migrations/002_tax.sql
+[  5.3s] agent/email    store a billing email per customer → gate PASS
+[  5.3s] agent/email      changed: migrations/003_email.sql, test_email.py
+[  8.2s] main           merge agent/tax → gate PASS
+[ 10.7s] main           merge agent/email → gate PASS
+[ 11.3s] main           main is now 15d38c4
+[ 13.8s] verify         fresh sandbox at 15d38c4, rebuilt DB, gate PASS, clean: true
+[ 13.8s] verify           migrations: 001_init.sql, 002_tax.sql, 003_email.sql
 ```
 
 ## Rules this example follows
 
 - **One sandbox per branch.** Agents never share files, ports or processes,
   and a failed idea is discarded with its sandbox.
+- **See the work before it is committed.** `diff()` lists every changed and
+  new file, committed or not; `status()` and `cwd()` work the same way.
 - **Only the coordinator writes `main`.** Branches come back through
   `merge()`, which runs the gate on the merged result and undoes the merge
   when the gate fails.

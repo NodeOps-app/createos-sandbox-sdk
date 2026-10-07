@@ -1,4 +1,4 @@
-// Live tests for git workspaces against a real control plane. They create real
+// Live tests for gitboxes (`sandbox.git`) against a real control plane. They create real
 // sandboxes and take a few minutes. Skipped unless CREATEOS_SANDBOX_LIVE=1.
 //
 //   CREATEOS_SANDBOX_LIVE=1 CREATEOS_SANDBOX_API_KEY=... bun run test:live
@@ -32,7 +32,7 @@ const track = (ws: Workspace) => {
   return ws;
 };
 
-describe.skipIf(!LIVE)("git workspaces (live)", () => {
+describe.skipIf(!LIVE)("gitboxes (live)", () => {
   beforeAll(async () => {
     sb = await client.createSandbox({ shape: "s-1vcpu-1gb", rootfs: "devbox:1", disk_mib: 51200 });
     made.push(sb);

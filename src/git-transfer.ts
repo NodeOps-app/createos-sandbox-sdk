@@ -1,4 +1,4 @@
-// Shared plumbing for git workspaces: script runners, the snapshot and
+// Shared plumbing for gitboxes (`sandbox.git`): script runners, the snapshot and
 // compression snippets, and `deliver`, which moves one file from a source
 // sandbox into a target sandbox and runs the target's script in the same call.
 //

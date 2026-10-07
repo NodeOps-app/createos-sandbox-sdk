@@ -1,4 +1,4 @@
-// Git workspaces: a folder inside a sandbox registered as a git repo, with
+// Gitboxes (`sandbox.git`): a folder inside a sandbox registered as a git repo, with
 // git-style branching where every branch gets its own sandbox.
 //
 // Design notes:
@@ -260,7 +260,7 @@ export class SandboxGit {
   }
 
   /**
-   * Registers a folder in the sandbox as a git workspace. A path inside a repo
+   * Registers a folder in the sandbox as a gitbox workspace. A path inside a repo
    * resolves to the repo root, and the rest becomes the workspace's `cwd`.
    *
    * @throws {CreateosSandboxGitError} when the folder is not a repo and `init` is not set.

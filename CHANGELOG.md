@@ -27,7 +27,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Git workspaces.** `sandbox.git.register(path)` and `sandbox.git.clone(url, path)`
+- **Gitboxes** (`sandbox.git`). `sandbox.git.register(path)` and `sandbox.git.clone(url, path)`
   return a `Workspace`: a git repo inside a sandbox plus a working folder.
   - `cwd(sub)` returns a new handle whose `run()` executes in that subfolder.
     Paths that leave the repo throw.

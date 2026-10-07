@@ -27,7 +27,7 @@ The documentation follows the [Diátaxis](https://diataxis.fr/) framework.
 How-to guides (problem-oriented recipes):
 
 - [Move files in and out](docs/how-to/files.md) — `upload` / `download`
-- [Branch a project into isolated sandboxes](docs/how-to/git-workspaces.md) — `sandbox.git.register`, `branch`, `cwd`, `merge`
+- [Gitboxes: branch a project into isolated sandboxes](docs/how-to/gitboxes.md) — `sandbox.git.register`, `branch`, `pool`, `merge`
 - [Manage lifecycle](docs/how-to/lifecycle.md) — pause, fork, resume, auto-pause, bandwidth
 - [Expose a service](docs/how-to/expose-a-service.md) — ingress + preview URLs
 - [Disks, networks & templates](docs/how-to/disks-networks-templates.md)
@@ -51,7 +51,7 @@ Explanation (understanding-oriented):
 - [The handle model & data flow](docs/explanation/handle-model.md)
 - [Lifecycle & state machine](docs/explanation/lifecycle.md)
 - [Reliability: retries, timeouts, cancellation](docs/explanation/reliability.md)
-- [Git workspaces: design and measurements](docs/explanation/git-workspaces.md)
+- [Gitboxes: design and measurements](docs/explanation/gitboxes.md)
 
 - [Examples index](docs/examples.md) — runnable programs, by capability
 - [CHANGELOG](CHANGELOG.md) — release history + deprecation policy
@@ -116,8 +116,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
 - [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
 - [57-sandbox-access-token](examples/57-sandbox-access-token/) — Delegate one sandbox to a worker, inspect and rotate its token, then revoke it.
-- [58-git-for-environments](examples/58-git-for-environments/) — Branch a whole world (code, migrations, seed, tests) into one sandbox per agent with git workspaces, merge only branches that pass the gate, and prove main rebuilds from scratch.
-- [59-git-workspaces](examples/59-git-workspaces/) — Register a repo folder in a sandbox, branch it into separate sandboxes for three parallel agents, run tests from a subfolder, and merge only the branches that pass.
+- [58-gitboxes](examples/58-gitboxes/) — Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

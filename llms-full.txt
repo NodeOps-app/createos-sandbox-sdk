@@ -1671,11 +1671,11 @@ hooks — see [../how-to/error-handling.md](../how-to/error-handling.md).
 
 ---
 
-# Git workspaces: design and measurements
+# Gitboxes: design and measurements
 
 Why `branch()` copies a repo into a new sandbox by default (`via: "clone"`),
 what else we tried, and the numbers behind each choice. For the API and
-recipes see [../how-to/git-workspaces.md](../how-to/git-workspaces.md).
+recipes see [../how-to/gitboxes.md](../how-to/gitboxes.md).
 
 > Status: early preview. Numbers are from test runs on 2026-10-06 and
 > 2026-10-07 and will move as the platform changes.
@@ -2049,7 +2049,7 @@ full method signatures and error types.
 
 ---
 
-# How-to: branch a project into isolated sandboxes
+# How-to: Gitboxes — branch a project into isolated sandboxes
 
 ## Problem
 
@@ -2059,11 +2059,11 @@ each other or the original.
 
 ## Solution
 
-Register the project folder as a git workspace with `sandbox.git`. A
+Register the project folder as a gitbox with `sandbox.git`. A
 `Workspace` is a git repo inside a sandbox plus a working folder in it.
 `branch()` puts every branch in its own sandbox, and `merge()` brings
 committed work back, guarded by a test command. Why branches clone by
-default, and the measured numbers: [../explanation/git-workspaces.md](../explanation/git-workspaces.md).
+default, and the measured numbers: [../explanation/gitboxes.md](../explanation/gitboxes.md).
 
 ```ts
 import { CreateosSandboxClient } from "@nodeops-createos/sandbox";
@@ -6958,8 +6958,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
 | 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
-| 58 | [58-git-for-environments](../examples/58-git-for-environments/) | Branch a whole world (code, migrations, seed, tests) into one sandbox per agent with git workspaces, merge only branches that pass the gate, and prove main rebuilds from scratch. | — |
-| 59 | [59-git-workspaces](../examples/59-git-workspaces/) | Register a repo folder in a sandbox, branch it into separate sandboxes for three parallel agents, run tests from a subfolder, and merge only the branches that pass. | — |
+| 58 | [58-gitboxes](../examples/58-gitboxes/) | Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch. | — |
 
 ## Disks, networks & templates
 
@@ -6999,8 +6998,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
 - **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
-- **58 git-for-environments** — Creates 5 sandboxes; up to 4 run at once.
-- **59 git-workspaces** — Creates 4 sandboxes at once.
+- **58 gitboxes** — Creates 5 sandboxes; up to 4 run at once.
 
 ## See also
 
@@ -7041,7 +7039,7 @@ The documentation follows the [Diátaxis](https://diataxis.fr/) framework.
 How-to guides (problem-oriented recipes):
 
 - [Move files in and out](docs/how-to/files.md) — `upload` / `download`
-- [Branch a project into isolated sandboxes](docs/how-to/git-workspaces.md) — `sandbox.git.register`, `branch`, `cwd`, `merge`
+- [Gitboxes: branch a project into isolated sandboxes](docs/how-to/gitboxes.md) — `sandbox.git.register`, `branch`, `pool`, `merge`
 - [Manage lifecycle](docs/how-to/lifecycle.md) — pause, fork, resume, auto-pause, bandwidth
 - [Expose a service](docs/how-to/expose-a-service.md) — ingress + preview URLs
 - [Disks, networks & templates](docs/how-to/disks-networks-templates.md)
@@ -7065,7 +7063,7 @@ Explanation (understanding-oriented):
 - [The handle model & data flow](docs/explanation/handle-model.md)
 - [Lifecycle & state machine](docs/explanation/lifecycle.md)
 - [Reliability: retries, timeouts, cancellation](docs/explanation/reliability.md)
-- [Git workspaces: design and measurements](docs/explanation/git-workspaces.md)
+- [Gitboxes: design and measurements](docs/explanation/gitboxes.md)
 
 - [Examples index](docs/examples.md) — runnable programs, by capability
 - [CHANGELOG](CHANGELOG.md) — release history + deprecation policy
@@ -7130,8 +7128,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
 - [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
 - [57-sandbox-access-token](examples/57-sandbox-access-token/) — Delegate one sandbox to a worker, inspect and rotate its token, then revoke it.
-- [58-git-for-environments](examples/58-git-for-environments/) — Branch a whole world (code, migrations, seed, tests) into one sandbox per agent with git workspaces, merge only branches that pass the gate, and prove main rebuilds from scratch.
-- [59-git-workspaces](examples/59-git-workspaces/) — Register a repo folder in a sandbox, branch it into separate sandboxes for three parallel agents, run tests from a subfolder, and merge only the branches that pass.
+- [58-gitboxes](examples/58-gitboxes/) — Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

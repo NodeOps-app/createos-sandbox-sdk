@@ -1,8 +1,8 @@
-# Git workspaces: design and measurements
+# Gitboxes: design and measurements
 
 Why `branch()` copies a repo into a new sandbox by default (`via: "clone"`),
 what else we tried, and the numbers behind each choice. For the API and
-recipes see [../how-to/git-workspaces.md](../how-to/git-workspaces.md).
+recipes see [../how-to/gitboxes.md](../how-to/gitboxes.md).
 
 > Status: early preview. Numbers are from test runs on 2026-10-06 and
 > 2026-10-07 and will move as the platform changes.

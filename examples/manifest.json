@@ -1036,39 +1036,17 @@
     },
     {
       "id": "58",
-      "slug": "git-for-environments",
-      "dir": "58-git-for-environments",
-      "title": "Git for environments",
-      "summary": "Branch a whole world (code, migrations, seed, tests) into one sandbox per agent with git workspaces, merge only branches that pass the gate, and prove main rebuilds from scratch.",
+      "slug": "gitboxes",
+      "dir": "58-gitboxes",
+      "title": "Gitboxes: git for environments",
+      "summary": "Gitboxes: branch a whole world (code, migrations, seed, tests) into one sandbox per agent, inspect each agent's diff, merge only branches that pass the gate, and prove main rebuilds from scratch.",
       "primitives": [
         "createSandbox",
         "files.upload",
         "git.register",
         "Workspace.run",
-        "Workspace.commit",
-        "Workspace.branch",
-        "Workspace.merge",
-        "Workspace.discard",
-        "destroy"
-      ],
-      "deps": [],
-      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
-      "entry": "index.ts",
-      "ci": false,
-      "status": "stable",
-      "notes": "Creates 5 sandboxes; up to 4 run at once."
-    },
-    {
-      "id": "59",
-      "slug": "git-workspaces",
-      "dir": "59-git-workspaces",
-      "title": "Git workspaces",
-      "summary": "Register a repo folder in a sandbox, branch it into separate sandboxes for three parallel agents, run tests from a subfolder, and merge only the branches that pass.",
-      "primitives": [
-        "createSandbox",
-        "git.register",
         "Workspace.cwd",
-        "Workspace.run",
+        "Workspace.status",
         "Workspace.diff",
         "Workspace.commit",
         "Workspace.branch",
@@ -1081,7 +1059,7 @@
       "entry": "index.ts",
       "ci": false,
       "status": "stable",
-      "notes": "Creates 4 sandboxes at once."
+      "notes": "Creates 5 sandboxes; up to 4 run at once."
     }
   ]
 }

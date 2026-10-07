@@ -1,4 +1,4 @@
-# How-to: branch a project into isolated sandboxes
+# How-to: Gitboxes — branch a project into isolated sandboxes
 
 ## Problem
 
@@ -8,11 +8,11 @@ each other or the original.
 
 ## Solution
 
-Register the project folder as a git workspace with `sandbox.git`. A
+Register the project folder as a gitbox with `sandbox.git`. A
 `Workspace` is a git repo inside a sandbox plus a working folder in it.
 `branch()` puts every branch in its own sandbox, and `merge()` brings
 committed work back, guarded by a test command. Why branches clone by
-default, and the measured numbers: [../explanation/git-workspaces.md](../explanation/git-workspaces.md).
+default, and the measured numbers: [../explanation/gitboxes.md](../explanation/gitboxes.md).
 
 ```ts
 import { CreateosSandboxClient } from "@nodeops-createos/sandbox";

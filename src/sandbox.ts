@@ -767,7 +767,7 @@ export class Sandbox {
   readonly processes: SandboxProcesses;
   /** Desktop computer-use namespace. */
   readonly computer: SandboxComputer;
-  /** Git workspaces: register a repo folder, branch it into new sandboxes, merge back. */
+  /** Gitboxes: register a repo folder, branch it into new sandboxes, merge back. */
   readonly git: SandboxGit;
 
   readonly #http: CreateosSandboxHttp;

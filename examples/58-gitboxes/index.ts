@@ -1,11 +1,13 @@
 /**
- * Git for environments.
+ * Gitboxes: git for environments.
  *
- * The repo holds the whole world: app code, database migrations, seed data
+ * Every branch is its own sandbox. The repo holds the whole world: app code, database migrations, seed data
  * and the test gate. Branching the world = `main.branch()`, a fresh sandbox
  * that gets the repo and rebuilds the database from it. Merging = `merge()`
  * gated by the same tests, so a change that breaks the world never reaches
- * main. A last branch proves that main rebuilds and passes from scratch.
+ * main. Each agent's `diff()` shows exactly what it changed, including files
+ * it has not committed yet. A last branch proves that main rebuilds and
+ * passes from scratch.
  *
  *   main ──branch──► agent/tax       (own sandbox) ── gate pass ──► merge
  *        ──branch──► agent/tax-fast  (own sandbox) ── gate FAIL ──► discard
@@ -13,9 +15,9 @@
  *        ──branch──► verify          (own sandbox) ── rebuild DB + gate
  *
  * createos-sandbox primitives: createSandbox, files.upload, git.register,
- * Workspace.run, commit, branch, merge, discard, destroy
+ * Workspace.run, cwd, status, diff, commit, branch, merge, discard, destroy
  *
- * Run:   bun 58-git-for-environments/index.ts
+ * Run:   bun 58-gitboxes/index.ts
  * Needs: CREATEOS_SANDBOX_API_KEY. CREATEOS_SANDBOX_BASE_URL optional.
  */
 
@@ -151,8 +153,11 @@ try {
       const ws = await main.branch(agent.branch);
       branches.add(ws);
       await writeFiles(ws, agent.files);
+      // Uncommitted work is visible: diff() covers changed and new files.
+      const changed = (await ws.diff()).files.map((f) => f.path).join(", ");
       const check = await gate(ws);
       log(agent.branch, `${agent.goal} → gate ${check.ok ? "PASS" : "FAIL"}`);
+      log(agent.branch, `  changed: ${changed}`);
       if (!check.ok) {
         log(agent.branch, `  ${check.out.split("\n").pop()}`);
         await discard(ws); // nothing is committed, nothing leaks into main
@@ -179,10 +184,14 @@ try {
   const verify = await main.branch("verify");
   branches.add(verify);
   const check = await gate(verify);
+  // cwd() returns a handle whose commands run in a subfolder of the repo.
+  const migrations = await verify.cwd("migrations").run("ls");
+  const clean = (await verify.status()).clean;
   log(
     "verify",
-    `fresh sandbox at ${head.slice(0, 7)}, rebuilt DB, gate ${check.ok ? "PASS" : "FAIL"}`,
+    `fresh sandbox at ${head.slice(0, 7)}, rebuilt DB, gate ${check.ok ? "PASS" : "FAIL"}, clean: ${clean}`,
   );
+  log("verify", `  migrations: ${migrations.result.stdout.trim().split("\n").join(", ")}`);
   console.log(`\n${(await main.run("git log --oneline --graph")).result.stdout}`);
   if (!check.ok) process.exitCode = 1;
 } finally {
