@@ -32,6 +32,7 @@ const client = new CreateosSandboxClient();
 const sandbox = await client.createSandbox({
   shape: "s-1vcpu-1gb",
   rootfs: "devbox:1",
+  labels: { team: "backend", environment: "test" },
   // Egress allowlist: the sandbox reaches PyPI and nothing else.
   egress: ["pypi.org:443", "*.pythonhosted.org:443"],
 });

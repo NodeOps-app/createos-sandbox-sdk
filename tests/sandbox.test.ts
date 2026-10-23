@@ -324,6 +324,25 @@ describe("ingress", () => {
   });
 });
 
+describe("labels", () => {
+  test("setLabels PATCHes labels and updates the handle", async () => {
+    let body: { labels: Record<string, string> } | undefined;
+    const sandbox = await connect((_u, init, p) => {
+      expect(init.method).toBe("PATCH");
+      expect(p).toBe("/v1/sandboxes/sb_1");
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(
+        success({ ...RUNNING_VIEW, labels: { environment: "test", team: "platform" } }),
+      );
+    });
+
+    await sandbox.setLabels({ team: "platform" });
+
+    expect(body).toEqual({ labels: { team: "platform" } });
+    expect(sandbox.data.labels).toEqual({ environment: "test", team: "platform" });
+  });
+});
+
 describe("ssh pubkeys", () => {
   test("addSSHPubkeys POSTs keys and returns the new count", async () => {
     let pathname = "";

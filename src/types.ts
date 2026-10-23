@@ -202,6 +202,8 @@ export interface CreateSandboxRequest {
   rootfs?: string;
   /** User-facing VM name, unique per user. Empty = auto-generated. */
   name?: string;
+  /** User-defined metadata for organizing and filtering sandboxes. */
+  labels?: Record<string, string>;
   /** Overlay networks to join at create time. */
   networks?: NetworkEntry[];
   /** Overlay disk size in MiB. 0 = shape default. */
@@ -238,6 +240,7 @@ export interface CreateSandboxRequest {
 export interface CreateSandboxResponse {
   id: string;
   name: string;
+  labels?: Record<string, string>;
   /** The VM's private IP. */
   ip: string;
   shape: string;
@@ -279,6 +282,8 @@ export type SandboxStatus =
 export interface SandboxView {
   id: string;
   status: SandboxStatus;
+  /** User-defined metadata attached to this sandbox. */
+  labels?: Record<string, string>;
   /** The VM's private IP. Absent (`omitempty`) until the VM is assigned
    *  an address — omitted while the sandbox is still `creating`. */
   ip?: string;
@@ -345,6 +350,8 @@ export interface ListSandboxesOptions extends RequestOptions {
   limit?: number;
   /** Filter to one lifecycle state. Omit to list every status. */
   status?: Extract<SandboxStatus, "running" | "creating" | "destroyed" | "failed">;
+  /** Require every supplied label key/value pair to match. */
+  labels?: Record<string, string>;
 }
 
 /** Optional overrides applied to a fork. Omitted fields inherit from the source. */
@@ -358,9 +365,10 @@ export interface ForkSandboxRequest {
   bandwidth_quota_bytes?: number;
 }
 
-/** Body of the sandbox PATCH endpoint, used by `Sandbox.setIngress` and
- *  `Sandbox.setAutoPause`. Omitted fields are left unchanged. */
+/** Body of the sandbox PATCH endpoint. Omitted fields are left unchanged. */
 export interface PatchSandboxRequest {
+  /** Labels to merge into the sandbox's existing labels. */
+  labels?: Record<string, string>;
   ingress_enabled?: boolean;
   /** Idle auto-pause timeout in seconds (60–86400). */
   auto_pause_after_seconds?: number;

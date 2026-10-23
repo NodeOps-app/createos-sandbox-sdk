@@ -18,6 +18,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Sandbox labels on create and response types, AND-matched label filtering in
+  `listSandboxes()` and `iterateSandboxes()`, and label merging through
+  `Sandbox.setLabels()`.
+
 ## [0.8.1] — 2026-08-13
 
 ### Changed

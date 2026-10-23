@@ -88,6 +88,11 @@ tracked here.
   range 60–86400, server-validated. SDK: fields on
   `CreateSandboxRequest` / `SandboxView` / `PatchSandboxRequest`, plus
   `Sandbox.setAutoPause(seconds | null)`.
+- **Sandbox labels.** Reconciled against control-plane commit `0abfd94`
+  (2026-10-23). `labels` is accepted on create, returned by create/get/list,
+  filtered with AND semantics through the JSON `labels` list query, and merged
+  through PATCH. SDK: `CreateSandboxRequest.labels`, `SandboxView.labels`,
+  `ListSandboxesOptions.labels`, and `Sandbox.setLabels()`.
 - **Credit gating (402).** Cost-incurring endpoints (sandbox create /
   resume / fork, bandwidth recharge, disk / network / template create)
   return `402 Payment Required` (JSend `fail`) when the account has no

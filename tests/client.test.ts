@@ -50,6 +50,22 @@ describe("createSandbox", () => {
     });
     expect(body?.disks).toEqual([{ disk_id: "data", mount_path: "/mnt/data" }]);
   });
+
+  test("forwards labels and preserves response labels on the handle", async () => {
+    let body: Record<string, unknown> | undefined;
+    const client = makeClient((_url, init) => {
+      body = JSON.parse(String(init.body));
+      return Promise.resolve(success({ ...CREATE_RESPONSE, labels: { team: "backend" } }));
+    });
+
+    const sandbox = await client.createSandbox({
+      shape: "s",
+      labels: { team: "backend" },
+    });
+
+    expect(body?.labels).toEqual({ team: "backend" });
+    expect(sandbox.data.labels).toEqual({ team: "backend" });
+  });
 });
 
 describe("connecting to existing sandboxes", () => {
@@ -71,19 +87,27 @@ describe("connecting to existing sandboxes", () => {
     expect(sandbox.id).toBe("sb_byip");
   });
 
-  test("listSandboxes maps views to handles and forwards limit/status filters", async () => {
+  test("listSandboxes maps views and forwards limit, status, and label filters", async () => {
     let url = "";
     const client = makeClient((u) => {
       url = String(u);
       return Promise.resolve(success([RUNNING_VIEW, { ...RUNNING_VIEW, id: "sb_2" }]));
     });
-    const sandboxes = await client.listSandboxes({ status: "running", limit: 50 });
+    const sandboxes = await client.listSandboxes({
+      status: "running",
+      labels: { team: "backend", environment: "test" },
+      limit: 50,
+    });
     expect(sandboxes).toHaveLength(2);
     expect(sandboxes.every((s) => s instanceof Sandbox)).toBe(true);
     expect(sandboxes[1]?.id).toBe("sb_2");
     const params = new URL(url).searchParams;
     expect(params.get("status")).toBe("running");
     expect(params.get("limit")).toBe("50");
+    expect(JSON.parse(params.get("labels") ?? "{}")).toEqual({
+      team: "backend",
+      environment: "test",
+    });
   });
 });
 
