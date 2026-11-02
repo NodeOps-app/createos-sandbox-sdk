@@ -35,6 +35,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 50 | [50-cloud-agent-sandbox-tool](../examples/50-cloud-agent-sandbox-tool/) | Give a cloud-hosted Claude Managed Agent a run_command tool backed by one createos-sandbox sandbox reused for the whole session, so state survives between tool calls. | extra setup |
 | 51 | [51-cloud-agent-sandbox-per-call](../examples/51-cloud-agent-sandbox-per-call/) | Same cloud Managed Agent, stateless lifecycle: every run_command call spawns a fresh disposable sandbox that is destroyed the moment the command returns. | extra setup |
 | 53 | [53-anchor-browser-scrape](../examples/53-anchor-browser-scrape/) | Give an OpenAI agent a CreateOS-backed Anchor Browser tool that scrapes a public page from inside the sandbox. | extra setup |
+| 58 | [58-agent-desktop](../examples/58-agent-desktop/) | Run agent-desktop inside a desktop sandbox and verify Calculator actions through accessibility references. | extra setup |
 
 ## Dev servers & preview URLs
 
@@ -106,6 +107,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 - **54 managed-process-lifecycle** — **needs extra setup** — Needs a control plane with managed process API support.
 - **55 desktop-vnc-connect** — **needs extra setup** — Needs desktop:1 and a control plane with computer/VNC API support.
 - **56 remote-code-execution** — **needs extra setup** — Needs language runtimes available in devbox:1 and a control plane with exec stdin support.
+- **58 agent-desktop** — **needs extra setup** — Needs Ubuntu 24.04 x86_64 desktop:1 and outbound access to Ubuntu packages and GitHub releases; installs agent-desktop 1.0.2 and AT-SPI.
 
 ## See also
 
