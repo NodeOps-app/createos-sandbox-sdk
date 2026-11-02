@@ -1033,6 +1033,20 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "58",
+      "slug": "agent-desktop",
+      "dir": "58-agent-desktop",
+      "title": "Semantic desktop automation",
+      "summary": "Run agent-desktop inside a desktop sandbox and verify Calculator actions through accessibility references.",
+      "primitives": ["createSandbox", "files.upload", "runCommand", "destroy"],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": false,
+      "status": "requires-extra-setup",
+      "notes": "Needs Ubuntu 24.04 x86_64 desktop:1 and outbound access to Ubuntu packages and GitHub releases; installs agent-desktop 1.0.2 and AT-SPI."
     }
   ]
 }
