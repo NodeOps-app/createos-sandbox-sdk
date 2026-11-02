@@ -4,6 +4,11 @@ Run Vercel Labs agent-desktop inside a disposable CreateOS desktop sandbox
 using the SDK's existing `runCommand` transport. No SDK runtime dependency
 or new server endpoint is needed.
 
+The [agent-first production plan](agent-first-plan.md) covers the full feature
+inventory, machine-facing contracts, implementation priorities, and acceptance
+gates. It treats unattended agent use as the primary workflow; the executable
+example below remains a compatibility proof.
+
 ## Run
 
 From this directory, copy `.env.example` to `.env`, supply your sandbox API
