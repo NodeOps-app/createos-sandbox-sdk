@@ -74,6 +74,21 @@ const sandbox = await client.createSandbox({
 await sandbox.resume(); // back to running, processes intact
 ```
 
+Capture a reusable disk or full snapshot when you need to create new sandboxes
+from the same prepared state:
+
+```ts
+let snapshot = await sandbox.createSnapshot({ type: "disk", name: "configured-workspace" });
+snapshot = await client.snapshots.get(snapshot.id); // poll until ready
+const restored = await client.createSandbox({ snapshot_id: snapshot.id });
+```
+
+Disk snapshots capture the filesystem. Full snapshots also retain memory and
+must be restored with their captured CPU, memory, and disk sizes. Snapshot
+capture requires a running source sandbox with no attached external disks.
+Each account may retain up to five snapshots across both types. See the runnable
+[snapshot example](examples/58-reusable-snapshots/).
+
 `baseUrl` defaults to the production CreateOS Sandbox API; override it via the
 constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox` blocks until the
 sandbox reaches `running`. Shapes, quotas, and concurrency caps are listed in
@@ -6617,6 +6632,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
 | 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
+| 58 | [58-reusable-snapshots](../examples/58-reusable-snapshots/) | Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it. | — |
 
 ## Disks, networks & templates
 
@@ -6783,6 +6799,7 @@ Runnable, one per directory. Machine-readable index: [examples/manifest.json](ex
 - [55-desktop-vnc-connect](examples/55-desktop-vnc-connect/) — Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL.
 - [56-remote-code-execution](examples/56-remote-code-execution/) — Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration.
 - [57-sandbox-access-token](examples/57-sandbox-access-token/) — Delegate one sandbox to a worker, inspect and rotate its token, then revoke it.
+- [58-reusable-snapshots](examples/58-reusable-snapshots/) — Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it.
 <!-- END GENERATED: examples -->
 
 ## Surface highlights

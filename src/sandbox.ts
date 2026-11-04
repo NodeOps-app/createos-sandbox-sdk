@@ -34,6 +34,7 @@ import type {
   ComputerWindowResizeRequest,
   CreateSandboxOptions,
   CreateSandboxRequest,
+  CreateSnapshotRequest,
   DestroyedResponse,
   DetachDiskOptions,
   DiskDetachedResponse,
@@ -63,6 +64,7 @@ import type {
   SandboxAccessTokenMetadata,
   SandboxStatus,
   SandboxView,
+  SnapshotView,
   WaitOptions,
 } from "./types.js";
 
@@ -1081,6 +1083,17 @@ export class Sandbox {
   async resume(options: RequestOptions = {}): Promise<this> {
     this.#data = await this.#http.request<SandboxView>("POST", this.#path("/resume"), options);
     return this;
+  }
+
+  /** Starts a reusable snapshot capture from this running sandbox. */
+  createSnapshot(
+    request: CreateSnapshotRequest,
+    options: RequestOptions = {},
+  ): Promise<SnapshotView> {
+    return this.#http.request<SnapshotView>("POST", this.#path("/snapshots"), {
+      ...options,
+      body: request,
+    });
   }
 
   /**

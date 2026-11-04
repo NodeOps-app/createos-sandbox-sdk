@@ -27,6 +27,8 @@ import type {
   RootfsData,
   SandboxView,
   Shape,
+  SnapshotDeletedResponse,
+  SnapshotView,
   TemplateCreateRequest,
   TemplateLogEvent,
   TemplateLogsOptions,
@@ -410,6 +412,43 @@ export class DisksApi {
   }
 }
 
+/** Reusable sandbox snapshot operations. Reached via `client.snapshots`. */
+export class SnapshotsApi {
+  readonly #http: CreateosSandboxHttp;
+
+  constructor(http: CreateosSandboxHttp) {
+    this.#http = http;
+  }
+
+  /** Lists reusable snapshots owned by the caller. */
+  list(options: RequestOptions = {}): Promise<SnapshotView[]> {
+    return this.#http.fetchAllPages<SnapshotView>("GET", "/v1/snapshots", options, {
+      legacyKey: "snapshots",
+    });
+  }
+
+  /** Streams reusable snapshots one page at a time. */
+  iterate(options: RequestOptions = {}): AsyncGenerator<SnapshotView> {
+    return this.#http.iteratePages<SnapshotView>("GET", "/v1/snapshots", options, {
+      legacyKey: "snapshots",
+    });
+  }
+
+  /** Gets an owned reusable snapshot by id. */
+  get(id: string, options: RequestOptions = {}): Promise<SnapshotView> {
+    return this.#http.request<SnapshotView>("GET", `/v1/snapshots/${encodePath(id)}`, options);
+  }
+
+  /** Removes an owned ready or failed snapshot from API listings. */
+  delete(id: string, options: RequestOptions = {}): Promise<SnapshotDeletedResponse> {
+    return this.#http.request<SnapshotDeletedResponse>(
+      "DELETE",
+      `/v1/snapshots/${encodePath(id)}`,
+      options,
+    );
+  }
+}
+
 /**
  * The SDK entry point. Owns transport configuration (auth, base URL,
  * timeouts, retries) and exposes catalog and identity calls, the sandbox
@@ -432,12 +471,15 @@ export class CreateosSandboxClient {
   readonly networks: NetworksApi;
   /** S3-disk catalog operations. */
   readonly disks: DisksApi;
+  /** Reusable snapshot operations. */
+  readonly snapshots: SnapshotsApi;
 
   constructor(options: CreateosSandboxClientOptions = {}) {
     this.http = new CreateosSandboxHttp(resolveConfig(options));
     this.templates = new TemplatesApi(this.http);
     this.networks = new NetworksApi(this.http);
     this.disks = new DisksApi(this.http);
+    this.snapshots = new SnapshotsApi(this.http);
   }
 
   get baseUrl(): string {

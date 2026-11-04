@@ -153,8 +153,10 @@ function dirname(path: string): string {
 }
 
 function indent(value: string): string {
-  return value
-    .split("\n")
-    .map((line) => `        ${line}`)
-    .join("\n") + "\n";
+  return (
+    value
+      .split("\n")
+      .map((line) => `        ${line}`)
+      .join("\n") + "\n"
+  );
 }

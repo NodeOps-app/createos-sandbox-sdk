@@ -194,10 +194,12 @@ export interface NetworkEntry {
   id: string;
 }
 
-/** Body of `POST /v1/sandboxes`. Only `shape` is required. */
+/** Body of `POST /v1/sandboxes`. Supply `shape` + `rootfs`, or `snapshot_id`. */
 export interface CreateSandboxRequest {
-  /** Required. A shape id from `listShapes()`. */
-  shape: string;
+  /** Owned ready reusable snapshot to restore. Cannot be combined with `rootfs`. */
+  snapshot_id?: string;
+  /** Required for ordinary creates; optional for snapshot restores. */
+  shape?: string;
   /** Rootfs catalog name or template id/name. Empty = host default. */
   rootfs?: string;
   /** User-facing VM name, unique per user. Empty = auto-generated. */
@@ -238,6 +240,8 @@ export interface CreateSandboxRequest {
  * {@link SandboxView}. Records the resolved placement and boot timing.
  */
 export interface CreateSandboxResponse {
+  /** Reusable snapshot used to create this VM, when restored. */
+  snapshot_id?: string;
   id: string;
   name: string;
   labels?: Record<string, string>;
@@ -280,6 +284,8 @@ export type SandboxStatus =
  * by the server (`omitempty`) rather than sent as null.
  */
 export interface SandboxView {
+  /** Reusable snapshot used to create this VM, when restored. */
+  snapshot_id?: string;
   id: string;
   status: SandboxStatus;
   /** User-defined metadata attached to this sandbox. */
@@ -325,6 +331,41 @@ export interface SandboxView {
   forked_from?: string;
   /** Idle auto-pause timeout in seconds. Absent when auto-pause is disabled. */
   auto_pause_after_seconds?: number;
+}
+
+/** State captured in a reusable snapshot. */
+export type SnapshotType = "disk" | "full";
+
+/** Lifecycle state of a reusable snapshot. */
+export type SnapshotStatus = "creating" | "ready" | "failed" | "deleting";
+
+/** Body of `POST /v1/sandboxes/:id/snapshots`. */
+export interface CreateSnapshotRequest {
+  type: SnapshotType;
+  /** Optional non-unique display name. */
+  name?: string;
+}
+
+/** Owned reusable sandbox snapshot. */
+export interface SnapshotView {
+  id: string;
+  sandbox_id: string;
+  name?: string;
+  type: SnapshotType;
+  status: SnapshotStatus;
+  created_at: string;
+  ready_at?: string;
+  shape: string;
+  vcpu: number;
+  mem_mib: number;
+  disk_mib: number;
+  size_bytes: number;
+}
+
+/** Accepted reusable snapshot deletion. */
+export interface SnapshotDeletedResponse {
+  id: string;
+  status: "deleting";
 }
 
 /** Returned only when a sandbox access token is created or rotated. Save the token now; it cannot be read later. */
