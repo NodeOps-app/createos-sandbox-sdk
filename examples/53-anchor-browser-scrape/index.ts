@@ -144,9 +144,7 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function isFunctionToolCall(
-  call: { type: string },
-): call is ChatCompletionMessageFunctionToolCall {
+function isFunctionToolCall(call: { type: string }): call is ChatCompletionMessageFunctionToolCall {
   return call.type === "function";
 }
 
@@ -268,7 +266,9 @@ async function requestAnchorTrialKeyOnce(
 
   const token = findString(states, "token");
   if (!token) {
-    throw new Error(`Anchor Agent Access challenge did not include a token: ${JSON.stringify(states)}`);
+    throw new Error(
+      `Anchor Agent Access challenge did not include a token: ${JSON.stringify(states)}`,
+    );
   }
 
   const answer = await solveAnchorChallenge(openaiClient, states);
@@ -289,11 +289,16 @@ async function requestAnchorTrialKeyOnce(
   return trialKey;
 }
 
-async function solveAnchorChallenge(openaiClient: OpenAIClient, states: unknown[]): Promise<string> {
+async function solveAnchorChallenge(
+  openaiClient: OpenAIClient,
+  states: unknown[],
+): Promise<string> {
   const prompt = findString(states, "prompt");
   const appendix = findString(states, "inventory");
   if (!prompt) {
-    throw new Error(`Anchor Agent Access challenge did not include a prompt: ${JSON.stringify(states)}`);
+    throw new Error(
+      `Anchor Agent Access challenge did not include a prompt: ${JSON.stringify(states)}`,
+    );
   }
 
   const response = await openaiClient.chat.completions.create({
@@ -339,7 +344,9 @@ async function anchorJson(path: string, init?: RequestInit): Promise<unknown> {
   }
 
   if (!response.ok) {
-    throw new Error(`Anchor request failed (${response.status}): ${JSON.stringify(redactSecrets(body))}`);
+    throw new Error(
+      `Anchor request failed (${response.status}): ${JSON.stringify(redactSecrets(body))}`,
+    );
   }
 
   return body;
@@ -349,9 +356,10 @@ function getNext(value: unknown): { method?: string; path?: string } | undefined
   if (!value || typeof value !== "object" || !("next" in value)) return undefined;
   const next = (value as { next?: unknown }).next;
   if (!next || typeof next !== "object") return undefined;
-  const method = typeof (next as { method?: unknown }).method === "string"
-    ? (next as { method: string }).method.toUpperCase()
-    : undefined;
+  const method =
+    typeof (next as { method?: unknown }).method === "string"
+      ? (next as { method: string }).method.toUpperCase()
+      : undefined;
   const rawPath =
     typeof (next as { path?: unknown }).path === "string"
       ? (next as { path: string }).path

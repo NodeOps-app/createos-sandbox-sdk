@@ -69,10 +69,7 @@ try {
 
   await sandbox.processes.input(pty.process_id, "echo terminal-ready; stty size\n");
   await sandbox.processes.resize(pty.process_id, { rows: 32, cols: 100 });
-  await sandbox.processes.input(
-    pty.process_id,
-    "echo after-resize; stty size; exit\n",
-  );
+  await sandbox.processes.input(pty.process_id, "echo after-resize; stty size; exit\n");
   const ptyDone = await sandbox.processes.wait(pty.process_id, {
     scope: "tree",
     waitTimeoutMs: 5_000,
@@ -129,8 +126,10 @@ async function collectOutput(
 }
 
 function indent(value: string): string {
-  return value
-    .split("\n")
-    .map((line) => `        ${line}`)
-    .join("\n") + "\n";
+  return (
+    value
+      .split("\n")
+      .map((line) => `        ${line}`)
+      .join("\n") + "\n"
+  );
 }
