@@ -14,6 +14,7 @@ const sandbox = await Sandbox.create({
   // smallest shape — this smoke test runs a single command
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
+  labels: { example: "hello-world" },
 });
 console.log("created:", sandbox.id);
 

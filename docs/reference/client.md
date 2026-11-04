@@ -294,6 +294,7 @@ Creates a sandbox and, by default, waits until it is `running`. Pass
 | `shape` | `string` | **Required.** A shape id from `listShapes()`. |
 | `rootfs` | `string?` | Rootfs catalog name or template id/name. Empty = host default. |
 | `name` | `string?` | User-facing name, unique per user. Empty = auto-generated. |
+| `labels` | `Record<string,string>?` | User-defined metadata for organizing and filtering sandboxes. |
 | `networks` | `NetworkEntry[]?` | Overlay networks to join at create time. |
 | `disk_mib` | `number?` | Overlay disk size in MiB. `0` = shape default. |
 | `egress` | `string[]?` | Egress allowlist. Empty / `["*"]` = allow all. |
@@ -392,6 +393,7 @@ default.
 |-------|------|-------------|
 | `limit` | `number?` | Cap the number of handles returned. Omit to fetch every page. |
 | `status` | `"running" \| "creating" \| "destroyed" \| "failed"?` | Filter to one lifecycle state. |
+| `labels` | `Record<string,string>?` | Require every supplied key/value pair to match. |
 
 Note: the `status` filter accepts only `"running"`, `"creating"`,
 `"destroyed"`, and `"failed"`. Transitional states
@@ -401,7 +403,10 @@ filter values.
 Throws `CreateosSandboxAuthError` on missing or revoked API key.
 
 ```ts
-const all = await box.listSandboxes({ status: "running" });
+const all = await box.listSandboxes({
+  status: "running",
+  labels: { team: "backend" },
+});
 for (const s of all) console.log(s.id, s.ip);
 ```
 

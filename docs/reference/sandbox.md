@@ -568,6 +568,27 @@ console.log(new TextDecoder().decode(buf));
 
 ---
 
+## Labels
+
+### `setLabels`
+
+```ts
+async setLabels(
+  labels: Record<string, string>,
+  options?: RequestOptions,
+): Promise<this>
+```
+
+Merges the supplied keys into the sandbox's labels. Existing keys with the
+same names are replaced. Other labels remain unchanged. The handle updates to
+the patched server view.
+
+```ts
+await sandbox.setLabels({ environment: "production" });
+```
+
+---
+
 ## Ingress & ports
 
 ### `setIngress`

@@ -734,11 +734,17 @@ export class CreateosSandboxClient {
    * for (const s of all) console.log(s.id, s.ip);
    */
   async listSandboxes(options: ListSandboxesOptions = {}): Promise<Sandbox[]> {
-    const { limit, status, ...rest } = options;
+    const { limit, status, labels, ...rest } = options;
     const views = await this.http.fetchAllPages<SandboxView>(
       "GET",
       "/v1/sandboxes",
-      { ...rest, query: { status } },
+      {
+        ...rest,
+        query: {
+          status,
+          labels: labels && Object.keys(labels).length > 0 ? JSON.stringify(labels) : undefined,
+        },
+      },
       limit !== undefined ? { cap: limit } : {},
     );
     return views.map((view) => new Sandbox(this.http, view));
@@ -756,11 +762,17 @@ export class CreateosSandboxClient {
    * }
    */
   async *iterateSandboxes(options: ListSandboxesOptions = {}): AsyncGenerator<Sandbox> {
-    const { limit, status, ...rest } = options;
+    const { limit, status, labels, ...rest } = options;
     const views = this.http.iteratePages<SandboxView>(
       "GET",
       "/v1/sandboxes",
-      { ...rest, query: { status } },
+      {
+        ...rest,
+        query: {
+          status,
+          labels: labels && Object.keys(labels).length > 0 ? JSON.stringify(labels) : undefined,
+        },
+      },
       limit !== undefined ? { cap: limit } : {},
     );
     for await (const view of views) {

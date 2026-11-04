@@ -1187,6 +1187,18 @@ export class Sandbox {
   }
 
   /**
+   * Merges user-defined labels into the sandbox's existing labels and updates
+   * this handle from the patched server view.
+   */
+  async setLabels(labels: Record<string, string>, options: RequestOptions = {}): Promise<this> {
+    this.#data = await this.#http.request<SandboxView>("PATCH", this.#path(), {
+      ...options,
+      body: { labels } satisfies PatchSandboxRequest,
+    });
+    return this;
+  }
+
+  /**
    * Sets or clears the idle auto-pause timeout. When set, the control plane
    * pauses the sandbox after `seconds` with no detected activity. Pass `null`
    * to disable. The handle is updated to the patched view.

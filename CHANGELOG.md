@@ -20,6 +20,9 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Sandbox labels on create and response types, AND-matched label filtering in
+  `listSandboxes()` and `iterateSandboxes()`, and label merging through
+  `Sandbox.setLabels()`.
 - Reusable disk and full snapshot create, get, list, iterate, and delete operations,
   plus sandbox restoration through `CreateSandboxRequest.snapshot_id`.
 

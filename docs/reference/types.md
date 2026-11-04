@@ -112,6 +112,7 @@ backs the `Sandbox` handle. Optional fields are `omitempty` server-side.
 |---|---|---|
 | `id` | `string` | Sandbox id. |
 | `status` | `SandboxStatus` | Current lifecycle state. |
+| `labels` | `Record<string, string>?` | User-defined metadata attached to the sandbox. |
 | `ip` | `string?` | Private IP. Absent while `creating`. |
 | `vcpu` | `number` | Virtual CPU count. |
 | `mem_mib` | `number` | Memory in MiB. |
@@ -145,6 +146,7 @@ Body of `POST /v1/sandboxes`. Only `shape` is required.
 | `shape` | `string` | **Required.** A shape id from `listShapes()`. |
 | `rootfs` | `string?` | Rootfs catalog name or template id/name. Empty = host default. |
 | `name` | `string?` | User-facing name, unique per user. Empty = auto-generated. |
+| `labels` | `Record<string, string>?` | User-defined metadata for organizing and filtering sandboxes. |
 | `networks` | `NetworkEntry[]?` | Overlay networks to join at create time. |
 | `disk_mib` | `number?` | Overlay disk size in MiB. `0` = shape default. |
 | `egress` | `string[]?` | Egress allowlist. Empty / `["*"]` = allow all. |
@@ -174,6 +176,7 @@ Extends `RequestOptions`. Filters for `listSandboxes()`.
 |---|---|---|
 | `limit` | `number?` | Cap the number of handles returned. Omit to fetch every page. |
 | `status` | `"running" \| "creating" \| "destroyed" \| "failed"?` | Filter to one lifecycle state. |
+| `labels` | `Record<string, string>?` | Require every supplied key/value pair to match. |
 
 ### `ForkSandboxRequest`
 
@@ -190,11 +193,12 @@ Optional overrides applied to a fork. Omitted fields inherit from the source san
 
 ### `PatchSandboxRequest`
 
-Body of the sandbox PATCH endpoint. Used by `Sandbox.setIngress` and `Sandbox.setAutoPause`.
+Body of the sandbox PATCH endpoint.
 Omitted fields are left unchanged.
 
 | Field | Type | Description |
 |---|---|---|
+| `labels` | `Record<string, string>?` | Merge these keys into the existing labels. |
 | `ingress_enabled` | `boolean?` | Enable or disable HTTP ingress. |
 | `auto_pause_after_seconds` | `number?` | Idle auto-pause timeout in seconds (60–86400). |
 | `disable_auto_pause` | `boolean?` | When `true`, clears the auto-pause timeout. Needed because omitting `auto_pause_after_seconds` means "leave unchanged". |
