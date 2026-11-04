@@ -4,6 +4,7 @@ export {
   TemplatesApi,
   NetworksApi,
   DisksApi,
+  SnapshotsApi,
 } from "./client.js";
 export {
   Sandbox,

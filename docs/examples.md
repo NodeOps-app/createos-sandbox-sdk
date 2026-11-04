@@ -67,6 +67,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 55 | [55-desktop-vnc-connect](../examples/55-desktop-vnc-connect/) | Create a graphical desktop sandbox, capture screenshots, drive basic computer controls, and mint a live noVNC URL. | extra setup |
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
 | 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
+| 58 | [58-reusable-snapshots](../examples/58-reusable-snapshots/) | Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it. | — |
 
 ## Disks, networks & templates
 

@@ -18,6 +18,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Reusable disk and full snapshot create, get, list, iterate, and delete operations,
+  plus sandbox restoration through `CreateSandboxRequest.snapshot_id`.
+
 ## [0.8.1] — 2026-08-13
 
 ### Changed

@@ -1033,6 +1033,25 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "58",
+      "slug": "reusable-snapshots",
+      "dir": "58-reusable-snapshots",
+      "title": "Reusable snapshots",
+      "summary": "Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it.",
+      "primitives": [
+        "createSandbox",
+        "createSnapshot",
+        "snapshots.get",
+        "snapshots.delete",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }

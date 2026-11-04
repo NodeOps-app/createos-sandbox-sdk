@@ -64,6 +64,21 @@ const sandbox = await client.createSandbox({
 await sandbox.resume(); // back to running, processes intact
 ```
 
+Capture a reusable disk or full snapshot when you need to create new sandboxes
+from the same prepared state:
+
+```ts
+let snapshot = await sandbox.createSnapshot({ type: "disk", name: "configured-workspace" });
+snapshot = await client.snapshots.get(snapshot.id); // poll until ready
+const restored = await client.createSandbox({ snapshot_id: snapshot.id });
+```
+
+Disk snapshots capture the filesystem. Full snapshots also retain memory and
+must be restored with their captured CPU, memory, and disk sizes. Snapshot
+capture requires a running source sandbox with no attached external disks.
+Each account may retain up to five snapshots across both types. See the runnable
+[snapshot example](examples/58-reusable-snapshots/).
+
 `baseUrl` defaults to the production CreateOS Sandbox API; override it via the
 constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox` blocks until the
 sandbox reaches `running`. Shapes, quotas, and concurrency caps are listed in
