@@ -1052,6 +1052,26 @@
       "entry": "index.ts",
       "ci": true,
       "status": "stable"
+    },
+    {
+      "id": "59",
+      "slug": "checkpoints",
+      "dir": "59-checkpoints",
+      "title": "Checkpoints",
+      "summary": "Checkpoint one sandbox directory, modify it, then restore its previous contents.",
+      "primitives": [
+        "createSandbox",
+        "checkpoints.create",
+        "checkpoints.list",
+        "checkpoints.restore",
+        "checkpoints.delete",
+        "destroy"
+      ],
+      "deps": [],
+      "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
+      "entry": "index.ts",
+      "ci": true,
+      "status": "stable"
     }
   ]
 }

@@ -20,11 +20,17 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Checkpoint create, list, restore, and delete operations through
+  `Sandbox.checkpoints`.
 - Sandbox labels on create and response types, AND-matched label filtering in
   `listSandboxes()` and `iterateSandboxes()`, and label merging through
   `Sandbox.setLabels()`.
 - Reusable disk and full snapshot create, get, list, iterate, and delete operations,
   plus sandbox restoration through `CreateSandboxRequest.snapshot_id`.
+
+### Changed
+
+- Set the next package version and default user agent to `0.8.3`.
 
 ## [0.8.1] — 2026-08-13
 

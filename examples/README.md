@@ -82,6 +82,7 @@ bun 01-hello-world/index.ts
 | 56 | [56-remote-code-execution](56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | createSandbox, files.upload, runCommand, destroy | extra |
 | 57 | [57-sandbox-access-token](57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | createSandbox, createAccessToken, withAccessToken, runCommand, getAccessToken, rotateAccessToken, disableAccessToken, destroy | — |
 | 58 | [58-reusable-snapshots](58-reusable-snapshots/) | Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it. | createSandbox, createSnapshot, snapshots.get, snapshots.delete, destroy | — |
+| 59 | [59-checkpoints](59-checkpoints/) | Checkpoint one sandbox directory, modify it, then restore its previous contents. | createSandbox, checkpoints.create, checkpoints.list, checkpoints.restore, checkpoints.delete, destroy | — |
 
 Setup `extra` = needs an external service or extra secrets; excluded from CI.
 

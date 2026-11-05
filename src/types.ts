@@ -368,6 +368,29 @@ export interface SnapshotDeletedResponse {
   status: "deleting";
 }
 
+/** Body of `POST /v1/sandboxes/:id/checkpoints`. */
+export interface CreateCheckpointRequest {
+  /** Absolute eligible directory inside the running sandbox. */
+  path: string;
+  /** Optional non-unique display name. */
+  name?: string;
+}
+
+/** Point-in-time checkpoint of one directory inside a sandbox. */
+export interface Checkpoint {
+  id: string;
+  path: string;
+  name?: string;
+  parent_id?: string;
+  created_at: string;
+}
+
+/** Result of restoring a checkpoint to its original path. */
+export interface CheckpointRestoreResponse {
+  checkpoint_id: string;
+  path: string;
+}
+
 /** Returned only when a sandbox access token is created or rotated. Save the token now; it cannot be read later. */
 export interface SandboxAccessTokenCreateResponse {
   token: string;

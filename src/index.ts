@@ -13,6 +13,7 @@ export {
   SandboxComputerMouse,
   SandboxComputerScreens,
   SandboxComputerWindows,
+  SandboxCheckpoints,
   SandboxFiles,
   SandboxProcesses,
 } from "./sandbox.js";
