@@ -68,6 +68,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 | 56 | [56-remote-code-execution](../examples/56-remote-code-execution/) | Run Go, Python, and JavaScript submissions in a sandbox and collect stdin, stdout, stderr, exit code, and duration. | extra setup |
 | 57 | [57-sandbox-access-token](../examples/57-sandbox-access-token/) | Delegate one sandbox to a worker, inspect and rotate its token, then revoke it. | — |
 | 58 | [58-reusable-snapshots](../examples/58-reusable-snapshots/) | Capture a reusable disk snapshot, wait until it is ready, and restore a new sandbox from it. | — |
+| 59 | [59-checkpoints](../examples/59-checkpoints/) | Checkpoint one sandbox directory, modify it, then restore its previous contents. | — |
 
 ## Disks, networks & templates
 

@@ -32,10 +32,13 @@ import type {
   ComputerWindowGeometry,
   ComputerWindowMoveRequest,
   ComputerWindowResizeRequest,
+  CreateCheckpointRequest,
   CreateSandboxOptions,
   CreateSandboxRequest,
   CreateSnapshotRequest,
   DestroyedResponse,
+  Checkpoint,
+  CheckpointRestoreResponse,
   DetachDiskOptions,
   DiskDetachedResponse,
   EgressView,
@@ -106,6 +109,49 @@ function decodeBase64Utf8(data: string): string {
   const binary = atob(data);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
   return new TextDecoder().decode(bytes);
+}
+
+/** Checkpoint operations scoped to one running sandbox. */
+export class SandboxCheckpoints {
+  readonly #http: CreateosSandboxHttp;
+  readonly #sandboxId: string;
+
+  constructor(http: CreateosSandboxHttp, sandboxId: string) {
+    this.#http = http;
+    this.#sandboxId = sandboxId;
+  }
+
+  #path(checkpointId?: string, suffix = ""): string {
+    const base = `/v1/sandboxes/${encodePath(this.#sandboxId)}/checkpoints`;
+    return checkpointId === undefined ? base : `${base}/${encodePath(checkpointId)}${suffix}`;
+  }
+
+  /** Creates a checkpoint of one eligible directory. */
+  create(request: CreateCheckpointRequest, options: RequestOptions = {}): Promise<Checkpoint> {
+    return this.#http.request<Checkpoint>("POST", this.#path(), {
+      ...options,
+      body: request,
+    });
+  }
+
+  /** Lists checkpoints from oldest to newest. */
+  list(options: RequestOptions = {}): Promise<Checkpoint[]> {
+    return this.#http.request<Checkpoint[]>("GET", this.#path(), options);
+  }
+
+  /** Restores a checkpoint to its original directory path. */
+  restore(checkpointId: string, options: RequestOptions = {}): Promise<CheckpointRestoreResponse> {
+    return this.#http.request<CheckpointRestoreResponse>(
+      "POST",
+      this.#path(checkpointId, "/restore"),
+      options,
+    );
+  }
+
+  /** Deletes one checkpoint record and its retained layer. */
+  async delete(checkpointId: string, options: RequestOptions = {}): Promise<void> {
+    await this.#http.request<Record<string, never>>("DELETE", this.#path(checkpointId), options);
+  }
 }
 
 /**
@@ -768,6 +814,8 @@ export class Sandbox {
   readonly processes: SandboxProcesses;
   /** Desktop computer-use namespace. */
   readonly computer: SandboxComputer;
+  /** Checkpoint namespace. */
+  readonly checkpoints: SandboxCheckpoints;
 
   readonly #http: CreateosSandboxHttp;
   #data: SandboxView;
@@ -778,6 +826,7 @@ export class Sandbox {
     this.files = new SandboxFiles(http, view.id);
     this.processes = new SandboxProcesses(http, view.id);
     this.computer = new SandboxComputer(http, view.id);
+    this.checkpoints = new SandboxCheckpoints(http, view.id);
   }
 
   /**

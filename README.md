@@ -80,6 +80,23 @@ capture requires a running source sandbox with no attached external disks.
 Each account may retain up to five snapshots across both types. See the runnable
 [snapshot example](examples/58-reusable-snapshots/).
 
+Use a checkpoint for fast local file history inside one running
+sandbox:
+
+```ts
+const checkpoint = await sandbox.checkpoints.create({
+  path: "/workspace/project",
+  name: "before-update",
+});
+await sandbox.checkpoints.restore(checkpoint.id);
+await sandbox.checkpoints.delete(checkpoint.id);
+```
+
+Checkpoints restore to their original path, do not capture memory, and
+disappear with the sandbox. System directories, mount points, overlapping
+paths, and paths containing special files or hard links are rejected. See the
+[checkpoint example](examples/59-checkpoints/).
+
 `baseUrl` defaults to the production CreateOS Sandbox API; override it via the
 constructor or `CREATEOS_SANDBOX_BASE_URL`. `createSandbox` blocks until the
 sandbox reaches `running`. Shapes, quotas, and concurrency caps are listed in
