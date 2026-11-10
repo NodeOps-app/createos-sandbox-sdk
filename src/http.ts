@@ -635,25 +635,40 @@ export function createNodeTransportFromModules(
       const chunks: Uint8Array[] = [];
       let status = 0;
       let responseHeaders: Headers | undefined;
+      let ended = false;
       req.on("response", (incoming) => {
-        status = Number(incoming[":status"] ?? 0);
-        responseHeaders = new Headers();
-        for (const [name, value] of Object.entries(incoming)) {
-          if (!name.startsWith(":") && value !== undefined) {
-            responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+        try {
+          status = Number(incoming[":status"] ?? 0);
+          responseHeaders = new Headers();
+          for (const [name, value] of Object.entries(incoming)) {
+            if (!name.startsWith(":") && value !== undefined) {
+              responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+            }
           }
+        } catch (error) {
+          reject(error);
+          req.close();
         }
       });
       req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
       req.once("error", reject);
-      req.once("end", () =>
-        resolve(
-          new Response(Buffer.concat(chunks), {
+      req.once("end", () => {
+        ended = true;
+        let response: Response;
+        try {
+          response = new Response(Buffer.concat(chunks), {
             status,
             ...(responseHeaders ? { headers: responseHeaders } : {}),
-          }),
-        ),
-      );
+          });
+        } catch (error) {
+          reject(error);
+          return;
+        }
+        resolve(response);
+      });
+      req.once("close", () => {
+        if (!ended) reject(new Error("HTTP/2 stream closed before the response completed"));
+      });
       const body = init.body;
       if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
       else if (body == null) req.end();
@@ -677,7 +692,12 @@ export function createNodeTransportFromModules(
     .catch(() => undefined);
   return {
     fetch: (url: string, init: RequestInit) =>
-      h2Fetch(url, init).catch(() => uf(url, { ...init, dispatcher })),
+      h2Fetch(url, init).catch((error: unknown) => {
+        if (!IDEMPOTENT.has((init.method ?? "GET").toUpperCase()) || init.signal?.aborted) {
+          throw error;
+        }
+        return uf(url, { ...init, dispatcher });
+      }),
     // Undici exposes response bodies as live ReadableStreams. Keep streams
     // off the direct transport until it can preserve incremental delivery,
     // cancellation and backpressure without buffering the entire response.

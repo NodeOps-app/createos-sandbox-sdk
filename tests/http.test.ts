@@ -76,6 +76,48 @@ class FakeHttp2Session extends EventEmitter {
   }
 }
 
+function responseFailureTransport(reply: (request: FakeHttp2Request) => void) {
+  const request = new FakeHttp2Request(false);
+  const callbackErrors: unknown[] = [];
+  const fallbackCalls: RequestInit[] = [];
+  request.end = () => {
+    queueMicrotask(() => {
+      try {
+        reply(request);
+      } catch (error) {
+        callbackErrors.push(error);
+        request.emit("error", error);
+      }
+    });
+  };
+  const session = new FakeHttp2Session();
+  session.request = () => request;
+  class FakePool {
+    request() {
+      return Promise.resolve({
+        body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+      });
+    }
+  }
+  const transport = createNodeTransportFromModules(
+    BASE,
+    {
+      Pool: FakePool,
+      fetch: (_url: string, init: RequestInit) => {
+        fallbackCalls.push(init);
+        return Promise.resolve(new Response("fallback"));
+      },
+    } as unknown as typeof import("undici"),
+    {
+      connect: () => {
+        queueMicrotask(() => session.emit("connect"));
+        return session;
+      },
+    } as unknown as typeof import("node:http2"),
+  );
+  return { transport, request, callbackErrors, fallbackCalls };
+}
+
 /** A CreateSandboxResponse-shaped body for tests that POST /v1/sandboxes. */
 function createSandboxBody(): Record<string, unknown> {
   return {
@@ -353,6 +395,83 @@ describe("transport prewarm", () => {
     expect(await (await transport.fetch(`${BASE}/v1/fallback`, { method: "GET" })).text()).toBe(
       "fallback",
     );
+  });
+});
+
+describe("HTTP/2 response failures", () => {
+  test.each([
+    {
+      name: "headerless end",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("end");
+      },
+    },
+    {
+      name: "invalid response status",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 0 });
+        request.emit("end");
+      },
+    },
+    {
+      name: "invalid response header",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 200, "x-invalid": "bad\nvalue" });
+        request.emit("end");
+      },
+    },
+    {
+      name: "response status above the valid range",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 600 });
+        request.emit("end");
+      },
+    },
+  ])("$name rejects without escaping the callback", async ({ reply }) => {
+    const { transport, callbackErrors, fallbackCalls } = responseFailureTransport(reply);
+    const response = await transport.fetch(`${BASE}/v1/whoami`, { method: "GET" });
+
+    expect(await response.text()).toBe("fallback");
+    expect(callbackErrors).toEqual([]);
+    expect(fallbackCalls).toHaveLength(1);
+  });
+
+  test("a stream closing before end settles the request", async () => {
+    const { transport, callbackErrors } = responseFailureTransport((request) => {
+      request.emit("close");
+    });
+
+    expect(await (await transport.fetch(`${BASE}/v1/whoami`, {})).text()).toBe("fallback");
+    expect(callbackErrors).toEqual([]);
+  });
+
+  test.each(["POST", "PATCH"])(
+    "does not replay an ambiguous %s through fallback",
+    async (method) => {
+      const { transport, callbackErrors, fallbackCalls } = responseFailureTransport((request) => {
+        request.emit("end");
+      });
+
+      await expect(transport.fetch(`${BASE}/v1/sandboxes`, { method })).rejects.toBeInstanceOf(
+        Error,
+      );
+      expect(callbackErrors).toEqual([]);
+      expect(fallbackCalls).toHaveLength(0);
+    },
+  );
+
+  test("does not enter fallback after caller cancellation", async () => {
+    const controller = new AbortController();
+    const reason = new Error("caller cancelled");
+    const { transport, fallbackCalls } = responseFailureTransport((request) => {
+      controller.abort(reason);
+      request.emit("error", reason);
+    });
+
+    await expect(transport.fetch(`${BASE}/v1/whoami`, { signal: controller.signal })).rejects.toBe(
+      reason,
+    );
+    expect(fallbackCalls).toHaveLength(0);
   });
 });
 
