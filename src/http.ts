@@ -619,9 +619,36 @@ export function createNodeTransportFromModules(
     });
     return sessionReady;
   };
-  const h2Fetch = async (url: string, init: RequestInit): Promise<Response> => {
+  const h2Fetch = async (
+    url: string,
+    init: RequestInit,
+    onDispatch: () => void,
+  ): Promise<Response> => {
+    const body = init.body;
+    if (body != null && typeof body !== "string" && !(body instanceof Uint8Array)) {
+      throw new TypeError("HTTP/2 transport requires a buffered request body");
+    }
+    const signal = init.signal;
+    signal?.throwIfAborted();
     const target = new URL(url);
-    const active = await getSession();
+    const connecting = getSession();
+    let active: Awaited<typeof connecting>;
+    if (signal) {
+      let onSessionAbort: (() => void) | undefined;
+      const cancelled = new Promise<never>((_resolve, reject) => {
+        onSessionAbort = () => reject(signal.reason);
+        signal.addEventListener("abort", onSessionAbort, { once: true });
+        if (signal.aborted) onSessionAbort();
+      });
+      try {
+        active = await Promise.race([connecting, cancelled]);
+      } finally {
+        if (onSessionAbort) signal.removeEventListener("abort", onSessionAbort);
+      }
+    } else {
+      active = await connecting;
+    }
+    signal?.throwIfAborted();
     return new Promise<Response>((resolve, reject) => {
       const headers: Record<string, string> = {
         ":method": init.method ?? "GET",
@@ -631,36 +658,64 @@ export function createNodeTransportFromModules(
       new Headers(init.headers).forEach((value, name) => {
         if (name !== "connection" && name !== "host") headers[name] = value;
       });
+      onDispatch();
       const req = active.request(headers);
       const chunks: Uint8Array[] = [];
       let status = 0;
       let responseHeaders: Headers | undefined;
+      let ended = false;
+      const onAbort = (): void => {
+        cleanup();
+        reject(signal?.reason);
+        req.close();
+      };
+      const cleanup = (): void => signal?.removeEventListener("abort", onAbort);
       req.on("response", (incoming) => {
-        status = Number(incoming[":status"] ?? 0);
-        responseHeaders = new Headers();
-        for (const [name, value] of Object.entries(incoming)) {
-          if (!name.startsWith(":") && value !== undefined) {
-            responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+        try {
+          status = Number(incoming[":status"] ?? 0);
+          responseHeaders = new Headers();
+          for (const [name, value] of Object.entries(incoming)) {
+            if (!name.startsWith(":") && value !== undefined) {
+              responseHeaders.set(name, Array.isArray(value) ? value.join(",") : String(value));
+            }
           }
+        } catch (error) {
+          cleanup();
+          reject(error);
+          req.close();
         }
       });
       req.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-      req.once("error", reject);
-      req.once("end", () =>
-        resolve(
-          new Response(Buffer.concat(chunks), {
+      req.once("error", (error: unknown) => {
+        cleanup();
+        reject(error);
+      });
+      req.once("end", () => {
+        cleanup();
+        ended = true;
+        let response: Response;
+        try {
+          response = new Response(Buffer.concat(chunks), {
             status,
             ...(responseHeaders ? { headers: responseHeaders } : {}),
-          }),
-        ),
-      );
-      const body = init.body;
-      if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
-      else if (body == null) req.end();
-      else {
-        req.close();
-        reject(new TypeError("HTTP/2 transport requires a buffered request body"));
+          });
+        } catch (error) {
+          reject(error);
+          return;
+        }
+        resolve(response);
+      });
+      req.once("close", () => {
+        cleanup();
+        if (!ended) reject(new Error("HTTP/2 stream closed before the response completed"));
+      });
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) {
+        onAbort();
+        return;
       }
+      if (typeof body === "string" || body instanceof Uint8Array) req.end(body);
+      else req.end();
     });
   };
 
@@ -676,8 +731,20 @@ export function createNodeTransportFromModules(
     .then((response) => response.body.arrayBuffer())
     .catch(() => undefined);
   return {
-    fetch: (url: string, init: RequestInit) =>
-      h2Fetch(url, init).catch(() => uf(url, { ...init, dispatcher })),
+    fetch: (url: string, init: RequestInit) => {
+      let dispatched = false;
+      return h2Fetch(url, init, () => {
+        dispatched = true;
+      }).catch((error: unknown) => {
+        if (
+          (dispatched && !IDEMPOTENT.has((init.method ?? "GET").toUpperCase())) ||
+          init.signal?.aborted
+        ) {
+          throw error;
+        }
+        return uf(url, { ...init, dispatcher });
+      });
+    },
     // Undici exposes response bodies as live ReadableStreams. Keep streams
     // off the direct transport until it can preserve incremental delivery,
     // cancellation and backpressure without buffering the entire response.

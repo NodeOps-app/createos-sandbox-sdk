@@ -76,6 +76,51 @@ class FakeHttp2Session extends EventEmitter {
   }
 }
 
+function responseFailureTransport(
+  reply: (request: FakeHttp2Request) => void,
+  options: { connect?: boolean } = {},
+) {
+  const request = new FakeHttp2Request(false);
+  const callbackErrors: unknown[] = [];
+  const fallbackCalls: RequestInit[] = [];
+  request.end = () => {
+    queueMicrotask(() => {
+      try {
+        reply(request);
+      } catch (error) {
+        callbackErrors.push(error);
+        request.emit("error", error);
+      }
+    });
+  };
+  const session = new FakeHttp2Session();
+  session.request = () => request;
+  class FakePool {
+    request() {
+      return Promise.resolve({
+        body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+      });
+    }
+  }
+  const transport = createNodeTransportFromModules(
+    BASE,
+    {
+      Pool: FakePool,
+      fetch: (_url: string, init: RequestInit) => {
+        fallbackCalls.push(init);
+        return Promise.resolve(new Response("fallback"));
+      },
+    } as unknown as typeof import("undici"),
+    {
+      connect: () => {
+        if (options.connect !== false) queueMicrotask(() => session.emit("connect"));
+        return session;
+      },
+    } as unknown as typeof import("node:http2"),
+  );
+  return { transport, request, callbackErrors, fallbackCalls };
+}
+
 /** A CreateSandboxResponse-shaped body for tests that POST /v1/sandboxes. */
 function createSandboxBody(): Record<string, unknown> {
   return {
@@ -329,30 +374,151 @@ describe("transport prewarm", () => {
     expect(sessions).toHaveLength(3);
   });
 
-  test("falls back when the direct HTTP/2 session cannot connect", async () => {
-    class FakePool {
-      request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
-        return Promise.resolve({
-          body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
-        });
+  test.each(["GET", "POST", "PATCH"])(
+    "%s falls back before an HTTP/2 request is sent",
+    async (method) => {
+      class FakePool {
+        request(): Promise<{ body: { arrayBuffer: () => Promise<ArrayBuffer> } }> {
+          return Promise.resolve({
+            body: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)) },
+          });
+        }
       }
-    }
-    const undiciModule = {
-      Pool: FakePool,
-      fetch: () => Promise.resolve(new Response("fallback")),
-    } as unknown as typeof import("undici");
-    const http2Module = {
-      connect: () => {
-        const session = new FakeHttp2Session();
-        queueMicrotask(() => session.emit("error", new Error("connect failed")));
-        return session;
-      },
-    } as unknown as typeof import("node:http2");
-    const transport = createNodeTransportFromModules(BASE, undiciModule, http2Module);
+      const undiciModule = {
+        Pool: FakePool,
+        fetch: () => Promise.resolve(new Response("fallback")),
+      } as unknown as typeof import("undici");
+      const http2Module = {
+        connect: () => {
+          const session = new FakeHttp2Session();
+          queueMicrotask(() => session.emit("error", new Error("connect failed")));
+          return session;
+        },
+      } as unknown as typeof import("node:http2");
+      const transport = createNodeTransportFromModules(BASE, undiciModule, http2Module);
 
-    expect(await (await transport.fetch(`${BASE}/v1/fallback`, { method: "GET" })).text()).toBe(
-      "fallback",
+      expect(await (await transport.fetch(`${BASE}/v1/fallback`, { method })).text()).toBe(
+        "fallback",
+      );
+    },
+  );
+});
+
+describe("HTTP/2 response failures", () => {
+  test.each([
+    {
+      name: "headerless end",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("end");
+      },
+    },
+    {
+      name: "invalid response status",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 0 });
+        request.emit("end");
+      },
+    },
+    {
+      name: "invalid response header",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 200, "x-invalid": "bad\nvalue" });
+        request.emit("end");
+      },
+    },
+    {
+      name: "response status above the valid range",
+      reply: (request: FakeHttp2Request) => {
+        request.emit("response", { ":status": 600 });
+        request.emit("end");
+      },
+    },
+  ])("$name rejects without escaping the callback", async ({ reply }) => {
+    const { transport, callbackErrors, fallbackCalls } = responseFailureTransport(reply);
+    const response = await transport.fetch(`${BASE}/v1/whoami`, { method: "GET" });
+
+    expect(await response.text()).toBe("fallback");
+    expect(callbackErrors).toEqual([]);
+    expect(fallbackCalls).toHaveLength(1);
+  });
+
+  test("a stream closing before end settles the request", async () => {
+    const { transport, callbackErrors } = responseFailureTransport((request) => {
+      request.emit("close");
+    });
+
+    expect(await (await transport.fetch(`${BASE}/v1/whoami`, {})).text()).toBe("fallback");
+    expect(callbackErrors).toEqual([]);
+  });
+
+  test.each(["POST", "PATCH"])(
+    "does not replay an ambiguous %s through fallback",
+    async (method) => {
+      const { transport, callbackErrors, fallbackCalls } = responseFailureTransport((request) => {
+        request.emit("end");
+      });
+
+      await expect(transport.fetch(`${BASE}/v1/sandboxes`, { method })).rejects.toBeInstanceOf(
+        Error,
+      );
+      expect(callbackErrors).toEqual([]);
+      expect(fallbackCalls).toHaveLength(0);
+    },
+  );
+
+  test("caller cancellation settles a quiet stream without a transport error", async () => {
+    const controller = new AbortController();
+    const reason = new Error("caller cancelled");
+    const { transport, request, fallbackCalls } = responseFailureTransport(() => {
+      controller.abort(reason);
+    });
+
+    await expect(transport.fetch(`${BASE}/v1/whoami`, { signal: controller.signal })).rejects.toBe(
+      reason,
     );
+    expect(request.closed).toBe(true);
+    expect(fallbackCalls).toHaveLength(0);
+  });
+
+  test("removes cancellation handling after a completed response", async () => {
+    const controller = new AbortController();
+    const { transport, request, fallbackCalls } = responseFailureTransport((stream) => {
+      stream.emit("response", { ":status": 200 });
+      stream.emit("data", new TextEncoder().encode("complete"));
+      stream.emit("end");
+    });
+
+    expect(
+      await (await transport.fetch(`${BASE}/v1/whoami`, { signal: controller.signal })).text(),
+    ).toBe("complete");
+    controller.abort();
+    expect(request.closed).toBe(false);
+    expect(fallbackCalls).toHaveLength(0);
+  });
+
+  test("caller cancellation settles a pending connection without another event", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancel connection");
+    const { transport, request, fallbackCalls } = responseFailureTransport(() => {}, {
+      connect: false,
+    });
+    const response = transport.fetch(`${BASE}/v1/whoami`, { signal: controller.signal });
+    controller.abort(reason);
+
+    await expect(response).rejects.toBe(reason);
+    expect(request.sentBody).toBeUndefined();
+    expect(fallbackCalls).toHaveLength(0);
+  });
+
+  test("an unsupported HTTP/2 body falls back before sending a POST", async () => {
+    const { transport, fallbackCalls } = responseFailureTransport(() => {});
+    const body = new Blob(["payload"]);
+
+    expect(
+      await (await transport.fetch(`${BASE}/v1/sandboxes`, { method: "POST", body })).text(),
+    ).toBe("fallback");
+    expect(fallbackCalls).toHaveLength(1);
+    expect(fallbackCalls[0]?.body).toBe(body);
   });
 });
 
