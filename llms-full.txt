@@ -269,8 +269,8 @@ at [`llms.txt`](../llms.txt) and the complete corpus is bundled in
   failures with backoff and jitter; see [reliability](./explanation/reliability.md).
 - **Sandboxes bill while running.** Every example here tears down with
   `try / finally`; set an idle [auto-pause](./how-to/lifecycle.md) for safety.
-- **Not yet on npm.** Install from a local checkout until the first release —
-  see the [README](../README.md).
+- **Available on npm.** Install `@nodeops-createos/sandbox`; see the
+  [quickstart](./quickstart.md).
 
 
 ---

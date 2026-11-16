@@ -72,7 +72,7 @@ a method, then add a matching test under `tests/`.
 
 ## Releasing / publishing
 
-Maintainers only. The package is **not yet published** to npm.
+Maintainers only. The package is published to npm as `@nodeops-createos/sandbox`.
 
 ```sh
 npm whoami
