@@ -43,6 +43,7 @@ class FakeHttp2Request extends EventEmitter {
     queueMicrotask(() => {
       if (this.#fail) {
         this.emit("error", new Error("direct transport failed"));
+        this.close();
         return;
       }
       this.emit("response", {
@@ -52,20 +53,31 @@ class FakeHttp2Request extends EventEmitter {
       });
       this.emit("data", new TextEncoder().encode("direct"));
       this.emit("end");
+      this.close();
     });
   }
 
   close(): void {
     this.closed = true;
+    this.emit("close");
   }
 }
 
 class FakeHttp2Session extends EventEmitter {
   closed = false;
   destroyed = false;
+  referenced = true;
   failNext = false;
   requests: FakeHttp2Request[] = [];
   lastHeaders: Record<string, string> | undefined;
+
+  ref(): void {
+    this.referenced = true;
+  }
+
+  unref(): void {
+    this.referenced = false;
+  }
 
   request(headers: Record<string, string>): FakeHttp2Request {
     this.lastHeaders = headers;
@@ -289,6 +301,7 @@ describe("transport prewarm", () => {
     await transport.prewarm();
     await transport.prewarm();
     expect(sessions).toHaveLength(1);
+    expect(sessions[0]!.referenced).toBe(false);
 
     const direct = await transport.fetch(`${BASE}/v1/whoami?q=1`, {
       method: "POST",
@@ -306,6 +319,20 @@ describe("transport prewarm", () => {
     expect(sessions[0]?.lastHeaders?.connection).toBeUndefined();
     expect(sessions[0]?.lastHeaders?.host).toBeUndefined();
     expect(sessions[0]?.requests[0]?.sentBody).toBe("payload");
+    expect(sessions[0]!.referenced).toBe(false);
+
+    const one = transport.fetch(`${BASE}/one`, { method: "GET" });
+    const two = transport.fetch(`${BASE}/two`, { method: "GET" });
+    await Promise.resolve();
+    const session = sessions[0]!;
+    expect(session.referenced).toBe(true);
+    let referencedAfterFirstClose = false;
+    session.requests[1]!.once("close", () => {
+      referencedAfterFirstClose = session.referenced;
+    });
+    await Promise.all([one, two]);
+    expect(referencedAfterFirstClose).toBe(true);
+    expect(session.referenced).toBe(false);
 
     const streamed = await transport.streamFetch(`${BASE}/v1/stream`, { method: "GET" });
     expect(streamed).toBe(undiciResponses[0]!);
@@ -315,6 +342,7 @@ describe("transport prewarm", () => {
     const fallback = await transport.fetch(`${BASE}/v1/fallback`, { method: "GET" });
     expect(fallback).toBe(undiciResponses[1]!);
     expect(undiciResponses).toHaveLength(2);
+    expect(session.referenced).toBe(false);
 
     sessions[0]!.emit("error", new Error("session failed"));
     expect(await (await transport.fetch(`${BASE}/v1/reconnected`, { method: "GET" })).text()).toBe(
