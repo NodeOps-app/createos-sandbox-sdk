@@ -592,6 +592,7 @@ export function createNodeTransportFromModules(
 
   let session: import("node:http2").ClientHttp2Session | undefined;
   let sessionReady: Promise<import("node:http2").ClientHttp2Session> | undefined;
+  const inFlight = new WeakMap<import("node:http2").ClientHttp2Session, number>();
   const getSession = (): Promise<import("node:http2").ClientHttp2Session> => {
     if (session && !session.closed && !session.destroyed) return Promise.resolve(session);
     sessionReady ??= new Promise((resolve, reject) => {
@@ -614,6 +615,7 @@ export function createNodeTransportFromModules(
           sessionReady = undefined;
         });
         session = next;
+        next.unref();
         resolve(next);
       });
     });
@@ -660,6 +662,18 @@ export function createNodeTransportFromModules(
       });
       onDispatch();
       const req = active.request(headers);
+      const count = inFlight.get(active) ?? 0;
+      if (count === 0) active.ref();
+      inFlight.set(active, count + 1);
+      req.once("close", () => {
+        const remaining = inFlight.get(active)! - 1;
+        if (remaining === 0) {
+          inFlight.delete(active);
+          active.unref();
+        } else {
+          inFlight.set(active, remaining);
+        }
+      });
       const chunks: Uint8Array[] = [];
       let status = 0;
       let responseHeaders: Headers | undefined;
