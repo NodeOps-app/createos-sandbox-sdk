@@ -12,9 +12,6 @@ bun add @nodeops-createos/sandbox
 # or: npm install @nodeops-createos/sandbox
 ```
 
-> **Not yet published to npm.** Until the first release, install from a local
-> checkout (see the [README](../README.md)).
-
 The SDK is ESM-only with zero runtime dependencies. It runs on Node 20+, Bun,
 Deno, Cloudflare Workers, Vercel Edge, and the browser.
 

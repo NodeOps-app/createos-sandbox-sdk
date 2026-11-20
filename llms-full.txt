@@ -269,8 +269,8 @@ at [`llms.txt`](../llms.txt) and the complete corpus is bundled in
   failures with backoff and jitter; see [reliability](./explanation/reliability.md).
 - **Sandboxes bill while running.** Every example here tears down with
   `try / finally`; set an idle [auto-pause](./how-to/lifecycle.md) for safety.
-- **Not yet on npm.** Install from a local checkout until the first release —
-  see the [README](../README.md).
+- **Available on npm.** Install `@nodeops-createos/sandbox`; see the
+  [quickstart](./quickstart.md).
 
 
 ---
@@ -288,9 +288,6 @@ and tear it down. For a full guided lesson, see the
 bun add @nodeops-createos/sandbox
 # or: npm install @nodeops-createos/sandbox
 ```
-
-> **Not yet published to npm.** Until the first release, install from a local
-> checkout (see the [README](../README.md)).
 
 The SDK is ESM-only with zero runtime dependencies. It runs on Node 20+, Bun,
 Deno, Cloudflare Workers, Vercel Edge, and the browser.
@@ -6712,12 +6709,11 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 ## Install
 
 ```
-npm install createos-sandbox-sdk
+npm install @nodeops-createos/sandbox
 ```
 
-Not yet published to npm — until the first release, install from a local
-checkout. Configure with `CREATEOS_SANDBOX_BASE_URL` (required) and
-`CREATEOS_SANDBOX_API_KEY`.
+Set `CREATEOS_SANDBOX_API_KEY` to authenticate. Set
+`CREATEOS_SANDBOX_BASE_URL` only to use a different control plane.
 
 ## Docs
 

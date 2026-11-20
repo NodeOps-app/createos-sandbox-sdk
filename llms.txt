@@ -9,12 +9,11 @@
 ## Install
 
 ```
-npm install createos-sandbox-sdk
+npm install @nodeops-createos/sandbox
 ```
 
-Not yet published to npm — until the first release, install from a local
-checkout. Configure with `CREATEOS_SANDBOX_BASE_URL` (required) and
-`CREATEOS_SANDBOX_API_KEY`.
+Set `CREATEOS_SANDBOX_API_KEY` to authenticate. Set
+`CREATEOS_SANDBOX_BASE_URL` only to use a different control plane.
 
 ## Docs
 
