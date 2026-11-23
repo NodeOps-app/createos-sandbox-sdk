@@ -15,8 +15,17 @@ const sandbox = await Sandbox.create({
   shape: "s-1vcpu-256mb",
   rootfs: "devbox:1",
   labels: { example: "hello-world" },
+  timeout_minutes: 10,
+  sigterm_before_expiry: true,
 });
-console.log("created:", sandbox.id);
+console.log(
+  "created:",
+  sandbox.id,
+  "expires:",
+  sandbox.data.expires_at,
+  "sigterm warning:",
+  sandbox.data.sigterm_before_expiry,
+);
 
 try {
   // 2. Run. runCommand is buffered: it blocks until the process exits and

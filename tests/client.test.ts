@@ -51,20 +51,33 @@ describe("createSandbox", () => {
     expect(body?.disks).toEqual([{ disk_id: "data", mount_path: "/mnt/data" }]);
   });
 
-  test("forwards labels and preserves response labels on the handle", async () => {
+  test("forwards labels and expiry and preserves them on the handle", async () => {
     let body: Record<string, unknown> | undefined;
     const client = makeClient((_url, init) => {
       body = JSON.parse(String(init.body));
-      return Promise.resolve(success({ ...CREATE_RESPONSE, labels: { team: "backend" } }));
+      return Promise.resolve(
+        success({
+          ...CREATE_RESPONSE,
+          labels: { team: "backend" },
+          expires_at: "2026-11-23T12:10:00Z",
+          sigterm_before_expiry: true,
+        }),
+      );
     });
 
     const sandbox = await client.createSandbox({
       shape: "s",
       labels: { team: "backend" },
+      timeout_minutes: 10,
+      sigterm_before_expiry: true,
     });
 
     expect(body?.labels).toEqual({ team: "backend" });
+    expect(body?.timeout_minutes).toBe(10);
+    expect(body?.sigterm_before_expiry).toBe(true);
     expect(sandbox.data.labels).toEqual({ team: "backend" });
+    expect(sandbox.data.expires_at).toBe("2026-11-23T12:10:00Z");
+    expect(sandbox.data.sigterm_before_expiry).toBe(true);
   });
 });
 

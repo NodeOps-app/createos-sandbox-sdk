@@ -113,6 +113,8 @@ backs the `Sandbox` handle. Optional fields are `omitempty` server-side.
 | `id` | `string` | Sandbox id. |
 | `status` | `SandboxStatus` | Current lifecycle state. |
 | `labels` | `Record<string, string>?` | User-defined metadata attached to the sandbox. |
+| `expires_at` | `string?` | Absolute RFC 3339 deadline when a lifetime was requested. |
+| `sigterm_before_expiry` | `boolean?` | Whether the final-minute SIGTERM warning was requested. |
 | `ip` | `string?` | Private IP. Absent while `creating`. |
 | `vcpu` | `number` | Virtual CPU count. |
 | `mem_mib` | `number` | Memory in MiB. |
@@ -147,6 +149,8 @@ Body of `POST /v1/sandboxes`. Only `shape` is required.
 | `rootfs` | `string?` | Rootfs catalog name or template id/name. Empty = host default. |
 | `name` | `string?` | User-facing name, unique per user. Empty = auto-generated. |
 | `labels` | `Record<string, string>?` | User-defined metadata for organizing and filtering sandboxes. |
+| `timeout_minutes` | `number?` | Absolute lifetime in whole minutes (2–1440) from first reaching `running`. |
+| `sigterm_before_expiry` | `boolean?` | Request a best-effort SIGTERM warning in the final minute. Requires `timeout_minutes`. |
 | `networks` | `NetworkEntry[]?` | Overlay networks to join at create time. |
 | `disk_mib` | `number?` | Overlay disk size in MiB. `0` = shape default. |
 | `egress` | `string[]?` | Egress allowlist. Empty / `["*"]` = allow all. |

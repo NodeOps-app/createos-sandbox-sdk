@@ -15,7 +15,7 @@ production control plane and only needs to be set to override.
 ## What it does
 
 1. Creates a sandbox on the smallest shape (`s-1vcpu-256mb`) with rootfs
-   `devbox:1`.
+   `devbox:1`, a 10-minute lifetime, and a final-minute SIGTERM warning.
 2. Runs `uname -a` and `cat /etc/os-release` via `runCommand` and prints
    the buffered stdout.
 3. Destroys the sandbox.
@@ -25,6 +25,7 @@ production control plane and only needs to be set to override.
 | primitive         | SDK call                                    |
 | ----------------- | ------------------------------------------- |
 | Sandbox lifecycle | `Sandbox.create()` (blocks until `running`) |
+| Sandbox expiry    | `timeout_minutes`, `sigterm_before_expiry`  |
 | Buffered exec     | `sandbox.runCommand()`                      |
 | Tear down         | `sandbox.destroy()`                         |
 

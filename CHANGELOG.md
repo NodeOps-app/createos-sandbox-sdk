@@ -20,6 +20,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Optional sandbox expiry through `CreateSandboxRequest.timeout_minutes`, with
+  `expires_at` response fields and an optional final-minute SIGTERM warning.
 - Checkpoint create, list, restore, and delete operations through
   `Sandbox.checkpoints`.
 - Sandbox labels on create and response types, AND-matched label filtering in
@@ -30,7 +32,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Set the next package version and default user agent to `0.8.3`.
+- Set the next package version and default user agent to `0.8.4`.
 
 ## [0.8.1] — 2026-08-13
 

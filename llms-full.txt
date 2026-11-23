@@ -42,6 +42,8 @@ const sandbox = await client.createSandbox({
   shape: "s-1vcpu-1gb",
   rootfs: "devbox:1",
   labels: { team: "backend", environment: "test" },
+  timeout_minutes: 10,
+  sigterm_before_expiry: true,
   // Egress allowlist: the sandbox reaches PyPI and nothing else.
   egress: ["pypi.org:443", "*.pythonhosted.org:443"],
 });
@@ -60,6 +62,12 @@ try {
 ```
 
 Omit `egress` (or pass `["*"]`) to allow all outbound traffic. For a sandbox
+with an expiry, `timeout_minutes` accepts 2–1440 whole minutes and starts when
+the sandbox first reaches `running`; activity and pause/resume do not extend it.
+`sigterm_before_expiry` requests a best-effort warning to managed workloads
+during the final minute and requires `timeout_minutes`.
+
+For a sandbox
 that outlives one command — a dev server, a session an agent returns to — let
 it pause itself when idle instead of destroying it:
 
@@ -5699,6 +5707,8 @@ backs the `Sandbox` handle. Optional fields are `omitempty` server-side.
 | `id` | `string` | Sandbox id. |
 | `status` | `SandboxStatus` | Current lifecycle state. |
 | `labels` | `Record<string, string>?` | User-defined metadata attached to the sandbox. |
+| `expires_at` | `string?` | Absolute RFC 3339 deadline when a lifetime was requested. |
+| `sigterm_before_expiry` | `boolean?` | Whether the final-minute SIGTERM warning was requested. |
 | `ip` | `string?` | Private IP. Absent while `creating`. |
 | `vcpu` | `number` | Virtual CPU count. |
 | `mem_mib` | `number` | Memory in MiB. |
@@ -5733,6 +5743,8 @@ Body of `POST /v1/sandboxes`. Only `shape` is required.
 | `rootfs` | `string?` | Rootfs catalog name or template id/name. Empty = host default. |
 | `name` | `string?` | User-facing name, unique per user. Empty = auto-generated. |
 | `labels` | `Record<string, string>?` | User-defined metadata for organizing and filtering sandboxes. |
+| `timeout_minutes` | `number?` | Absolute lifetime in whole minutes (2–1440) from first reaching `running`. |
+| `sigterm_before_expiry` | `boolean?` | Request a best-effort SIGTERM warning in the final minute. Requires `timeout_minutes`. |
 | `networks` | `NetworkEntry[]?` | Overlay networks to join at create time. |
 | `disk_mib` | `number?` | Overlay disk size in MiB. `0` = shape default. |
 | `egress` | `string[]?` | Egress allowlist. Empty / `["*"]` = allow all. |
@@ -6632,7 +6644,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 
 | # | Example | What it shows | Setup |
 | --- | --- | --- | --- |
-| 01 | [01-hello-world](../examples/01-hello-world/) | Smoke test: create a sandbox, run one buffered command, destroy it. | — |
+| 01 | [01-hello-world](../examples/01-hello-world/) | Smoke test: create a time-limited sandbox, run one buffered command, destroy it. | — |
 | 02 | [02-code-interpreter](../examples/02-code-interpreter/) | Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant. | — |
 | 11 | [11-tigerfs-postgres-filesystem](../examples/11-tigerfs-postgres-filesystem/) | Run PostgreSQL on a TigerFS filesystem layer in one VM. | — |
 | 26 | [26-s3-bucket-mount](../examples/26-s3-bucket-mount/) | Query a public S3 bucket via DuckDB httpfs inside a sandbox. | — |
@@ -6758,7 +6770,7 @@ Explanation (understanding-oriented):
 Runnable, one per directory. Machine-readable index: [examples/manifest.json](examples/manifest.json).
 
 <!-- BEGIN GENERATED: examples (do not edit; run `bun run docs:gen`) -->
-- [01-hello-world](examples/01-hello-world/) — Smoke test: create a sandbox, run one buffered command, destroy it.
+- [01-hello-world](examples/01-hello-world/) — Smoke test: create a time-limited sandbox, run one buffered command, destroy it.
 - [02-code-interpreter](examples/02-code-interpreter/) — Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant.
 - [03-dev-server-preview-url](examples/03-dev-server-preview-url/) — Bind an HTTP server and reach it via a per-sandbox ingress preview URL.
 - [04-ai-code-agent](examples/04-ai-code-agent/) — Use a sandbox as the code-execution environment for a Claude agent.

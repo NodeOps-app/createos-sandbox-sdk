@@ -53,7 +53,7 @@ Runnable, self-contained programs — one per directory under [`examples/`](../e
 
 | # | Example | What it shows | Setup |
 | --- | --- | --- | --- |
-| 01 | [01-hello-world](../examples/01-hello-world/) | Smoke test: create a sandbox, run one buffered command, destroy it. | — |
+| 01 | [01-hello-world](../examples/01-hello-world/) | Smoke test: create a time-limited sandbox, run one buffered command, destroy it. | — |
 | 02 | [02-code-interpreter](../examples/02-code-interpreter/) | Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant. | — |
 | 11 | [11-tigerfs-postgres-filesystem](../examples/11-tigerfs-postgres-filesystem/) | Run PostgreSQL on a TigerFS filesystem layer in one VM. | — |
 | 26 | [26-s3-bucket-mount](../examples/26-s3-bucket-mount/) | Query a public S3 bucket via DuckDB httpfs inside a sandbox. | — |
