@@ -206,6 +206,12 @@ export interface CreateSandboxRequest {
   name?: string;
   /** User-defined metadata for organizing and filtering sandboxes. */
   labels?: Record<string, string>;
+  /** Absolute lifetime in whole minutes from first reaching running. Valid range: 2–1440.
+   *  Activity and pause/resume do not extend it. */
+  timeout_minutes?: number;
+  /** Request a best-effort SIGTERM warning to managed workloads during the final
+   *  minute. Requires `timeout_minutes`. */
+  sigterm_before_expiry?: boolean;
   /** Overlay networks to join at create time. */
   networks?: NetworkEntry[];
   /** Overlay disk size in MiB. 0 = shape default. */
@@ -242,6 +248,10 @@ export interface CreateSandboxRequest {
 export interface CreateSandboxResponse {
   /** Reusable snapshot used to create this VM, when restored. */
   snapshot_id?: string;
+  /** Absolute RFC 3339 expiry deadline when a lifetime was requested. */
+  expires_at?: string;
+  /** Whether the final-minute SIGTERM warning was requested. */
+  sigterm_before_expiry?: boolean;
   id: string;
   name: string;
   labels?: Record<string, string>;
@@ -286,6 +296,10 @@ export type SandboxStatus =
 export interface SandboxView {
   /** Reusable snapshot used to create this VM, when restored. */
   snapshot_id?: string;
+  /** Absolute RFC 3339 expiry deadline when a lifetime was requested. */
+  expires_at?: string;
+  /** Whether the final-minute SIGTERM warning was requested. */
+  sigterm_before_expiry?: boolean;
   id: string;
   status: SandboxStatus;
   /** User-defined metadata attached to this sandbox. */

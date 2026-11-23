@@ -33,6 +33,8 @@ const sandbox = await client.createSandbox({
   shape: "s-1vcpu-1gb",
   rootfs: "devbox:1",
   labels: { team: "backend", environment: "test" },
+  timeout_minutes: 10,
+  sigterm_before_expiry: true,
   // Egress allowlist: the sandbox reaches PyPI and nothing else.
   egress: ["pypi.org:443", "*.pythonhosted.org:443"],
 });
@@ -51,6 +53,12 @@ try {
 ```
 
 Omit `egress` (or pass `["*"]`) to allow all outbound traffic. For a sandbox
+with an expiry, `timeout_minutes` accepts 2–1440 whole minutes and starts when
+the sandbox first reaches `running`; activity and pause/resume do not extend it.
+`sigterm_before_expiry` requests a best-effort warning to managed workloads
+during the final minute and requires `timeout_minutes`.
+
+For a sandbox
 that outlives one command — a dev server, a session an agent returns to — let
 it pause itself when idle instead of destroying it:
 

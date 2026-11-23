@@ -26,7 +26,7 @@ bun 01-hello-world/index.ts
 <!-- BEGIN GENERATED: examples (do not edit; run `bun run docs:gen`) -->
 | # | Example | What it shows | Key SDK primitives | Setup |
 | --- | --- | --- | --- | --- |
-| 01 | [01-hello-world](01-hello-world/) | Smoke test: create a sandbox, run one buffered command, destroy it. | createSandbox, runCommand, destroy | — |
+| 01 | [01-hello-world](01-hello-world/) | Smoke test: create a time-limited sandbox, run one buffered command, destroy it. | createSandbox, runCommand, destroy | — |
 | 02 | [02-code-interpreter](02-code-interpreter/) | Upload a Python script, run it, capture stdout/stderr. Includes a streaming variant. | createSandbox, files.upload, runCommand, streamCommand, destroy | — |
 | 03 | [03-dev-server-preview-url](03-dev-server-preview-url/) | Bind an HTTP server and reach it via a per-sandbox ingress preview URL. | createSandbox, runCommand, waitForPortReady, previewUrl, destroy | — |
 | 04 | [04-ai-code-agent](04-ai-code-agent/) | Use a sandbox as the code-execution environment for a Claude agent. | createSandbox, files.upload, runCommand, destroy | — |

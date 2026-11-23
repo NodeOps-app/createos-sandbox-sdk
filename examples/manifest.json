@@ -6,7 +6,7 @@
       "slug": "hello-world",
       "dir": "01-hello-world",
       "title": "Hello world",
-      "summary": "Smoke test: create a sandbox, run one buffered command, destroy it.",
+      "summary": "Smoke test: create a time-limited sandbox, run one buffered command, destroy it.",
       "primitives": ["createSandbox", "runCommand", "destroy"],
       "deps": [],
       "env": ["CREATEOS_SANDBOX_API_KEY", "CREATEOS_SANDBOX_BASE_URL"],
