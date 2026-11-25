@@ -596,13 +596,16 @@ export function createNodeTransportFromModules(
   const getSession = (): Promise<import("node:http2").ClientHttp2Session> => {
     if (session && !session.closed && !session.destroyed) return Promise.resolve(session);
     sessionReady ??= new Promise((resolve, reject) => {
-      const next = http2.connect(origin);
+      const next = http2.connect(origin, {
+        settings: { initialWindowSize: 8 * 1024 * 1024 },
+      });
       const fail = (error: Error): void => {
         sessionReady = undefined;
         reject(error);
       };
       next.once("error", fail);
       next.once("connect", () => {
+        next.setLocalWindowSize(16 * 1024 * 1024);
         next.off("error", fail);
         next.on("error", () => {
           if (session === next) {

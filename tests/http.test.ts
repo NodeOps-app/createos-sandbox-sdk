@@ -71,6 +71,10 @@ class FakeHttp2Session extends EventEmitter {
   requests: FakeHttp2Request[] = [];
   lastHeaders: Record<string, string> | undefined;
 
+  setLocalWindowSize(bytes: number): void {
+    expect(bytes).toBe(16 * 1024 * 1024);
+  }
+
   ref(): void {
     this.referenced = true;
   }
@@ -334,7 +338,8 @@ describe("transport prewarm", () => {
       },
     } as unknown as typeof import("undici");
     const http2Module = {
-      connect: () => {
+      connect: (_origin: string, options: import("node:http2").ClientSessionOptions) => {
+        expect(options.settings?.initialWindowSize).toBe(8 * 1024 * 1024);
         const session = new FakeHttp2Session();
         sessions.push(session);
         queueMicrotask(() => session.emit("connect"));
